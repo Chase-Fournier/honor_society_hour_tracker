@@ -1,7 +1,7 @@
 import 'dart:ffi';
 import 'dart:isolate';
 import 'dart:math';
-
+import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -250,78 +250,179 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
   final _formKey = GlobalKey<FormState>();
   late String _email;
   late String _password;
-  String? _userId;
-
-  @override
-  void initState() {
-    super.initState();
-    _email = '';
-    _password = '';
-
-    supabase.auth.onAuthStateChange.listen((data) {
-      setState(() {
-        _userId = data.session?.user.id;
-      });
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Authentication'),
-      ),
-      body: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              TextFormField(
-                decoration: InputDecoration(
-                  labelText: 'Email',
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your email';
-                  }
-                  // Add email validation logic if needed
-                  return null;
-                },
-                onSaved: (value) {
-                  _email = value!;
-                },
-              ),
-              SizedBox(height: 16.0),
-              TextFormField(
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                ),
-                obscureText: true,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your password';
-                  }
-                  // Add password validation logic if needed
-                  return null;
-                },
-                onSaved: (value) {
-                  _password = value!;
-                },
-              ),
-              SizedBox(height: 24.0),
-              ElevatedButton(
-                onPressed: _signIn,
-                child: Text('Sign In'),
-              ),
+      body: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            colors: [
+              Color.fromARGB(255, 50, 0, 230),
+              Color.fromARGB(255, 46, 33, 230),
+              Color.fromARGB(255, 74, 71, 241),
             ],
           ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            SizedBox(height: 80),
+            Padding(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  FadeInUp(
+                    duration: Duration(milliseconds: 1000),
+                    child: Text(
+                      "Login",
+                      style: TextStyle(color: Colors.white, fontSize: 40),
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  FadeInUp(
+                    duration: Duration(milliseconds: 1300),
+                    child: Text(
+                      "Welcome Back",
+                      style: TextStyle(color: Colors.white, fontSize: 18),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 20),
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(60),
+                    topRight: Radius.circular(60),
+                  ),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(30),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      children: <Widget>[
+                        SizedBox(height: 60),
+                        FadeInUp(
+                          duration: Duration(milliseconds: 1400),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Color.fromRGBO(47, 27, 225, 0.298),
+                                  blurRadius: 20,
+                                  offset: Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              children: <Widget>[
+                                Container(
+                                  padding: EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        color: Colors.grey.shade200,
+                                      ),
+                                    ),
+                                  ),
+                                  child: TextFormField(
+                                    decoration: InputDecoration(
+                                      hintText: "Email",
+                                      hintStyle: TextStyle(color: Colors.grey),
+                                      border: InputBorder.none,
+                                    ),
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please enter your email';
+                                      }
+                                      return null;
+                                    },
+                                    onSaved: (value) {
+                                      _email = value!;
+                                    },
+                                  ),
+                                ),
+                                Container(
+                                  padding: EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        color: Colors.grey.shade200,
+                                      ),
+                                    ),
+                                  ),
+                                  child: TextFormField(
+                                    obscureText: true,
+                                    decoration: InputDecoration(
+                                      hintText: "Password",
+                                      hintStyle: TextStyle(color: Colors.grey),
+                                      border: InputBorder.none,
+                                    ),
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please enter your password';
+                                      }
+                                      return null;
+                                    },
+                                    onSaved: (value) {
+                                      _password = value!;
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 40),
+                        FadeInUp(
+                          duration: Duration(milliseconds: 1500),
+                          child: Text(
+                            "Forgot Password?",
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                        SizedBox(height: 40),
+                        FadeInUp(
+                          duration: Duration(milliseconds: 1600),
+                          child: MaterialButton(
+                            onPressed: _signIn,
+                            height: 50,
+                            color: const Color.fromARGB(255, 35, 0, 230),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(50),
+                            ),
+                            child: Center(
+                              child: Text(
+                                "Login",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
-
   void _signIn() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
@@ -503,6 +604,8 @@ class _HomePageState extends State<HomePage> {
 Widget build(BuildContext context) {
   return Scaffold(
     appBar: AppBar(
+      elevation: 20,
+      shadowColor: Theme.of(context).colorScheme.shadow,
       title: Text(
         'Home',
         style: TextStyle(
@@ -525,7 +628,6 @@ Widget build(BuildContext context) {
           _buildProgressBar(context, 'Service Hours', _serviceHoursCompleted, 14),
           _buildProgressBar(context, 'Tutoring Hours', _tutoringHoursCompleted, 6),
           _buildProgressBar(context, 'Meeting Hours', _meetingHoursCompleted, 5),
-
           SizedBox(height: 20),
           ListView.builder(
             shrinkWrap: true,
@@ -762,6 +864,8 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        elevation: 20,
+        shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
           'Completed Hours',
           style: TextStyle(
@@ -977,17 +1081,38 @@ class _SettingsPageState extends State<SettingsPage> {
 
   
   
- Future<void> _updateAccount(String? newEmail, String? newPassword) async {
+ Future<void> _updatePassword(String newPassword) async {
   final User? user = supabase.auth.currentUser;
 
-   final response = await supabase.auth.updateUser(UserAttributes(email: newEmail, password: newPassword));
-
+  if (newPassword.length >= 6){
+   try {final response = await supabase.auth.updateUser(UserAttributes(password: newPassword));}
+   catch (e) {}
+   
+   
   }
+  else {
+  const snackBar = SnackBar(content: Text('Password must Be more than 6 Characters'),);
+   ScaffoldMessenger.of(context).showSnackBar(snackBar);
+  }
+ }
+
+ Future<void> _updateEmail(String newEmail) async {
+  final User? user = supabase.auth.currentUser;
+  if (user?.email != newEmail){
+   try {final response = await supabase.auth.updateUser(UserAttributes(email: newEmail));}
+   catch (e) {const snackBar = SnackBar(content: Text('Email Overflow, Try Again Later'),);
+   ScaffoldMessenger.of(context).showSnackBar(snackBar);}
+  }
+  else {}
+   
+ }
 
    @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        elevation: 20,
+        shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
           'Profile',
           style: TextStyle(
@@ -1189,6 +1314,8 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        elevation: 20,
+        shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
           'Admin Events',
           style: TextStyle(
@@ -1855,6 +1982,8 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        elevation: 20,
+        shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
           'Attendance',
           style: TextStyle(
@@ -2333,6 +2462,8 @@ Future<void> _saveCustomEvent(
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        elevation: 20,
+        shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
           'Admin List',
           style: TextStyle(
@@ -2463,6 +2594,8 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        elevation: 20,
+        shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
           'Total NHS Hours',
           style: TextStyle(
