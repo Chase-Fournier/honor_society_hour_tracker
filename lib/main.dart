@@ -15,6 +15,7 @@ import 'package:credential_manager/credential_manager.dart';
 import 'package:bottom_navy_bar/bottom_navy_bar.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 CredentialManager credentialManager = CredentialManager();
@@ -1461,7 +1462,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                 return ListTile(
                                   title: Text(
                       'Time: ${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 16.0,
                       ),
                     ),
@@ -1491,7 +1492,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
 void _showAddEventDialog() async {
   _eventDate = DateTime.now();
   _timeSlots = [];
-    _selectedEventType = null;
+  _selectedEventType = null;
   final result = await showDialog(
     context: context,
     builder: (context) {
@@ -1499,13 +1500,16 @@ void _showAddEventDialog() async {
         builder: (BuildContext context, StateSetter setState) {
           return AlertDialog(
             title: Text('Add Event'),
-            content: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+            content: SingleChildScrollView(
+              child: Container(
+                width: double.maxFinite,
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                     TextFormField(
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Event Name',
                   ),
                   validator: (value) {
@@ -1520,7 +1524,7 @@ void _showAddEventDialog() async {
                 ),
                 SizedBox(height: 16.0),
                 TextFormField(
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Event Description',
                   ),
                   validator: (value) {
@@ -1579,37 +1583,42 @@ void _showAddEventDialog() async {
                     },
                   ),
 
-               SizedBox(height: 16.0),
-               Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (int i = 0; i < _timeSlots.length; i++)
-                      ListTile(
-                        title: Text('${_timeSlots[i].time.format(context)} - ${_timeSlots[i].endTime.format(context)}'),
-                        subtitle: Text('Number of people: ${_timeSlots[i].numberOfPeople}'),
-                        trailing: IconButton(
-                          icon: Icon(Icons.delete),
-                          onPressed: () {
-                            setState(() {
-                              _timeSlots.removeAt(i);
-                            });
-                          },
+                SizedBox(height: 16.0),
+                      Container(
+                        constraints: BoxConstraints(maxHeight: 200),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              for (int i = 0; i < _timeSlots.length; i++)
+                                ListTile(
+                                  title: Text('${_timeSlots[i].time.format(context)} - ${_timeSlots[i].endTime.format(context)}'),
+                                  subtitle: Text('Number of people: ${_timeSlots[i].numberOfPeople}'),
+                                  trailing: IconButton(
+                                    icon: Icon(Icons.delete),
+                                    onPressed: () {
+                                      setState(() {
+                                        _timeSlots.removeAt(i);
+                                      });
+                                    },
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
-                  ],
-                ),
-
-                    SizedBox(height: 16.0),
-                    ElevatedButton(
-                      child: Text('Add Time Slot'),
-                      onPressed: () {
-                        _addTimeSlot(setState);
-                      },
-                    ),
-                  ],
+                      SizedBox(height: 16.0),
+                      ElevatedButton(
+                        child: Text('Add Time Slot'),
+                        onPressed: () {
+                          _addTimeSlot(setState);
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            
+            ),
             actions: [
               TextButton(
                 child: Text('Cancel'),
@@ -1700,18 +1709,21 @@ void _addTimeSlot(StateSetter setState) async {
   _timeSlots = List<TimeSlot>.from(event.timeSlots);
   _selectedEventType = event.type;
 
-  final result = await showDialog(    context: context,
+  final result = await showDialog(
+    context: context,
     builder: (context) {
       return StatefulBuilder(
         builder: (BuildContext context, StateSetter setState) {
           return AlertDialog(
             title: Text('Edit Event'),
             content: SingleChildScrollView(
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+              child: Container(
+                width: double.maxFinite,
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                     TextFormField(
                       initialValue: _eventName,
                       decoration: InputDecoration(
@@ -1787,11 +1799,14 @@ void _addTimeSlot(StateSetter setState) async {
                         return null;
                       },
                     ),
-                    Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (int i = 0; i < _timeSlots.length; i++)
-                      ListTile(
+                    Container(
+                        constraints: BoxConstraints(maxHeight: 200),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              for (int i = 0; i < _timeSlots.length; i++)
+                                ListTile(
                         title: Text('${_timeSlots[i].time.format(context)} - ${_timeSlots[i].endTime.format(context)}'),
                         subtitle: Text('Number of people: ${_timeSlots[i].numberOfPeople}'),
                         trailing: IconButton(
@@ -1803,16 +1818,19 @@ void _addTimeSlot(StateSetter setState) async {
                           },
                         ),
                       ),
-                  ],
-                ),
-                    SizedBox(height: 16.0),
-                    ElevatedButton(
-                      child: Text('Add Time Slot'),
-                      onPressed: () {
-                        _addTimeSlot(setState);
-                      },
-                    ),
-                  ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 16.0),
+                      ElevatedButton(
+                        child: Text('Add Time Slot'),
+                        onPressed: () {
+                          _addTimeSlot(setState);
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1833,7 +1851,7 @@ void _addTimeSlot(StateSetter setState) async {
                   }
                 },
               ),
-            ],
+              ],
           );
         },
       );
