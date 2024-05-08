@@ -462,7 +462,9 @@ class _HomePageState extends State<HomePage> {
    double _serviceHoursCompleted = 0;
   double _tutoringHoursCompleted = 0;
   double _meetingHoursCompleted = 0;
-
+  double _servicePotentialHours = 0;
+  double _tutoringPotentialHours = 0;
+  double  _meetingPotentialHours = 0;
 
   List<Event> _events = [];
 
@@ -470,7 +472,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _fetchEvents();
-    _fetchCompletedHours();
+    
   }
 
   Future<void> _fetchEvents() async {
@@ -485,24 +487,29 @@ class _HomePageState extends State<HomePage> {
   setState(() {
       _events = data.map((json) => Event.fromJson(json)).toList();
     });
+    _fetchCompletedHours();
 }
     
   }
 
-   Future<void> _fetchCompletedHours() async {
-    final User? user = supabase.auth.currentUser;
-    final userId = user?.id;
+ Future<void> _fetchCompletedHours() async {
+  final User? user = supabase.auth.currentUser;
+  final userId = user?.id;
 
+  if (userId != null) {
     final response = await Supabase.instance.client
         .from('Service hours')
         .select('hours, type')
         .eq('user_id', userId as String);
 
-    if (response != null) {
+    if (response != null && _events != null) {
       final data = response;
       double serviceHours = 0;
       double tutoringHours = 0;
       double meetingHours = 0;
+      double serviceHoursC = 0;
+      double tutoringHoursC = 0;
+      double meetingHoursC = 0;
 
       for (final entry in data) {
         final hours = entry['hours'];
@@ -510,27 +517,96 @@ class _HomePageState extends State<HomePage> {
 
         if (eventType == 'service' || eventType == 'Service') {
           serviceHours += hours;
+          serviceHoursC += hours;
         } else if (eventType == 'tutoring' || eventType == 'Tutoring') {
           tutoringHours += hours;
-          print("works");
+          tutoringHoursC += hours;
         } else if (eventType == 'meeting' || eventType == 'Meeting') {
           meetingHours += hours;
+          meetingHoursC += hours;
         }
       }
-    
 
-    if (this.mounted) {
-      setState(() {
-        _serviceHoursCompleted = serviceHours;
-        _tutoringHoursCompleted = tutoringHours;
-        _meetingHoursCompleted = meetingHours;
-      });
-    } else {
-      // Handle the error case
-      print('Error fetching completed hours: ${response}');
-    }
+      for (final event in _events) {
+        for (final timeSlot in event.timeSlots) {
+          final isSignedUp = timeSlot.attendees.any((attendee) => attendee.name == userId);
+          final isNotPresent = timeSlot.attendees.any((attendee) => attendee.name == userId && !attendee.isPresent);
+
+          if (isSignedUp && isNotPresent) {
+            final duration = _calculateDuration(timeSlot.time, timeSlot.endTime);
+            if (event.type == 'Service') {
+              serviceHours += duration;
+            } else if (event.type == 'Tutoring') {
+              tutoringHours += duration;
+            } else if (event.type == 'Meeting') {
+              meetingHours += duration;
+            }
+          }
+        }
+      }
+
+      if (this.mounted) {
+        setState(() {
+          _servicePotentialHours = serviceHours;
+          _tutoringPotentialHours = tutoringHours;
+          _meetingPotentialHours = meetingHours;
+          _serviceHoursCompleted = serviceHoursC;
+          _tutoringHoursCompleted = tutoringHoursC;
+          _meetingHoursCompleted = meetingHoursC;
+        });
+      } else {
+        // Handle the error case
+        print('Error fetching completed hours: ${response}');
+      }
     }
   }
+}
+
+double _calculateDuration(TimeOfDay startTime, TimeOfDay endTime) {
+  final startMinutes = startTime.hour * 60 + startTime.minute;
+  final endMinutes = endTime.hour * 60 + endTime.minute;
+  final duration = (endMinutes - startMinutes) / 60;
+  return duration;
+}
+
+Widget _buildDoubleProgressBar(context, String title, double completedHours, double potentialHours, int hoursNeeded) {
+  return Padding(
+    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Potential $title: ${potentialHours.toStringAsFixed(2)} hours',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 10),
+        Stack(
+          children: [
+            LinearProgressIndicator(
+              value: potentialHours / hoursNeeded,
+              backgroundColor: Colors.grey[300],
+              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor.withOpacity(0.5)),
+              minHeight: 10,
+              borderRadius: BorderRadius.all(Radius.circular(33)),
+            ),
+            LinearProgressIndicator(
+              value: completedHours / hoursNeeded,
+              backgroundColor: Colors.transparent,
+              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+              minHeight: 10,
+              borderRadius: BorderRadius.all(Radius.circular(33)),
+            ),
+          ],
+        ),
+        SizedBox(height: 5),
+        Text(
+          'Completed: ${completedHours.toStringAsFixed(2)} hours',
+          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildEventCard(Event event) {
   return Card(
@@ -625,9 +701,9 @@ Widget build(BuildContext context) {
     body: SingleChildScrollView(
       child: Column(
         children: [
-          _buildProgressBar(context, 'Service Hours', _serviceHoursCompleted, 14),
-          _buildProgressBar(context, 'Tutoring Hours', _tutoringHoursCompleted, 6),
-          _buildProgressBar(context, 'Meeting Hours', _meetingHoursCompleted, 5),
+          _buildDoubleProgressBar(context, 'Service Hours', _serviceHoursCompleted, _servicePotentialHours, 14),
+          _buildDoubleProgressBar(context, 'Tutoring Hours', _tutoringHoursCompleted, _tutoringPotentialHours, 6),
+          _buildDoubleProgressBar(context, 'Meeting Hours', _meetingHoursCompleted, _meetingPotentialHours, 5),
           SizedBox(height: 20),
           ListView.builder(
             shrinkWrap: true,
