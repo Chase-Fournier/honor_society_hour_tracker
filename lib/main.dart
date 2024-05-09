@@ -384,14 +384,7 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
                             ),
                           ),
                         ),
-                        SizedBox(height: 40),
-                        FadeInUp(
-                          duration: Duration(milliseconds: 1500),
-                          child: Text(
-                            "Forgot Password?",
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ),
+                        
                         SizedBox(height: 40),
                         FadeInUp(
                           duration: Duration(milliseconds: 1600),
