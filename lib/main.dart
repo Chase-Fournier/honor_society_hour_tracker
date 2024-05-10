@@ -560,11 +560,10 @@ class _HomePageState extends State<HomePage> {
   List<Event> _events = [];
 
   @override
-  void initState() {
-    super.initState();
-    _fetchEvents();
-    
-  }
+void initState() {
+  super.initState();
+  _fetchEvents();
+}
 
   Future<void> _fetchEvents() async {
     final response = await Supabase.instance.client
@@ -676,14 +675,14 @@ Widget _buildDoubleProgressBar(context, String title, double completedHours, dou
             LinearProgressIndicator(
               value: potentialHours / hoursNeeded,
               backgroundColor: Colors.grey[300],
-              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor.withOpacity(0.5)),
+              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.5)),
               minHeight: 10,
               borderRadius: BorderRadius.all(Radius.circular(33)),
             ),
             LinearProgressIndicator(
               value: completedHours / hoursNeeded,
               backgroundColor: Colors.transparent,
-              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
               minHeight: 10,
               borderRadius: BorderRadius.all(Radius.circular(33)),
             ),
@@ -709,7 +708,7 @@ Widget _buildDoubleProgressBar(context, String title, double completedHours, dou
     child: CustomExpansionTile(
       title: ListTile(
         title: Text(
-          event.name,
+          event.name + " - " + event.date.month.toString() + "/" + event.date.day.toString() + "/" + event.date.year.toString(),
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 18.0,
@@ -970,7 +969,7 @@ Widget _buildProgressBar(context, String title, double completedHours, int hours
           LinearProgressIndicator(
             value: completedHours / hoursNeeded,
             backgroundColor: Colors.grey[300],
-            valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+            valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
             minHeight: 10,
             borderRadius: BorderRadius.all(Radius.circular(33)),
           ),
@@ -1209,7 +1208,7 @@ class ThemeProvider extends ChangeNotifier {
     await prefs.setBool('isDarkMode', _isDarkMode);
   }
 }
- 
+
 class SettingsPage extends StatefulWidget {
   @override
   _SettingsPageState createState() => _SettingsPageState();
@@ -1606,7 +1605,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
             child: CustomExpansionTile(
               title: ListTile(
                 title: Text(
-                  event.name,
+                  event.name + " - " + event.date.month.toString() + "/" + event.date.day.toString() + "/" + event.date.year.toString(),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 18.0,
@@ -2289,7 +2288,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
             child: CustomExpansionTile(
               title: ListTile(
                 title: Text(
-                  event.name,
+                  event.name + " - " + event.date.month.toString() + "/" + event.date.day.toString() + "/" + event.date.year.toString(),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 18.0,
@@ -2563,6 +2562,7 @@ class AdminListPage extends StatefulWidget {
 
 class _AdminListPageState extends State<AdminListPage> {
   List<UserProfile> _users = [];
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -2607,6 +2607,18 @@ class _AdminListPageState extends State<AdminListPage> {
     });
   }
   }
+
+  List<UserProfile> _getFilteredUsers() {
+  if (_searchQuery.isEmpty) {
+    return _users;
+  }
+
+  final lowercaseQuery = _searchQuery.toLowerCase();
+  return _users.where((user) {
+    final lowercaseName = user.name.toLowerCase();
+    return lowercaseName.contains(lowercaseQuery);
+  }).toList();
+}
 
 
 
@@ -2737,6 +2749,7 @@ Future<void> _saveCustomEvent(
 
   @override
   Widget build(BuildContext context) {
+    final filteredUsers = _getFilteredUsers();
     return Scaffold(
       appBar: AppBar(
         elevation: 20,
@@ -2757,12 +2770,32 @@ Future<void> _saveCustomEvent(
           ),
         ),
       ),
-      body: ListView.separated(
-        itemCount: _users.length,
-        separatorBuilder: (context, index) => SizedBox(height: 16),
-        itemBuilder: (context, index) {
-          final user = _users[index];
-          return Card(
+      body: Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.all(16.0),
+          child: TextField(
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+            decoration: InputDecoration(
+              labelText: 'Search',
+              prefixIcon: Icon(Icons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10.0),
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: ListView.separated(
+            itemCount: filteredUsers.length,
+            separatorBuilder: (context, index) => SizedBox(height: 16),
+            itemBuilder: (context, index) {
+              final user = filteredUsers[index];
+              return Card(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
@@ -2812,10 +2845,13 @@ Future<void> _saveCustomEvent(
               
             ),
           );
-        },
-      ),
-    );
-  }
+            },
+          ),
+        ),
+      ],
+    ),
+  );
+}
 }
 
 class AdminTotalHoursPage extends StatefulWidget {
