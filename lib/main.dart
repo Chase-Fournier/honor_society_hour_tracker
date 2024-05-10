@@ -1447,6 +1447,17 @@ class _SettingsPageState extends State<SettingsPage> {
               );
             },
           ),
+          SizedBox(height: 24.0),
+          ElevatedButton(
+            onPressed: _signOut,
+            child: Text('Sign Out'),
+            style: ElevatedButton.styleFrom(
+              padding: EdgeInsets.symmetric(vertical: 16.0),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+            ),
+          ),
         ],
       ),
     ),
@@ -1455,6 +1466,14 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
   );
 }
+
+Future<void> _signOut() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove('sessionData');
+  await supabase.auth.signOut();
+  Navigator.pushReplacementNamed(context, '/');
+}
+
 }
 // admin_events_page.dart
 class AdminEventsPage extends StatefulWidget {
