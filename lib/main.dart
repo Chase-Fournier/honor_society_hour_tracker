@@ -16,6 +16,8 @@ import 'package:bottom_navy_bar/bottom_navy_bar.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:add_2_calendar/add_2_calendar.dart';
+import 'dart:convert';
 
 
 CredentialManager credentialManager = CredentialManager();
@@ -248,6 +250,12 @@ class AuthenticationPage extends StatefulWidget {
 }
 
 class _AuthenticationPageState extends State<AuthenticationPage> {
+  @override
+void initState() {
+  super.initState();
+  _checkAndRecoverSession();
+}
+  
   final _formKey = GlobalKey<FormState>();
   late String _email;
   late String _password;
@@ -418,30 +426,92 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
     );
   }
   void _signIn() async {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
-      try {
-        final response = await supabase.auth.signInWithPassword(
-          email: _email,
-          password: _password,
-        );
-        if (response.user != null) {
-          // Sign-in successful, navigate to the home page
-          Navigator.pushReplacementNamed(context, '/main');
-        } else {
-          // Sign-in failed, show an error message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Sign-in failed. Please try again.')),
-          );
-        }
-      } catch (error) {
-        // Handle any errors that occur during sign-in
+  if (_formKey.currentState!.validate()) {
+    _formKey.currentState!.save();
+    try {
+      final response = await supabase.auth.signInWithPassword(
+        email: _email,
+        password: _password,
+        
+      );
+      if (response.session != null) {
+        // Sign-in successful, store the session data with an expiration time
+        final prefs = await SharedPreferences.getInstance();
+        final expiresAt = DateTime.now().add(Duration(days: 30)).millisecondsSinceEpoch ~/ 1000;
+        await prefs.setString('sessionData', json.encode(response.session));
+        print(json.encode(response.session));
+        // Navigate to the home page
+        Navigator.pushReplacementNamed(context, '/main');
+      } else {
+        // Sign-in failed, show an error message
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('An error occurred. Please try again.')),
+          SnackBar(content: Text('Sign-in failed. Please try again.')),
         );
       }
+    } catch (error) {
+      // Handle any errors that occur during sign-in
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('An error occurred. Please try again.')),
+      );
     }
   }
+}
+
+  Future<void> _checkAndRecoverSession() async {
+  final prefs = await SharedPreferences.getInstance();
+  final sessionDataJson = prefs.getString('sessionData');
+
+  if (sessionDataJson != null) {
+    try {
+      print("error 1");
+      final sessionData = json.decode(sessionDataJson);
+      final accessToken = sessionData['access_token'];
+      final refreshToken = sessionData['refresh_token'];
+      final expiresAt = sessionData['expires_at'];
+      final timeNow = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+     
+      if (expiresAt < timeNow) {
+        if (refreshToken != null) {
+          final response = await supabase.auth.refreshSession(refreshToken);
+          if (response.session != null) {
+            // Token refreshed successfully, update the stored session data
+            final newExpiresAt = DateTime.now().add(Duration(days: 30)).millisecondsSinceEpoch ~/ 1000;
+            final newSessionData = {
+              'access_token': response.session!.accessToken,
+              'refresh_token': response.session!.refreshToken,
+              'expires_in': response.session!.expiresIn,
+              'expires_at': newExpiresAt,
+            };
+            await prefs.setString('sessionData', json.encode(newSessionData));
+
+            // Navigate to the home page
+            Navigator.pushReplacementNamed(context, '/main');
+          } else {
+            // Token refresh failed, remove the session data
+            await prefs.remove('sessionData');
+          }
+        } else {
+          // Refresh token not available, remove the session data
+          await prefs.remove('sessionData');
+        }
+      } else {
+        // Session is still valid, recover the session
+        final response = await supabase.auth.recoverSession(sessionDataJson);
+        if (response.session != null) {
+          // Session recovered successfully, navigate to the home page
+          Navigator.pushReplacementNamed(context, '/main');
+        } else {
+          // Session recovery failed, remove the session data
+          await prefs.remove('sessionData');
+        }
+      }
+    } catch (error) {
+      // Handle any errors that occur during session recovery
+      print('Session recovery failed: $error');
+    }
+  }
+}
+
 }
 // navigation
 
@@ -643,9 +713,11 @@ Widget _buildDoubleProgressBar(context, String title, double completedHours, dou
             ),
           ),
           trailing: isSignedUp
-              ? ElevatedButton(
-                  child: Text('Signed Up'),
+              ? ElevatedButton.icon(
+                  icon: Icon(Icons.calendar_today),
+                  label: Text('Add to Calendar'),
                   onPressed: () {
+                    _addEventToCalendar(event, timeSlot);
                   },
                   style: ElevatedButton.styleFrom(
                     shape: RoundedRectangleBorder(
@@ -715,40 +787,48 @@ Widget build(BuildContext context) {
 }
 
   void _showSignUpForm(Event event, TimeSlot timeSlot) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Sign Up'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Event: ${event.name}'),
-              SizedBox(height: 8),
-              Text('Time: ${timeSlot.time.format(context)}'),
-              SizedBox(height: 8),
-              Text('Number of People: ${timeSlot.numberOfPeople}'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              child: Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            ElevatedButton(
-              child: Text('Sign Up'),
-              onPressed: () {
-                _signUpForTimeSlot(event, timeSlot);
-                Navigator.of(context).pop();
-              },
-            ),
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Text('Sign Up'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Event: ${event.name}'),
+            SizedBox(height: 8),
+            Text('Time: ${timeSlot.time.format(context)}'),
+            SizedBox(height: 8),
+            Text('Number of People: ${timeSlot.numberOfPeople}'),
           ],
-        );
-      },
-    );
-  }
+        ),
+        actions: [
+          TextButton(
+            child: Text('Cancel'),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+          ElevatedButton(
+            child: Text('Sign Up'),
+            onPressed: () {
+              _signUpForTimeSlot(event, timeSlot);
+              Navigator.of(context).pop();
+            },
+          ),
+          ElevatedButton.icon(
+            icon: Icon(Icons.calendar_today),
+            label: Text('Add to Calendar'),
+            onPressed: () {
+              _addEventToCalendar(event, timeSlot);
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
   void _signUpForTimeSlot(Event event, TimeSlot timeSlot) async {
   // Get the current user's UUID
   final User? user = supabase.auth.currentUser;
@@ -803,6 +883,35 @@ Widget build(BuildContext context) {
   _fetchEvents();
   // Refresh the events list after signing up
 }
+void _addEventToCalendar(Event event, TimeSlot timeSlot) {
+  final calendarEvent = addEvent(
+    title: event.name,
+    description: event.description,
+    startDate: DateTime(
+      event.date.year,
+      event.date.month,
+      event.date.day,
+      timeSlot.time.hour,
+      timeSlot.time.minute,
+    ),
+    endDate: DateTime(
+      event.date.year,
+      event.date.month,
+      event.date.day,
+      timeSlot.endTime.hour,
+      timeSlot.endTime.minute,
+    ),
+    iosParams: IOSParams(
+      reminder: Duration(minutes: 10),
+    ),
+    androidParams: AndroidParams(
+      emailInvites: [],
+    ),
+  );
+
+  Add2Calendar.addEvent2Cal(calendarEvent);
+}
+
 }
 
 Future<String> _getUserName(String? userId) async {
@@ -1532,7 +1641,7 @@ void _showAddEventDialog() async {
                 ),
                     SizedBox(height: 16.0),
                 InkWell(
-                  onTap: _selectDate,
+                  onTap: () => _selectDate(setState),
                   child: InputDecorator(
                     decoration: InputDecoration(
                       labelText: 'Event Date',
@@ -1750,7 +1859,7 @@ void _addTimeSlot(StateSetter setState) async {
                     ),
                     SizedBox(height: 16.0),
                     InkWell(
-                      onTap: _selectDate,
+                      onTap: () => _selectDate(setState),
                       child: InputDecorator(
                         decoration: InputDecoration(
                           labelText: 'Event Date',
@@ -1935,19 +2044,19 @@ void _addEvent() async {
     
   }
 
-  Future<void> _selectDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _eventDate,
-      firstDate: DateTime(2023),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null && picked != _eventDate) {
-      setState(() {
-        _eventDate = picked;
-      });
-    }
+  Future<void> _selectDate(StateSetter setState) async {
+  final DateTime? picked = await showDatePicker(
+    context: context,
+    initialDate: _eventDate,
+    firstDate: DateTime(2023),
+    lastDate: DateTime(2100),
+  );
+  if (picked != null && picked != _eventDate) {
+    setState(() {
+      _eventDate = picked;
+    });
   }
+}
 
 }
 

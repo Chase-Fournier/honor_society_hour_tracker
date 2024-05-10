@@ -21,6 +21,7 @@ dependencies:
   flutter_colorpicker: ^1.0.3
   url_launcher: ^6.1.11
   shared_preferences: ^2.0.15
+  add_2_calendar: ^2.1.4
 
 
 dev_dependencies:
