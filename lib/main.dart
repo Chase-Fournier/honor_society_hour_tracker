@@ -22,7 +22,8 @@ import 'dart:convert';
 
 CredentialManager credentialManager = CredentialManager();
 const String googleClientId = String.fromEnvironment("Google-web-client-id");
-void main() async{
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
@@ -30,14 +31,26 @@ void main() async{
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjdXlnaWd4anVjeHV0YXZqdnNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTI4NzU1NjgsImV4cCI6MjAyODQ1MTU2OH0.0x6jIeOANj6_Y5s7EQ9tuU3GhZLZblobDAt_W2dOLJA',
   );
 
-   if (credentialManager.isSupportedPlatform) {
+  if (credentialManager.isSupportedPlatform) {
     await credentialManager.init(
-        preferImmediatelyAvailableCredentials: true,
-        //optional perameter for integrate google signing
-        googleClientId: googleClientId);
+      preferImmediatelyAvailableCredentials: true,
+      //optional parameter for integrate google signing
+      googleClientId: googleClientId,
+    );
   }
- final themeNotifier = ThemeNotifier();
-  runApp(MyApp(themeNotifier: themeNotifier));
+
+  final themeNotifier = ThemeNotifier();
+  final themeProvider = ThemeProvider();
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => themeNotifier),
+        ChangeNotifierProvider(create: (_) => themeProvider),
+      ],
+      child: MyApp(themeNotifier: themeNotifier),
+    ),
+  );
 }
 
 final supabase = Supabase.instance.client;
@@ -49,8 +62,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => themeNotifier,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => themeNotifier),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+      ],
       child: FutureBuilder<void>(
         future: _fetchUserThemeColor(themeNotifier),
         builder: (context, snapshot) {
@@ -63,32 +79,43 @@ class MyApp extends StatelessWidget {
               ),
             );
           }
-          return AnimatedBuilder(
-            animation: themeNotifier,
-            builder: (context, _) {
-              return MaterialApp(
-      title: 'NHS Hour Tracking',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-            colorSchemeSeed: themeNotifier.themeColor,
-            useMaterial3: true,
+          return Consumer<ThemeProvider>(
+            builder: (context, themeProvider, _) {
+              return AnimatedBuilder(
+                animation: themeNotifier,
+                builder: (context, _) {
+                  return MaterialApp(
+                    title: 'NHS Hour Tracking',
+                    debugShowCheckedModeBanner: false,
+                    theme: themeProvider.isDarkMode
+                        ? ThemeData.dark().copyWith(
+                            colorScheme: ColorScheme.fromSeed(
+                              seedColor: themeNotifier.themeColor,
+                              brightness: Brightness.dark,
+                            ),
+                          )
+                        : ThemeData(
+                            colorSchemeSeed: themeNotifier.themeColor,
+                            useMaterial3: true,
+                          ),
+                    initialRoute: '/',
+                    routes: {
+                      '/': (context) => AuthenticationPage(),
+                      '/main': (context) => MainScreen(),
+                      '/admin/events': (context) => AdminEventsPage(),
+                      '/admin/attendance': (context) => AdminAttendancePage(),
+                    },
+                  );
+                },
+              );
+            },
+          );
+        },
       ),
-      initialRoute: '/',
-      routes: {
-        '/': (context) => AuthenticationPage(),
-        '/main': (context) => MainScreen(),
-        '/admin/events': (context) => AdminEventsPage(),
-        '/admin/attendance': (context) => AdminAttendancePage(),
-      }
-        );
-      },
     );
-        }
-      ) 
-     );
   }
 
-Future<void> _fetchUserThemeColor(ThemeNotifier themeNotifier) async {
+  Future<void> _fetchUserThemeColor(ThemeNotifier themeNotifier) async {
     final User? user = supabase.auth.currentUser;
     final userId = user?.id;
 
@@ -1155,6 +1182,33 @@ class ThemeNotifier with ChangeNotifier {
     notifyListeners();
   }
 }
+
+class ThemeProvider extends ChangeNotifier {
+  bool _isDarkMode = false;
+
+  bool get isDarkMode => _isDarkMode;
+
+  ThemeProvider() {
+    loadThemePreference();
+  }
+
+  void toggleTheme() {
+    _isDarkMode = !_isDarkMode;
+    saveThemePreference();
+    notifyListeners();
+  }
+
+  Future<void> loadThemePreference() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    _isDarkMode = prefs.getBool('isDarkMode') ?? false;
+    notifyListeners();
+  }
+
+  Future<void> saveThemePreference() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isDarkMode', _isDarkMode);
+  }
+}
  
 class SettingsPage extends StatefulWidget {
   @override
@@ -1309,36 +1363,46 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Current Account Information',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+      padding: EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Card(
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Current Account Information',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 16),
-                    Text('Name: $_name'),
-                    Text('Email: $_email'),
-                    Text('Graduation Year: $_graduationYear'),
-                  ],
-                ),
+                      SizedBox(height: 16),
+                      Text('Name: $_name'),
+                      Text('Email: $_email'),
+                      Text('Graduation Year: $_graduationYear'),
+                    ],
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.logout),
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    onPressed: _signOut,
+                  ),
+                ],
               ),
             ),
-            SizedBox(height: 24),
+          ),
+          SizedBox(height: 24),
             Form(
               key: _formKey,
               child: Column(
@@ -1447,16 +1511,12 @@ class _SettingsPageState extends State<SettingsPage> {
               );
             },
           ),
-          SizedBox(height: 24.0),
-          ElevatedButton(
-            onPressed: _signOut,
-            child: Text('Sign Out'),
-            style: ElevatedButton.styleFrom(
-              padding: EdgeInsets.symmetric(vertical: 16.0),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.0),
-              ),
-            ),
+           SwitchListTile(
+            title: Text('Dark Mode'),
+            value: Provider.of<ThemeProvider>(context).isDarkMode,
+            onChanged: (_) {
+              Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
+            },
           ),
         ],
       ),
@@ -2541,9 +2601,11 @@ class _AdminListPageState extends State<AdminListPage> {
       users.add(user);
     }
 
+    if (mounted) {
     setState(() {
       _users = users;
     });
+  }
   }
 
 
