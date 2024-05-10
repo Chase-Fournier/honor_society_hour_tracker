@@ -20,6 +20,7 @@ import 'package:add_2_calendar/add_2_calendar.dart';
 import 'dart:convert';
 
 
+
 CredentialManager credentialManager = CredentialManager();
 const String googleClientId = String.fromEnvironment("Google-web-client-id");
 
@@ -143,6 +144,7 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   PageController _pageController = PageController();
   bool _isAdmin = false;
+  
 
   
 
@@ -179,6 +181,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isWideScreen = MediaQuery.of(context).size.width >= 600;
     final List<Widget> pages = [
 
       if (_isAdmin) ...[
@@ -249,24 +252,45 @@ class _MainScreenState extends State<MainScreen> {
     ];
 
     return Scaffold(
-      body: SizedBox.expand(
-        child: PageView(
-          controller: _pageController,
-          onPageChanged: (index) {
-            setState(() => _currentIndex = index);
-          },
-          children: pages,
-        ),
+      body: Row(
+        children: [
+          if (isWideScreen)
+            NavigationRail(
+                  selectedIndex: _currentIndex,
+                  onDestinationSelected: (index) {
+                    setState(() => _currentIndex = index);
+                    _pageController.jumpToPage(index);
+                  },
+                  labelType: NavigationRailLabelType.selected,
+                  destinations: navItems.map((item) {
+                    return NavigationRailDestination(
+                      icon: item.icon,
+                      label: item.title,
+                    );
+                  }).toList(),
+                ),
+          Expanded(
+            child: PageView(
+              controller: _pageController,
+              onPageChanged: (index) {
+                setState(() => _currentIndex = index);
+              },
+              children: pages,
+            ),
+          ),
+        ],
       ),
-      bottomNavigationBar: BottomNavyBar(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        selectedIndex: _currentIndex,
-        onItemSelected: (index) {
-          setState(() => _currentIndex = index);
-          _pageController.jumpToPage(index);
-        },
-        items: navItems,
-      ),
+      bottomNavigationBar: isWideScreen
+          ? null
+          : BottomNavyBar(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              selectedIndex: _currentIndex,
+              onItemSelected: (index) {
+                setState(() => _currentIndex = index);
+                _pageController.jumpToPage(index);
+              },
+              items: navItems,
+            ),
     );
   }
 }
@@ -549,7 +573,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int currentPageIndex = 0;
-  
    double _serviceHoursCompleted = 0;
   double _tutoringHoursCompleted = 0;
   double _meetingHoursCompleted = 0;
