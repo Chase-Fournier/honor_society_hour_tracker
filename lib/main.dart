@@ -2649,7 +2649,7 @@ void _openCustomEventForm(BuildContext context, String userId,
     {String eventName = '',
     TimeOfDay? selectedTime,
     double hours = 0,
-    String type = 'service'}) {
+    String type = 'Service'}) {
   showDialog(
     context: context,
     builder: (context) {
@@ -2698,7 +2698,7 @@ void _openCustomEventForm(BuildContext context, String userId,
             DropdownButtonFormField<String>(
                       value: type,
                       onChanged: (value) {
-                        type = value ?? 'service';
+                        type = value ?? "Service";
                       },
                     borderRadius: BorderRadius.circular(30),
                     dropdownColor: Theme.of(context).colorScheme.primaryContainer,
@@ -2904,8 +2904,9 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
       double tutoringHours = 0;
       double meetingHours = 0;
 
+      print(response);
       for (final entry in data) {
-        final hours = entry['hours'] as double;
+        final hours = entry['hours'];
         final eventType = entry['type'] as String?;
 
         if (eventType == 'Service') {
