@@ -10,7 +10,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:credential_manager/credential_manager.dart';
 import 'package:bottom_navy_bar/bottom_navy_bar.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
@@ -832,6 +831,14 @@ Widget build(BuildContext context) {
         ],
       ),
     ),
+    floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // Open the website when the button is pressed
+          _openWebsite();
+        },
+        child: Icon(Icons.school),
+      ),
+      
   );
 }
 
@@ -932,7 +939,7 @@ Widget build(BuildContext context) {
   _fetchEvents();
   // Refresh the events list after signing up
 }
-void _addEventToCalendar(Event event, TimeSlot timeSlot) {
+  void _addEventToCalendar(Event event, TimeSlot timeSlot) {
   final calendarEvent = addEvent(
     title: event.name,
     description: event.description,
@@ -960,7 +967,12 @@ void _addEventToCalendar(Event event, TimeSlot timeSlot) {
 
   Add2Calendar.addEvent2Cal(calendarEvent);
 }
-
+  void _openWebsite() async {
+      final Uri url = Uri.parse('https://docs.google.com/forms/d/1ZcXKKctcGjxJYi5KXuqmZ8u1BQP-825KSFJmP-rcKtA/viewform?edit_requested=true');
+    if (!await launchUrl(url)) {
+          throw Exception('Could not launch url');
+      }
+    }
 }
 
 Future<String> _getUserName(String? userId) async {
