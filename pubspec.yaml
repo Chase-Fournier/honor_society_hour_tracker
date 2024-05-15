@@ -19,9 +19,9 @@ dependencies:
   credential_manager: ^0.0.4
   bottom_navy_bar: ^6.0.0
   flutter_colorpicker: ^1.0.3
-  url_launcher: ^6.1.11
+  url_launcher: ^6.2.6
   shared_preferences: ^2.0.15
-  add_2_calendar: ^2.1.4
+  add_2_calendar: ^3.0.1
   animations: ^2.0.11
   
 

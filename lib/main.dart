@@ -2767,6 +2767,16 @@ Future<void> _saveCustomEvent(
   _fetchUsers(); // Refresh the user list after saving the custom event
 }
 
+Future<void> _deleteServiceHour(CompletedUserHour hour, String userId) async {
+  await Supabase.instance.client
+      .from('Service hours')
+      .delete()
+      .eq('event_name', hour.eventName)
+      .eq('user_id', userId);
+
+  _fetchUsers(); // Refresh the user list after deleting the service hour
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -2836,7 +2846,7 @@ Future<void> _saveCustomEvent(
                 children: [
                  user.hasCompletedHours()
                     ? Icon(Icons.check, color: Colors.green)
-                    : Icon(Icons.close, color: Colors.red),
+                    : Icon(Icons.close, color: Theme.of(context).colorScheme.error),
                    IconButton(
                     icon: Icon(Icons.add),
                     onPressed: () {
@@ -2847,22 +2857,29 @@ Future<void> _saveCustomEvent(
               ),
               ),
               children: user.completedHours.map((hour) {
-                return ListTile(
-                  title: Text(
-                    hour.eventName,
-                    style: TextStyle(
-                      fontSize: 16.0,
+                  return ListTile(
+                    title: Text(
+                      hour.eventName,
+                      style: TextStyle(
+                        fontSize: 16.0,
+                      ),
                     ),
-                  ),
-                  subtitle: Text(
-                    '${hour.hours} hours - ${hour.type}',
-                    style: TextStyle(
-                      fontSize: 14.0,
-                      color: Colors.grey[600],
+                    subtitle: Text(
+                      '${hour.hours} hours - ${hour.type}',
+                      style: TextStyle(
+                        fontSize: 14.0,
+                        color: Colors.grey[600],
+                      ),
                     ),
-                  ),
-                );
-              }).toList(),
+                    trailing: IconButton(
+                      icon: Icon(Icons.delete),
+                      color: Theme.of(context).colorScheme.onSurface,
+                      onPressed: () {
+                        _deleteServiceHour(hour, user.id);
+                      },
+                    ),
+                  );
+                }).toList(),
               
             ),
           );
