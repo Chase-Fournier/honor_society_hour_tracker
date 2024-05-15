@@ -116,23 +116,11 @@ class MyApp extends StatelessWidget {
   }
 
   Future<void> _fetchUserThemeColor(ThemeNotifier themeNotifier) async {
-    final User? user = supabase.auth.currentUser;
-    final userId = user?.id;
-
-    if (userId != null) {
-      final response = await Supabase.instance.client
-          .from('profiles')
-          .select('color')
-          .eq('user_id', userId)
-          .single();
-
-      if (response != null) {
-        final colorValue = response['color'];
-        final color = colorValue != null ? Color(colorValue) : Colors.blue;
-        themeNotifier.updateThemeColor(color);
-      }
-    }
-  }
+  final prefs = await SharedPreferences.getInstance();
+  final colorValue = prefs.getInt('themeColor');
+  final color = colorValue != null ? Color(colorValue) : Colors.blue;
+  themeNotifier.updateThemeColor(color);
+}
 }
 class MainScreen extends StatefulWidget {
   @override
@@ -836,7 +824,7 @@ Widget build(BuildContext context) {
           // Open the website when the button is pressed
           _openWebsite();
         },
-        child: Icon(Icons.school),
+        child:const Icon(Icons.school),
       ),
       
   );
@@ -859,32 +847,49 @@ Widget build(BuildContext context) {
           ],
         ),
         actions: [
-          TextButton(
-            child: Text('Cancel'),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
+          Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton(
+                  child: Text('Cancel'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+                SizedBox(width: 3),
+                ElevatedButton(
+                  child: Text('Sign Up'),
+                  onPressed: () {
+                    _signUpForTimeSlot(event, timeSlot);
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            ),
           ),
-          ElevatedButton(
-            child: Text('Sign Up'),
-            onPressed: () {
-              _signUpForTimeSlot(event, timeSlot);
-              Navigator.of(context).pop();
-            },
-          ),
-          ElevatedButton.icon(
-            icon: Icon(Icons.calendar_today),
-            label: Text('Add to Calendar'),
-            onPressed: () {
-              _addEventToCalendar(event, timeSlot);
-              Navigator.of(context).pop();
-            },
+          SizedBox(height: 16),
+          Center(
+            child: ElevatedButton.icon(
+              icon: Icon(Icons.calendar_today),
+              label: Text('Add to Calendar'),
+              onPressed: () {
+                _addEventToCalendar(event, timeSlot);
+                Navigator.of(context).pop();
+              },
+              style: ElevatedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
           ),
         ],
       );
     },
   );
 }
+
   void _signUpForTimeSlot(Event event, TimeSlot timeSlot) async {
   // Get the current user's UUID
   final User? user = supabase.auth.currentUser;
@@ -973,6 +978,7 @@ Widget build(BuildContext context) {
           throw Exception('Could not launch url');
       }
     }
+
 }
 
 Future<String> _getUserName(String? userId) async {
@@ -1265,28 +1271,17 @@ class _SettingsPageState extends State<SettingsPage> {
     _graduationYear = '';
     _password = '';
     _fetchUserProfile();
-    _fetchUserThemeColor();
+    _fetchThemeColorFromPrefs();
   }
-  
-   Future<void> _fetchUserThemeColor() async {
-    final User? user = supabase.auth.currentUser;
-    final userId = user?.id;
 
-    if (userId != null) {
-      final response = await Supabase.instance.client
-          .from('profiles')
-          .select('color')
-          .eq('user_id', userId)
-          .single();
+  Future<void> _fetchThemeColorFromPrefs() async {
+  final prefs = await SharedPreferences.getInstance();
+  final colorValue = prefs.getInt('themeColor');
+  setState(() {
+    _selectedColor = colorValue != null ? Color(colorValue) : Colors.blue;
+  });
+}
 
-      if (response != null) {
-        final colorValue = response['color'];
-        setState(() {
-          _selectedColor = colorValue != null ? Color(colorValue) : Colors.blue;
-        });
-      }
-    }
-  }
 
   Future<void> _fetchUserProfile() async {
     final User? user = supabase.auth.currentUser;
@@ -1304,8 +1299,6 @@ class _SettingsPageState extends State<SettingsPage> {
           _name = response['name'] ?? '';
           _email = response['email'] ?? '';
           _graduationYear = response['graduation_year']?.toString() ?? '';
-          final colorValue = response['color'];
-          _selectedColor = colorValue != null ? Color(colorValue) : Colors.blue;
         });
       }
     }
@@ -1327,25 +1320,18 @@ class _SettingsPageState extends State<SettingsPage> {
   }
   }
 
-  Future<void> _updateUserThemeColor() async {
-    final User? user = supabase.auth.currentUser;
-    final userId = user?.id;
-
-    if (userId != null) {
-      await Supabase.instance.client.from('profiles').update({
-        'color': _selectedColor.value,
-      }).eq('user_id', userId);
-    }
-  }
-
   void _handleColorChange(Color color) {
   setState(() {
     _selectedColor = color;
   });
-  _updateUserThemeColor();
+  _saveThemeColorToPrefs(color);
   Provider.of<ThemeNotifier>(context, listen: false).updateThemeColor(color);
 }
 
+Future<void> _saveThemeColorToPrefs(Color color) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setInt('themeColor', color.value);
+}
   
   
  Future<void> _updatePassword(String newPassword) async {
