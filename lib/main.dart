@@ -3,6 +3,7 @@ import 'dart:isolate';
 import 'dart:math';
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:english_words/english_words.dart';
@@ -17,6 +18,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:add_2_calendar/add_2_calendar.dart';
 import 'dart:convert';
+import 'package:fluttertoast/fluttertoast.dart';
 
 
 
@@ -482,15 +484,26 @@ void initState() {
         Navigator.pushReplacementNamed(context, '/main');
       } else {
         // Sign-in failed, show an error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sign-in failed. Please try again.')),
-        );
+        Fluttertoast.showToast(
+        msg: 'Sign-in failed. Please try again.',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+        textColor: Theme.of(context).colorScheme.onSecondaryContainer,
+        fontSize: 16.0
+    );
       }
     } catch (error) {
-      // Handle any errors that occur during sign-in
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('An error occurred. Please try again.')),
-      );
+      Fluttertoast.showToast(
+        msg: 'An error occurred. Please try again.',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+        textColor: Theme.of(context).colorScheme.onSecondaryContainer,
+        fontSize: 16.0
+    );
     }
   }
 }
@@ -1397,8 +1410,16 @@ Future<void> _saveThemeColorToPrefs(Color color) async {
   final User? user = supabase.auth.currentUser;
   if (user?.email != newEmail){
    try {final response = await supabase.auth.updateUser(UserAttributes(email: newEmail));}
-   catch (e) {const snackBar = SnackBar(content: Text('Email Overflow, Try Again Later'),);
-   ScaffoldMessenger.of(context).showSnackBar(snackBar);}
+   catch (e) {Fluttertoast.showToast(
+        msg: 'Email overflow, Try again later',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+        textColor: Theme.of(context).colorScheme.onSecondaryContainer,
+        fontSize: 16.0
+    );
+    }
   }
   else {}
    
@@ -1505,6 +1526,8 @@ Future<void> _saveThemeColorToPrefs(Color color) async {
                   ),
                   SizedBox(height: 16.0),
                   TextFormField(
+                    keyboardType: TextInputType.number,
+                    inputFormatters: <TextInputFormatter>[ FilteringTextInputFormatter.digitsOnly],
                     initialValue: _graduationYear,
                     decoration: InputDecoration(labelText: 'Graduation Year'),
                     validator: (value) {
@@ -1521,7 +1544,7 @@ Future<void> _saveThemeColorToPrefs(Color color) async {
                   ),
                   SizedBox(height: 16.0),
                   TextFormField(
-                    decoration: InputDecoration(labelText: 'New Password'),
+                    decoration: InputDecoration(labelText: 'Password'),
                     obscureText: true,
                     onChanged: (value) {
                       setState(() {
@@ -1534,10 +1557,32 @@ Future<void> _saveThemeColorToPrefs(Color color) async {
                     onPressed: () async {
                       if (_formKey.currentState!.validate()) {
                         if (_password.isNotEmpty) {
-                          final response = await supabase.auth.updateUser(UserAttributes(password: _password,));
+                          if(_password.length > 7){
+                            try {final response = await supabase.auth.updateUser(UserAttributes(password: _password,));}
+                          catch (e) {};
+                          }
+                          else {
+                          Fluttertoast.showToast(
+                          msg: 'Password must be longer than 6 characters',
+                          toastLength: Toast.LENGTH_SHORT,
+                          gravity: ToastGravity.BOTTOM,
+                          timeInSecForIosWeb: 1,
+                          backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+                          textColor: Theme.of(context).colorScheme.onSecondaryContainer,
+                          fontSize: 16.0
+                        );
+                       }
                         }
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Settings updated successfully')),
+                        _updateEmail(_email);
+                        _updateUserProfile();
+                        Fluttertoast.showToast(
+                          msg: 'Settings updated successfully',
+                          toastLength: Toast.LENGTH_SHORT,
+                          gravity: ToastGravity.BOTTOM,
+                          timeInSecForIosWeb: 1,
+                          backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+                          textColor: Theme.of(context).colorScheme.onSecondaryContainer,
+                          fontSize: 16.0
                         );
                       }
                     },
