@@ -676,7 +676,7 @@ Widget _buildDoubleProgressBar(context, String title, double completedHours, dou
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Potential $title: ${potentialHours.toStringAsFixed(2)} hours',
+          'Completed: ${completedHours.toStringAsFixed(2)} hours',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         SizedBox(height: 10),
@@ -700,7 +700,7 @@ Widget _buildDoubleProgressBar(context, String title, double completedHours, dou
         ),
         SizedBox(height: 5),
         Text(
-          'Completed: ${completedHours.toStringAsFixed(2)} hours',
+          'Potential $title: ${potentialHours.toStringAsFixed(2)} hours',
           style: TextStyle(fontSize: 14, color: Colors.grey[600]),
         ),
       ],
@@ -734,6 +734,7 @@ Widget _buildDoubleProgressBar(context, String title, double completedHours, dou
       ),
       children: event.timeSlots.map((timeSlot) {
         final isSignedUp = timeSlot.attendees.any((attendee) => attendee.name == supabase.auth.currentUser?.id);
+        final isEventInFuture = event.date.isAfter(DateTime.now().add(Duration(days: 1)));
         return ListTile(
           title: Text(
             'Time: ${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
@@ -749,17 +750,23 @@ Widget _buildDoubleProgressBar(context, String title, double completedHours, dou
             ),
           ),
           trailing: isSignedUp
-              ? ElevatedButton.icon(
-                  icon: Icon(Icons.calendar_today),
-                  label: Text('Add to Calendar'),
-                  onPressed: () {
-                    _addEventToCalendar(event, timeSlot);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.calendar_today),
+                      onPressed: () {
+                        _addEventToCalendar(event, timeSlot);
+                      },
                     ),
-                  ),
+                    if (isEventInFuture)
+                      IconButton(
+                        icon: Icon(Icons.cancel),
+                        onPressed: () {
+                          _removeAttendee(event, timeSlot);
+                        },
+                      ),
+                  ],
                 )
               : ElevatedButton(
                   child: Text('  Sign Up  '),
@@ -889,7 +896,42 @@ Widget build(BuildContext context) {
     },
   );
 }
+  void _removeAttendee(Event event, TimeSlot timeSlot) async {
+    final userId = supabase.auth.currentUser?.id;
 
+    if (userId != null) {
+      await Supabase.instance.client.from('Events').update({
+        'timeSlots': event.timeSlots.map((slot) {
+          if (slot == timeSlot) {
+            return {
+              'time': '${slot.time.hour}:${slot.time.minute}',
+              'endTime': '${slot.endTime.hour}:${slot.endTime.minute}',
+              'numberOfPeople': slot.numberOfPeople + 1,
+              'attendees': slot.attendees
+                  .where((attendee) => attendee.name != userId)
+                  .map((attendee) => {
+                        'name': attendee.userId,
+                        'isPresent': attendee.isPresent,
+                      })
+                  .toList(),
+            };
+          } else {
+            return {
+              'time': '${slot.time.hour}:${slot.time.minute}',
+              'endTime': '${slot.endTime.hour}:${slot.endTime.minute}',
+              'numberOfPeople': slot.numberOfPeople,
+              'attendees': slot.attendees.map((attendee) => {
+                    'name': attendee.userId,
+                    'isPresent': attendee.isPresent,
+                  }).toList(),
+            };
+          }
+        }).toList(),
+      }).eq('name', event.name);
+
+      _fetchEvents();
+    }
+  }
   void _signUpForTimeSlot(Event event, TimeSlot timeSlot) async {
   // Get the current user's UUID
   final User? user = supabase.auth.currentUser;
@@ -1295,11 +1337,13 @@ class _SettingsPageState extends State<SettingsPage> {
           .single();
 
       if (response != null) {
+        if (this.mounted) {
         setState(() {
           _name = response['name'] ?? '';
           _email = response['email'] ?? '';
           _graduationYear = response['graduation_year']?.toString() ?? '';
         });
+      }
       }
     }
   }
@@ -1378,7 +1422,7 @@ Future<void> _saveThemeColorToPrefs(Color color) async {
         backgroundColor: Theme.of(context).colorScheme.primary,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(13),
+            bottom: Radius.circular(20),
           ),
         ),
       ),
@@ -1595,7 +1639,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
         elevation: 20,
         shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
-          'Admin Events',
+          'Events',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onPrimary,
             fontWeight: FontWeight.bold,
@@ -2592,21 +2636,21 @@ class _AdminListPageState extends State<AdminListPage> {
   }
 
   Future<void> _fetchUsers() async {
-  final profileResponse = await Supabase.instance.client
-      .from('profiles')
-      .select('*');
+     setState(() {
+        _users.clear();
+      });
 
-  final List<dynamic> profileData = profileResponse;
-  final List<UserProfile> users = [];
+    final profileResponse = await Supabase.instance.client.from('profiles').select('*');
+    final List<dynamic> profileData = profileResponse;
 
-  for (final profileJson in profileData) {
-    final userId = profileJson['user_id'] as String;
-    final userName = profileJson['name'] as String;
+    for (final profileJson in profileData) {
+      final userId = profileJson['user_id'] as String;
+      final userName = profileJson['name'] as String;
 
-    final hoursResponse = await Supabase.instance.client
-        .from('Service hours')
-        .select('event_name, hours, type')
-        .eq('user_id', userId);
+      final hoursResponse = await Supabase.instance.client
+          .from('Service hours')
+          .select('event_name, hours, type')
+          .eq('user_id', userId);
 
       final List<dynamic> hoursData = hoursResponse;
       final List<CompletedUserHour> completedHours = hoursData
@@ -2619,14 +2663,12 @@ class _AdminListPageState extends State<AdminListPage> {
         id: userId,
       );
 
-      users.add(user);
+      if (this.mounted) {
+      setState(() {
+        _users.add(user);
+      });
     }
-
-    if (mounted) {
-    setState(() {
-      _users = users;
-    });
-  }
+    }
   }
 
   List<UserProfile> _getFilteredUsers() {
@@ -2643,11 +2685,11 @@ class _AdminListPageState extends State<AdminListPage> {
 
 
 
-void _openCustomEventForm(BuildContext context, String userId,
-    {String eventName = '',
-    TimeOfDay? selectedTime,
-    double hours = 0,
-    String type = 'Service'}) {
+ void _openCustomEventForm(BuildContext context, String userId,
+      {String eventName = '',
+      TimeOfDay? selectedTime,
+      double hours = 0,
+      String type = 'Service'}) {
   showDialog(
     context: context,
     builder: (context) {
@@ -2774,7 +2816,7 @@ Future<void> _deleteServiceHour(CompletedUserHour hour, String userId) async {
       .eq('event_name', hour.eventName)
       .eq('user_id', userId);
 
-  _fetchUsers(); // Refresh the user list after deleting the service hour
+      _fetchUsers();
 }
 
 
@@ -2786,7 +2828,7 @@ Future<void> _deleteServiceHour(CompletedUserHour hour, String userId) async {
         elevation: 20,
         shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
-          'Admin List',
+          'List',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onPrimary,
             fontWeight: FontWeight.bold,
@@ -2821,12 +2863,12 @@ Future<void> _deleteServiceHour(CompletedUserHour hour, String userId) async {
           ),
         ),
         Expanded(
-          child: ListView.separated(
-            itemCount: filteredUsers.length,
-            separatorBuilder: (context, index) => SizedBox(height: 16),
-            itemBuilder: (context, index) {
-              final user = filteredUsers[index];
-              return Card(
+            child: ListView.separated(
+              itemCount: filteredUsers.length,
+              separatorBuilder: (context, index) => SizedBox(height: 16),
+              itemBuilder: (context, index) {
+                final user = filteredUsers[index];
+                return Card(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
