@@ -1,4 +1,3 @@
-import 'dart:ffi';
 import 'dart:isolate';
 import 'dart:math';
 import 'package:animate_do/animate_do.dart';
