@@ -17,7 +17,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:add_2_calendar/add_2_calendar.dart';
 import 'dart:convert';
-import 'package:fluttertoast/fluttertoast.dart';
+import 'package:toastification/toastification.dart';
 
 
 
@@ -483,26 +483,33 @@ void initState() {
         Navigator.pushReplacementNamed(context, '/main');
       } else {
         // Sign-in failed, show an error message
-        Fluttertoast.showToast(
-        msg: 'Sign-in failed. Please try again.',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        timeInSecForIosWeb: 1,
-        backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-        textColor: Theme.of(context).colorScheme.onSecondaryContainer,
-        fontSize: 16.0
-    );
+        toastification.show(
+	  context: context,
+	  type: ToastificationType.error,
+	  style: ToastificationStyle.simple,
+	  title: Text("Sign-In Failed. Please try again"),
+	  description: Text(""),
+	  alignment: Alignment.bottomCenter,
+	  autoCloseDuration: const Duration(seconds: 4),
+	  borderRadius: BorderRadius.circular(12.0),
+	  boxShadow: lowModeShadow,
+    applyBlurEffect: true
+	);
       }
     } catch (error) {
-      Fluttertoast.showToast(
-        msg: 'An error occurred. Please try again.',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        timeInSecForIosWeb: 1,
-        backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-        textColor: Theme.of(context).colorScheme.onSecondaryContainer,
-        fontSize: 16.0
-    );
+      toastification.show(
+	  context: context,
+	  type: ToastificationType.error,
+	  style: ToastificationStyle.simple,
+	  title: Text("An error occurred. Please try again."),
+	  description: Text(""),
+	  alignment: Alignment.center,
+	  autoCloseDuration: const Duration(seconds: 4),
+	  borderRadius: BorderRadius.circular(12.0),
+	  boxShadow: lowModeShadow,
+     applyBlurEffect: true
+	  
+	);
     }
   }
 }
@@ -1408,16 +1415,35 @@ Future<void> _saveThemeColorToPrefs(Color color) async {
  Future<void> _updateEmail(String newEmail) async {
   final User? user = supabase.auth.currentUser;
   if (user?.email != newEmail){
-   try {final response = await supabase.auth.updateUser(UserAttributes(email: newEmail));}
-   catch (e) {Fluttertoast.showToast(
-        msg: 'Email overflow, Try again later',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        timeInSecForIosWeb: 1,
-        backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-        textColor: Theme.of(context).colorScheme.onSecondaryContainer,
-        fontSize: 16.0
-    );
+   try {final response = await supabase.auth.updateUser(UserAttributes(email: newEmail));
+   toastification.show(
+	  context: context,
+	  type: ToastificationType.success,
+	  style: ToastificationStyle.simple,
+	  title: const Text("Check your Email To Confirm Change"),
+	  description: const Text(""),
+	  alignment: Alignment.center,
+	  autoCloseDuration: const Duration(seconds: 4),
+	  borderRadius: BorderRadius.circular(12.0),
+	  boxShadow: lowModeShadow,
+	  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+    foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+   );
+   
+   }
+   catch (e) {toastification.show(
+	  context: context,
+	  type: ToastificationType.error,
+	  style: ToastificationStyle.simple,
+	  title: const Text("Email overflow, Try again later"),
+	  description: const Text(""),
+	  alignment: Alignment.center,
+	  autoCloseDuration: const Duration(seconds: 4),
+	  borderRadius: BorderRadius.circular(12.0),
+	  boxShadow: lowModeShadow,
+	  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+    foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+	);
     }
   }
   else {}
@@ -1561,27 +1587,35 @@ Future<void> _saveThemeColorToPrefs(Color color) async {
                           catch (e) {};
                           }
                           else {
-                          Fluttertoast.showToast(
-                          msg: 'Password must be longer than 6 characters',
-                          toastLength: Toast.LENGTH_SHORT,
-                          gravity: ToastGravity.BOTTOM,
-                          timeInSecForIosWeb: 1,
-                          backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-                          textColor: Theme.of(context).colorScheme.onSecondaryContainer,
-                          fontSize: 16.0
-                        );
+                          toastification.show(
+                                context: context,
+                                type: ToastificationType.error,
+                                style: ToastificationStyle.simple,
+                                title: const Text("Password must be longer than 6 characters"),
+                                description: const Text(""),
+                                alignment: Alignment.center,
+                                autoCloseDuration: const Duration(seconds: 4),
+                                borderRadius: BorderRadius.circular(12.0),
+                                boxShadow: lowModeShadow,
+                                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                                 foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+                              );
                        }
                         }
                         _updateEmail(_email);
                         _updateUserProfile();
-                        Fluttertoast.showToast(
-                          msg: 'Settings updated successfully',
-                          toastLength: Toast.LENGTH_SHORT,
-                          gravity: ToastGravity.BOTTOM,
-                          timeInSecForIosWeb: 1,
-                          backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-                          textColor: Theme.of(context).colorScheme.onSecondaryContainer,
-                          fontSize: 16.0
+                        toastification.show(
+                          context: context,
+                          type: ToastificationType.success,
+                          style: ToastificationStyle.simple,
+                          title: const Text("Settings Successfully Updated"),
+                          description: const Text(""),
+                          alignment: Alignment.center,
+                          autoCloseDuration: const Duration(seconds: 4),
+                          borderRadius: BorderRadius.circular(12.0),
+                          boxShadow: lowModeShadow,
+                           backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                                 foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
                         );
                       }
                     },
