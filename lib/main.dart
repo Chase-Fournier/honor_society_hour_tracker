@@ -10,7 +10,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
-import 'package:credential_manager/credential_manager.dart';
 import 'package:bottom_navy_bar/bottom_navy_bar.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -20,10 +19,6 @@ import 'dart:convert';
 import 'package:toastification/toastification.dart';
 
 
-
-CredentialManager credentialManager = CredentialManager();
-const String googleClientId = String.fromEnvironment("Google-web-client-id");
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -31,14 +26,6 @@ void main() async {
     url: 'https://hcuygigxjucxutavjvsc.supabase.co',
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjdXlnaWd4anVjeHV0YXZqdnNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTI4NzU1NjgsImV4cCI6MjAyODQ1MTU2OH0.0x6jIeOANj6_Y5s7EQ9tuU3GhZLZblobDAt_W2dOLJA',
   );
-
-  if (credentialManager.isSupportedPlatform) {
-    await credentialManager.init(
-      preferImmediatelyAvailableCredentials: true,
-      //optional parameter for integrate google signing
-      googleClientId: googleClientId,
-    );
-  }
 
   final themeNotifier = ThemeNotifier();
   final themeProvider = ThemeProvider();
@@ -960,11 +947,11 @@ Widget build(BuildContext context) {
   // Update the event in the Supabase database
   await Supabase.instance.client.from('Events').update({
     'timeSlots': event.timeSlots.map((slot) {
-      if (slot == timeSlot) {
+      if (slot == timeSlot && (slot.numberOfPeople > 0)) {
         final updatedAttendees = slot.attendees.where((attendee) => attendee.name != userId).toList();
         final updatedNumberOfPeople = slot.numberOfPeople - 1;
 
-        if (updatedNumberOfPeople > 0) {
+        if (slot.numberOfPeople > 0) {
           // Update the time slot with the user signed up
           return {
             'time': '${slot.time.hour}:${slot.time.minute}',
@@ -977,14 +964,6 @@ Widget build(BuildContext context) {
                   }).toList(),
               {'name': userId, 'isPresent': false},
             ],
-          };
-        } else {
-          // Cancel the time slot if the number of people becomes 0
-          return {
-            'time': '${slot.time.hour}:${slot.time.minute}',
-            "endTime": '${slot.endTime.hour}:${slot.endTime.minute}',
-            'numberOfPeople': 0,
-            'attendees': [],
           };
         }
       } else {
@@ -2376,11 +2355,13 @@ class AdminAttendancePage extends StatefulWidget {
 
 class _AdminAttendancePageState extends State<AdminAttendancePage> {
   List<Event> _events = [];
+  List<UserProfile> _allUsers = [];
 
   @override
   void initState() {
     super.initState();
     _fetchEvents();
+    _fetchAllUsers();
   }
 
   Future<void> _fetchEvents() async {
@@ -2392,6 +2373,21 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
     final List<dynamic> data = response;
     setState(() {
       _events = data.map((json) => Event.fromJson(json)).toList();
+    });
+  }
+
+  Future<void> _fetchAllUsers() async {
+    final response = await Supabase.instance.client
+        .from('profiles')
+        .select('*');
+
+    final List<dynamic> data = response;
+    setState(() {
+      _allUsers = data.map((json) => UserProfile(
+        name: json['name'] ?? 'Unknown',
+        id: json['user_id'],
+        completedHours: [],
+      )).toList();
     });
   }
 
@@ -2447,19 +2443,19 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
               ),
               children: event.timeSlots.map((timeSlot) {
                 return ListTile(
-                        title: Text(
-                          'Time: ${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
-                          style: TextStyle(
-                            fontSize: 16.0,
-                          ),
-                        ),
-                        subtitle: Text(
-                          'Number of People: ${timeSlot.numberOfPeople}',
-                          style: TextStyle(
-                            fontSize: 14.0,
-                            color: Colors.grey[600],
-                          ),
-                        ),
+                  title: Text(
+                    'Time: ${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
+                    style: TextStyle(
+                      fontSize: 16.0,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Number of People: ${timeSlot.numberOfPeople}',
+                    style: TextStyle(
+                      fontSize: 14.0,
+                      color: Colors.grey[600],
+                    ),
+                  ),
                   trailing: IconButton(
                     icon: Icon(
                       Icons.checklist_outlined,
@@ -2478,224 +2474,305 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
     );
   }
 
-void _showAttendanceDialog(Event event, TimeSlot timeSlot) async {
+  void _showAttendanceDialog(Event event, TimeSlot timeSlot) async {
     final updatedAttendees = await Future.wait(
-    timeSlot.attendees.map((attendee) async {
-      final userId = attendee.name;
-      final userName = await _getUserName(userId);
-      return Attendee(
-        name: userName,
-        isPresent: attendee.isPresent,
-        userId: userId,
-      );
-    }),
-  );
+      timeSlot.attendees.map((attendee) async {
+        final userId = attendee.name;
+        final userName = await _getUserName(userId);
+        return Attendee(
+          name: userName,
+          isPresent: attendee.isPresent,
+          userId: userId,
+        );
+      }),
+    );
 
-  showDialog(
-    context: context,
-    builder: (context) {
-      return StatefulBuilder(
-        builder: (BuildContext context, StateSetter setState) {
-          return AlertDialog(
-            title: Text(
-              'Attendance for ${event.name}',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 20.0,
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return AlertDialog(
+              title: Text(
+                'Attendance for ${event.name}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20.0,
+                ),
               ),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Time: ${timeSlot.time.format(context)}',
-                  style: TextStyle(
-                    fontSize: 16.0,
-                    color: Colors.grey[600],
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Time: ${timeSlot.time.format(context)}',
+                    style: TextStyle(
+                      fontSize: 16.0,
+                      color: Colors.grey[600],
+                    ),
                   ),
-                ),
-                SizedBox(height: 16.0),
-                Text(
-                  'Attendees:',
-                  style: TextStyle(
-                    fontSize: 18.0,
-                    fontWeight: FontWeight.bold,
+                  SizedBox(height: 16.0),
+                  Text(
+                    'Attendees:',
+                    style: TextStyle(
+                      fontSize: 18.0,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                SizedBox(height: 8.0),
-               Container(
-                  height: 200.0,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: updatedAttendees.map((attendee) {
-                        return ListTile(
-                          title: Text(
-                            attendee.name,
-                            style: TextStyle(
-                              fontSize: 16.0,
+                  SizedBox(height: 8.0),
+                  Container(
+                    height: 200.0,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: updatedAttendees.map((attendee) {
+                          return ListTile(
+                            title: Text(
+                              attendee.name,
+                              style: TextStyle(
+                                fontSize: 16.0,
+                              ),
                             ),
-                          ),
-                          trailing: Checkbox(
-                            value: attendee.isPresent,
-                            onChanged: (value) {
-                              setState(() {
-                                attendee.isPresent = value!;
-                              });
-                            },
-                            activeColor: Colors.blue,
-                          ),
-                        );
-                      }).toList(),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (!attendee.isPresent)
+                                  IconButton(
+                                    icon: Icon(Icons.swap_horiz),
+                                    onPressed: () {
+                                      _showSwapDialog(attendee, updatedAttendees, setState);
+                                    },
+                                  ),
+                                Checkbox(
+                                  value: attendee.isPresent,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      attendee.isPresent = value!;
+                                    });
+                                  },
+                                  activeColor: Colors.blue,
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontSize: 16.0,
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+                ElevatedButton(
+                  child: Text(
+                    'Save',
+                    style: TextStyle(
+                      fontSize: 16.0,
+                    ),
+                  ),
+                  onPressed: () {
+                    timeSlot.attendees.clear();
+                    timeSlot.attendees.addAll(updatedAttendees.map((attendee) => Attendee(
+                      name: attendee.userId,
+                      isPresent: attendee.isPresent,
+                      userId: attendee.userId,
+                    )));
+                    _saveAttendance(event, timeSlot);
+                    Navigator.of(context).pop();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: Colors.blue,
+                    padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
                     ),
                   ),
                 ),
               ],
-            ),
-            actions: [
-              TextButton(
-                child: Text(
-                  'Cancel',
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontSize: 16.0,
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-              ElevatedButton(
-                child: Text(
-                  'Save',
-                  style: TextStyle(
-                    fontSize: 16.0,
-                  ),
-                ),
-                onPressed: () {
-                   timeSlot.attendees.clear();
-                  timeSlot.attendees.addAll(updatedAttendees.map((attendee) => Attendee(
-                    name: attendee.userId,
-                    isPresent: attendee.isPresent,
-                    userId: attendee.userId,
-                  )));
-                  _saveAttendance(event, timeSlot,);
-                  Navigator.of(context).pop();
-                },
-                style: ElevatedButton.styleFrom(
-                  foregroundColor:  Colors.blue,
-                  padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      );
-    },
-  );
-}
-
-void _saveAttendance(Event event, TimeSlot timeSlot) async {
-  final attendees = timeSlot.attendees
-      .map((attendee) => {
-            'name': attendee.userId,
-            'isPresent': attendee.isPresent,
-          })
-      .toList();
-
-  final serviceHoursToAdd = <Map<String, dynamic>>[];
-  final serviceHoursToRemove = <Map<String, dynamic>>[];
-
-  for (final attendee in timeSlot.attendees) {
-    final existingServiceHour = await Supabase.instance.client
-        .from('Service hours')
-        .select()
-        .eq('event_name', event.name)
-        .eq('timeslot', '${timeSlot.time.hour}:${timeSlot.time.minute}')
-        .eq('user_id', attendee.userId);
-
-    if (attendee.isPresent) {
-      if (existingServiceHour.isEmpty) {
-        final duration = _calculateDuration(timeSlot.time, timeSlot.endTime);
-        serviceHoursToAdd.add({
-          'event_name': event.name,
-          'event_description': event.description,
-          'date': event.date.toIso8601String(),
-          'timeslot': '${timeSlot.time.hour}:${timeSlot.time.minute}',
-          'user_id': attendee.userId,
-          'hours': duration,
-          'type': event.type,
-        });
-      }
-    } else {
-      if (existingServiceHour.isNotEmpty) {
-        serviceHoursToRemove.add({
-          'event_name': event.name,
-          'timeslot': '${timeSlot.time.hour}:${timeSlot.time.minute}',
-          'user_id': attendee.userId,
-        });
-      }
-    }
-  }
-
-  if (serviceHoursToAdd.isNotEmpty) {
-    await Supabase.instance.client.from('Service hours').insert(serviceHoursToAdd);
-  }
-
-  if (serviceHoursToRemove.isNotEmpty) {
-    for (final serviceHour in serviceHoursToRemove) {
-      await Supabase.instance.client
-          .from('Service hours')
-          .delete()
-          .eq('event_name', serviceHour['event_name'])
-          .eq('timeslot', serviceHour['timeslot'])
-          .eq('user_id', serviceHour['user_id']);
-    }
-  }
-
-  await Supabase.instance.client.from('Events').update({
-    'timeSlots': event.timeSlots
-        .map((slot) => {
-              'time': '${slot.time.hour}:${slot.time.minute}',
-              'endTime': '${slot.endTime.hour}:${slot.endTime.minute}',
-              'numberOfPeople': slot.numberOfPeople,
-              'attendees': slot == timeSlot
-                  ? attendees
-                  : slot.attendees
-                      .map((attendee) => {
-                            'name': attendee.userId,
-                            'isPresent': attendee.isPresent,
-                          })
-                      .toList(),
-            })
-        .toList(),
-  }).eq('name', event.name);
-
-  // Update the local state to reflect the changes
-  setState(() {
-    final eventIndex = _events.indexWhere((e) => e.name == event.name);
-    final timeSlotIndex = _events[eventIndex].timeSlots.indexOf(timeSlot);
-    
-    final updatedTimeSlot = TimeSlot(
-      time: timeSlot.time,
-      endTime: timeSlot.endTime,
-      numberOfPeople: timeSlot.numberOfPeople,
-      attendees: timeSlot.attendees,
+            );
+          },
+        );
+      },
     );
-    
-    _events[eventIndex].timeSlots[timeSlotIndex] = updatedTimeSlot;
-  });
-}
+  }
 
-double _calculateDuration(TimeOfDay startTime, TimeOfDay endTime) {
-  final startMinutes = startTime.hour * 60 + startTime.minute;
-  final endMinutes = endTime.hour * 60 + endTime.minute;
-  final duration = (endMinutes - startMinutes) / 60;
-  return duration;
-}
+  void _showSwapDialog(Attendee currentAttendee, List<Attendee> updatedAttendees, StateSetter parentSetState) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        String searchQuery = '';
+        List<UserProfile> filteredUsers = List.from(_allUsers);
+
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return AlertDialog(
+              title: Text('Swap Attendee'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    onChanged: (value) {
+                      setState(() {
+                        searchQuery = value;
+                        filteredUsers = _allUsers
+                            .where((user) => user.name.toLowerCase().contains(searchQuery.toLowerCase()))
+                            .toList();
+                      });
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Search',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  Container(
+                    height: 300,
+                    width: 300,
+                    child: ListView.builder(
+                      itemCount: filteredUsers.length,
+                      itemBuilder: (context, index) {
+                        final user = filteredUsers[index];
+                        return ListTile(
+                          title: Text(user.name),
+                          onTap: () {
+                            parentSetState(() {
+                              int index = updatedAttendees.indexOf(currentAttendee);
+                              updatedAttendees[index] = Attendee(
+                                name: user.name,
+                                isPresent: false,
+                                userId: user.id,
+                              );
+                            });
+                            Navigator.of(context).pop();
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  child: Text('Cancel'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _saveAttendance(Event event, TimeSlot timeSlot) async {
+    final attendees = timeSlot.attendees
+        .map((attendee) => {
+              'name': attendee.userId,
+              'isPresent': attendee.isPresent,
+            })
+        .toList();
+
+    final serviceHoursToAdd = <Map<String, dynamic>>[];
+    final serviceHoursToRemove = <Map<String, dynamic>>[];
+
+    for (final attendee in timeSlot.attendees) {
+      final existingServiceHour = await Supabase.instance.client
+          .from('Service hours')
+          .select()
+          .eq('event_name', event.name)
+          .eq('timeslot', '${timeSlot.time.hour}:${timeSlot.time.minute}')
+          .eq('user_id', attendee.userId);
+
+      if (attendee.isPresent) {
+        if (existingServiceHour.isEmpty) {
+          final duration = _calculateDuration(timeSlot.time, timeSlot.endTime);
+          serviceHoursToAdd.add({
+            'event_name': event.name,
+            'event_description': event.description,
+            'date': event.date.toIso8601String(),
+            'timeslot': '${timeSlot.time.hour}:${timeSlot.time.minute}',
+            'user_id': attendee.userId,
+            'hours': duration,
+            'type': event.type,
+          });
+        }
+      } else {
+        if (existingServiceHour.isNotEmpty) {
+          serviceHoursToRemove.add({
+            'event_name': event.name,
+            'timeslot': '${timeSlot.time.hour}:${timeSlot.time.minute}',
+            'user_id': attendee.userId,
+          });
+        }
+      }
+    }
+
+    if (serviceHoursToAdd.isNotEmpty) {
+      await Supabase.instance.client.from('Service hours').insert(serviceHoursToAdd);
+    }
+
+    if (serviceHoursToRemove.isNotEmpty) {
+      for (final serviceHour in serviceHoursToRemove) {
+        await Supabase.instance.client
+            .from('Service hours')
+            .delete()
+            .eq('event_name', serviceHour['event_name'])
+            .eq('timeslot', serviceHour['timeslot'])
+            .eq('user_id', serviceHour['user_id']);
+      }
+    }
+
+    await Supabase.instance.client.from('Events').update({
+      'timeSlots': event.timeSlots
+          .map((slot) => {
+                'time': '${slot.time.hour}:${slot.time.minute}',
+                'endTime': '${slot.endTime.hour}:${slot.endTime.minute}',
+                'numberOfPeople': slot.numberOfPeople,
+                'attendees': slot == timeSlot
+                    ? attendees
+                    : slot.attendees
+                        .map((attendee) => {
+                              'name': attendee.userId,
+                              'isPresent': attendee.isPresent,
+                            })
+                        .toList(),
+              })
+          .toList(),
+    }).eq('name', event.name);
+
+    setState(() {
+      final eventIndex = _events.indexWhere((e) => e.name == event.name);
+      final timeSlotIndex = _events[eventIndex].timeSlots.indexOf(timeSlot);
+      
+      final updatedTimeSlot = TimeSlot(
+        time: timeSlot.time,
+        endTime: timeSlot.endTime,
+        numberOfPeople: timeSlot.numberOfPeople,
+        attendees: timeSlot.attendees,
+      );
+      
+      _events[eventIndex].timeSlots[timeSlotIndex] = updatedTimeSlot;
+    });
+  }
+
+  double _calculateDuration(TimeOfDay startTime, TimeOfDay endTime) {
+    final startMinutes = startTime.hour * 60 + startTime.minute;
+    final endMinutes = endTime.hour * 60 + endTime.minute;
+    final duration = (endMinutes - startMinutes) / 60;
+    return duration;
+  }
 }
 
 class AdminListPage extends StatefulWidget {
@@ -2924,22 +3001,36 @@ Future<void> _deleteServiceHour(CompletedUserHour hour, String userId) async {
       body: Column(
       children: [
         Padding(
-          padding: EdgeInsets.all(16.0),
-          child: TextField(
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value;
-              });
-            },
-            decoration: InputDecoration(
-              labelText: 'Search',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10.0),
-              ),
+            padding: EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Search',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10.0),
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 16.0),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    _openBulkCustomEventForm(context);
+                  },
+                  icon: Icon(Icons.add),
+                  label: Text('Bulk'),
+                ),
+              ],
             ),
           ),
-        ),
         Expanded(
             child: ListView.separated(
               itemCount: filteredUsers.length,
@@ -3010,8 +3101,336 @@ Future<void> _deleteServiceHour(CompletedUserHour hour, String userId) async {
     ),
   );
 }
+
+void _openBulkCustomEventForm(BuildContext context) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BulkCustomEventFormPage(users: _users),
+      ),
+    );
+
+    if (result == true) {
+      // Refresh the user list if the bulk custom event was saved successfully
+      _fetchUsers();
+    }
+  }
 }
 
+
+
+
+class BulkCustomEventFormPage extends StatefulWidget {
+  final List<UserProfile> users;
+
+  BulkCustomEventFormPage({required this.users});
+
+  @override
+  _BulkCustomEventFormPageState createState() => _BulkCustomEventFormPageState();
+}
+
+class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
+  String eventName = '';
+  TimeOfDay? selectedTime;
+  double hours = 0;
+  String type = 'Service';
+  List<String> selectedUserIds = [];
+  String searchQuery = '';
+
+  List<UserProfile> get filteredUsers {
+    return widget.users.where((user) {
+      final lowercaseName = user.name.toLowerCase();
+      final lowercaseQuery = searchQuery.toLowerCase();
+      return lowercaseName.contains(lowercaseQuery);
+    }).toList();
+  }
+
+ @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Add Bulk Custom Event'),
+      ),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              padding: EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextFormField(
+                    decoration: InputDecoration(
+                      labelText: 'Event Name',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        eventName = value;
+                      });
+                    },
+                  ),
+                  SizedBox(height: 16.0),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: type,
+                          onChanged: (value) {
+                            setState(() {
+                              type = value ?? "Service";
+                            });
+                          },
+                          items: [
+                            DropdownMenuItem(
+                              value: 'Service',
+                              child: Text('Service'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Tutoring',
+                              child: Text('Tutoring'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Meeting',
+                              child: Text('Meeting'),
+                            ),
+                          ],
+                          decoration: InputDecoration(
+                            labelText: 'Event Type',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 16.0),
+                      Expanded(
+                        child: ElevatedButton(
+                          child: Text(selectedTime != null
+                              ? selectedTime!.format(context)
+                              : 'Select Time'),
+                          onPressed: () async {
+                            final TimeOfDay? pickedTime = await showTimePicker(
+                              context: context,
+                              initialTime: selectedTime ?? TimeOfDay.now(),
+                            );
+                            if (pickedTime != null) {
+                              setState(() {
+                                selectedTime = pickedTime;
+                              });
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 16.0),
+                      Expanded(
+                        child: TextFormField(
+                          initialValue: hours.toString(),
+                          decoration: InputDecoration(
+                            labelText: 'Hours',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                          ),
+                          keyboardType: TextInputType.number,
+                          onChanged: (value) {
+                            setState(() {
+                              hours = double.tryParse(value) ?? 0.0;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 16.0),
+            TextField(
+              onChanged: (value) {
+                setState(() {
+                  searchQuery = value;
+                });
+              },
+              decoration: InputDecoration(
+                labelText: 'Search Members',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
+            ),
+            SizedBox(height: 16.0),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: ListView.builder(
+                shrinkWrap: true,
+                physics: NeverScrollableScrollPhysics(),
+                itemCount: filteredUsers.length,
+                itemBuilder: (context, index) {
+                  final user = filteredUsers[index];
+                  final isSelected = selectedUserIds.contains(user.id);
+
+                  bool isFirstItem = index == 0;
+                  bool isLastItem = index == filteredUsers.length - 1;
+                  bool isPrevSelected = isFirstItem ? false : selectedUserIds.contains(filteredUsers[index - 1].id);
+                  bool isNextSelected = isLastItem ? false : selectedUserIds.contains(filteredUsers[index + 1].id);
+
+                  BorderRadius borderRadius = BorderRadius.zero;
+                  if(!isSelected){
+
+                  }
+                  else if (isSelected && isNextSelected) {
+                    if (isPrevSelected) {
+                      borderRadius = BorderRadius.all((Radius.circular(6)));
+                    } else {
+                      borderRadius = BorderRadius.vertical(top: Radius.circular(15), bottom: Radius.circular(6));
+                    }
+                  } else if (isSelected && isPrevSelected) {
+                    borderRadius = BorderRadius.vertical(bottom: Radius.circular(15), top: Radius.circular(6));
+                  }
+                  else{
+                    borderRadius = BorderRadius.all(Radius.circular(15));
+                  }
+
+                  return Column(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: isSelected ? Theme.of(context).colorScheme.primaryContainer : null,
+                          borderRadius: borderRadius,
+                        ),
+                        child: CheckboxListTile(
+                          title: Text(user.name),
+                          value: isSelected,
+                          onChanged: (value) {
+                            setState(() {
+                              if (value!) {
+                                selectedUserIds.add(user.id);
+                              } else {
+                                selectedUserIds.remove(user.id);
+                              }
+                            });
+                          },
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 2.0),
+                    ],
+                  );
+                },
+              ),
+            ),
+            SizedBox(height: 16.0),
+          ],
+        ),
+      ),
+       floatingActionButton: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            backgroundColor: Theme.of(context).colorScheme.secondary,
+            child: Icon(Icons.cancel_outlined, color: Theme.of(context).colorScheme.surfaceContainerHighest),
+          ),
+          SizedBox(width: 16.0),
+          FloatingActionButton(
+            onPressed: () {
+              if (selectedTime != null) {
+                String timeSlot = '${selectedTime!.hour}:${selectedTime!.minute}';
+                _saveBulkCustomEvent(
+                  selectedUserIds,
+                  eventName,
+                  timeSlot,
+                  hours,
+                  type,
+                );
+              }
+            },
+            child: Icon(Icons.save, color: Theme.of(context).colorScheme.onSurfaceVariant,),
+          ),
+        ],
+      ),
+    );
+    
+  }
+  
+  Future<void> _saveBulkCustomEvent(
+    List<String> userIds,
+    String eventName,
+    String timeSlot,
+    double hours,
+    String type,
+  ) async {
+    try {
+      final List<Map<String, dynamic>> bulkEvents = userIds.map((userId) {
+        return {
+          'user_id': userId,
+          'event_name': eventName,
+          'timeslot': timeSlot,
+          'hours': hours.toDouble(),
+          'type': type,
+        };
+      }).toList();
+
+      await Supabase.instance.client.from('Service hours').insert(bulkEvents);
+
+      // Show a success message using toastification
+      toastification.show(
+        context: context,
+        type: ToastificationType.success,
+        style: ToastificationStyle.simple,
+        title: const Text("Bulk custom event saved successfully"),
+        description: const Text(""),
+        alignment: Alignment.center,
+        autoCloseDuration: const Duration(seconds: 3),
+        borderRadius: BorderRadius.circular(12.0),
+        boxShadow: lowModeShadow,
+        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+        foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+      );
+
+      // Return true to indicate successful saving
+      Navigator.of(context).pop(true);
+    } catch (error) {
+      // Show an error message using toastification
+      toastification.show(
+        context: context,
+        type: ToastificationType.error,
+        style: ToastificationStyle.simple,
+        title: const Text("Failed to save bulk custom event"),
+        description: const Text(""),
+        alignment: Alignment.center,
+        autoCloseDuration: const Duration(seconds: 3),
+        borderRadius: BorderRadius.circular(12.0),
+        boxShadow: lowModeShadow,
+        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+        foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+      );
+    }
+  }
+}
+
+// ... existing code ...
 class AdminTotalHoursPage extends StatefulWidget {
   @override
   _AdminTotalHoursPageState createState() => _AdminTotalHoursPageState();
