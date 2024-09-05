@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:english_words/english_words.dart';
@@ -17,6 +18,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:add_2_calendar/add_2_calendar.dart';
 import 'dart:convert';
 import 'package:toastification/toastification.dart';
+import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 
 
 void main() async {
@@ -88,7 +90,7 @@ class MyApp extends StatelessWidget {
                           ),
                     initialRoute: '/',
                     routes: {
-                      '/': (context) => AuthenticationPage(),
+                      '/': (context) => LoginPage(),
                       '/main': (context) => MainScreen(),
                       '/admin/events': (context) => AdminEventsPage(),
                       '/admin/attendance': (context) => AdminAttendancePage(),
@@ -104,11 +106,11 @@ class MyApp extends StatelessWidget {
   }
 
   Future<void> _fetchUserThemeColor(ThemeNotifier themeNotifier) async {
-  final prefs = await SharedPreferences.getInstance();
-  final colorValue = prefs.getInt('themeColor');
-  final color = colorValue != null ? Color(colorValue) : Colors.blue;
-  themeNotifier.updateThemeColor(color);
-}
+    final prefs = await SharedPreferences.getInstance();
+    final colorValue = prefs.getInt('themeColor');
+    final color = colorValue != null ? Color(colorValue) : Colors.blue;
+    themeNotifier.updateThemeColor(color);
+  }
 }
 class MainScreen extends StatefulWidget {
   @override
@@ -141,9 +143,11 @@ class _MainScreenState extends State<MainScreen> {
         .eq('user_id', userId);
 
     if (response != null && response.length > 0) {
+      if (mounted){
       setState(() {
         _isAdmin = response[0]['admin'] ?? false;
       });
+      }
     }
   }
 }
@@ -270,294 +274,123 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
-class AuthenticationPage extends StatefulWidget {
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
   @override
-  _AuthenticationPageState createState() => _AuthenticationPageState();
+  _LoginPageState createState() => _LoginPageState();
 }
 
-class _AuthenticationPageState extends State<AuthenticationPage> {
+class _LoginPageState extends State<LoginPage> {
   @override
-void initState() {
-  super.initState();
-  _checkAndRecoverSession();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Login',
+                style: TextStyle(
+                  fontSize: 32.0,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 32.0),
+              SupaEmailAuth(
+                
+                 onSignUpComplete: (response) {
+                  // Navigate to a waiting page after sign-up
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const WaitingPage()),
+                  );
+                },
+                
+                redirectTo: kIsWeb ? null : 'com.wheelermun.nhs://callback',
+                onSignInComplete: (AuthResponse response) {
+                  if (response.session != null) {
+                    // Navigate to the main screen on successful sign-in
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => MainScreen()),
+                    );
+                  }
+                },
+              ),
+              SupaSocialsAuth(
+                socialProviders: const [
+                ],
+                colored: true,
+                onSuccess: (Session response) {
+                  // Navigate to the home page on successful social sign-in
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => MainScreen()),
+                  );
+                },
+                onError: (error) {
+                  // Handle the error
+                  print('Social sign-in error: $error');
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
-  
-  final _formKey = GlobalKey<FormState>();
-  late String _email;
-  late String _password;
+
+class WaitingPage extends StatelessWidget {
+  const WaitingPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            colors: [
-              Color.fromARGB(255, 50, 0, 230),
-              Color.fromARGB(255, 46, 33, 230),
-              Color.fromARGB(255, 74, 71, 241),
-            ],
-          ),
-        ),
+      backgroundColor: Colors.white,
+      body: Center(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            SizedBox(height: 80),
-            Padding(
-              padding: EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  FadeInUp(
-                    duration: Duration(milliseconds: 1000),
-                    child: Text(
-                      "Login",
-                      style: TextStyle(color: Colors.white, fontSize: 40),
-                    ),
-                  ),
-                  SizedBox(height: 10),
-                  FadeInUp(
-                    duration: Duration(milliseconds: 1300),
-                    child: Text(
-                      "Welcome Back",
-                      style: TextStyle(color: Colors.white, fontSize: 18),
-                    ),
-                  ),
-                ],
-              ),
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.email,
+              size: 80.0,
+              color: Colors.blue,
             ),
-            SizedBox(height: 20),
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(60),
-                    topRight: Radius.circular(60),
-                  ),
-                ),
-                child: Padding(
-                  padding: EdgeInsets.all(30),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      children: <Widget>[
-                        SizedBox(height: 60),
-                        FadeInUp(
-                          duration: Duration(milliseconds: 1400),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Color.fromRGBO(47, 27, 225, 0.298),
-                                  blurRadius: 20,
-                                  offset: Offset(0, 10),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              children: <Widget>[
-                                Container(
-                                  padding: EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    border: Border(
-                                      bottom: BorderSide(
-                                        color: Colors.grey.shade200,
-                                      ),
-                                    ),
-                                  ),
-                                  child: TextFormField(
-                                    decoration: InputDecoration(
-                                      hintText: "Email",
-                                      hintStyle: TextStyle(color: Colors.grey),
-                                      border: InputBorder.none,
-                                    ),
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return 'Please enter your email';
-                                      }
-                                      return null;
-                                    },
-                                    onSaved: (value) {
-                                      _email = value!;
-                                    },
-                                  ),
-                                ),
-                                Container(
-                                  padding: EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    border: Border(
-                                      bottom: BorderSide(
-                                        color: Colors.grey.shade200,
-                                      ),
-                                    ),
-                                  ),
-                                  child: TextFormField(
-                                    obscureText: true,
-                                    decoration: InputDecoration(
-                                      hintText: "Password",
-                                      hintStyle: TextStyle(color: Colors.grey),
-                                      border: InputBorder.none,
-                                    ),
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return 'Please enter your password';
-                                      }
-                                      return null;
-                                    },
-                                    onSaved: (value) {
-                                      _password = value!;
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        
-                        SizedBox(height: 40),
-                        FadeInUp(
-                          duration: Duration(milliseconds: 1600),
-                          child: MaterialButton(
-                            onPressed: _signIn,
-                            height: 50,
-                            color: const Color.fromARGB(255, 35, 0, 230),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(50),
-                            ),
-                            child: Center(
-                              child: Text(
-                                "Login",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+            const SizedBox(height: 24.0),
+            Text(
+              'Thank you for signing up!',
+              style: TextStyle(
+                fontSize: 24.0,
+                fontWeight: FontWeight.bold,
               ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16.0),
+            Text(
+              'Please check your email to verify your account.',
+              style: const TextStyle(fontSize: 18.0),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32.0),
+            ElevatedButton(
+              onPressed: () {
+                // Navigate back to the login page
+                Navigator.pushReplacementNamed(context, '/');
+              },
+              child: const Text('Back to Login'),
             ),
           ],
         ),
       ),
     );
   }
-  void _signIn() async {
-  if (_formKey.currentState!.validate()) {
-    _formKey.currentState!.save();
-    try {
-      final response = await supabase.auth.signInWithPassword(
-        email: _email,
-        password: _password,
-        
-      );
-      if (response.session != null) {
-        // Sign-in successful, store the session data with an expiration time
-        final prefs = await SharedPreferences.getInstance();
-        final expiresAt = DateTime.now().add(Duration(days: 30)).millisecondsSinceEpoch ~/ 1000;
-        await prefs.setString('sessionData', json.encode(response.session));
-        print(json.encode(response.session));
-        // Navigate to the home page
-        Navigator.pushReplacementNamed(context, '/main');
-      } else {
-        // Sign-in failed, show an error message
-        toastification.show(
-	  context: context,
-	  type: ToastificationType.error,
-	  style: ToastificationStyle.simple,
-	  title: Text("Sign-In Failed. Please try again"),
-	  description: Text(""),
-	  alignment: Alignment.bottomCenter,
-	  autoCloseDuration: const Duration(seconds: 4),
-	  borderRadius: BorderRadius.circular(12.0),
-	  boxShadow: lowModeShadow,
-    applyBlurEffect: true
-	);
-      }
-    } catch (error) {
-      toastification.show(
-	  context: context,
-	  type: ToastificationType.error,
-	  style: ToastificationStyle.simple,
-	  title: Text("An error occurred. Please try again."),
-	  description: Text(""),
-	  alignment: Alignment.center,
-	  autoCloseDuration: const Duration(seconds: 4),
-	  borderRadius: BorderRadius.circular(12.0),
-	  boxShadow: lowModeShadow,
-     applyBlurEffect: true
-	  
-	);
-    }
-  }
 }
-
-  Future<void> _checkAndRecoverSession() async {
-  final prefs = await SharedPreferences.getInstance();
-  final sessionDataJson = prefs.getString('sessionData');
-
-  if (sessionDataJson != null) {
-    try {
-      print("error 1");
-      final sessionData = json.decode(sessionDataJson);
-      final accessToken = sessionData['access_token'];
-      final refreshToken = sessionData['refresh_token'];
-      final expiresAt = sessionData['expires_at'];
-      final timeNow = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-     
-      if (expiresAt < timeNow) {
-        if (refreshToken != null) {
-          final response = await supabase.auth.refreshSession(refreshToken);
-          if (response.session != null) {
-            // Token refreshed successfully, update the stored session data
-            final newExpiresAt = DateTime.now().add(Duration(days: 30)).millisecondsSinceEpoch ~/ 1000;
-            final newSessionData = {
-              'access_token': response.session!.accessToken,
-              'refresh_token': response.session!.refreshToken,
-              'expires_in': response.session!.expiresIn,
-              'expires_at': newExpiresAt,
-            };
-            await prefs.setString('sessionData', json.encode(newSessionData));
-
-            // Navigate to the home page
-            Navigator.pushReplacementNamed(context, '/main');
-          } else {
-            // Token refresh failed, remove the session data
-            await prefs.remove('sessionData');
-          }
-        } else {
-          // Refresh token not available, remove the session data
-          await prefs.remove('sessionData');
-        }
-      } else {
-        // Session is still valid, recover the session
-        final response = await supabase.auth.recoverSession(sessionDataJson);
-        if (response.session != null) {
-          // Session recovered successfully, navigate to the home page
-          Navigator.pushReplacementNamed(context, '/main');
-        } else {
-          // Session recovery failed, remove the session data
-          await prefs.remove('sessionData');
-        }
-      }
-    } catch (error) {
-      // Handle any errors that occur during session recovery
-      print('Session recovery failed: $error');
-    }
-  }
-}
-
-}
-// navigation
 
 class HomePage extends StatefulWidget {
   @override
@@ -719,7 +552,7 @@ Widget _buildDoubleProgressBar(context, String title, double completedHours, dou
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(20),
     ),
-    elevation: 4,
+    elevation: 2,
     margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     child: CustomExpansionTile(
       title: ListTile(
@@ -727,13 +560,13 @@ Widget _buildDoubleProgressBar(context, String title, double completedHours, dou
           event.name + " - " + event.date.month.toString() + "/" + event.date.day.toString() + "/" + event.date.year.toString(),
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 18.0,
+            fontSize: 16.0,
           ),
         ),
         subtitle: Text(
           event.description + " - " + event.type,
           style: TextStyle(
-            fontSize: 16.0,
+            fontSize: 14.0,
             color: Colors.grey[600],
           ),
         ),
@@ -745,13 +578,13 @@ Widget _buildDoubleProgressBar(context, String title, double completedHours, dou
           title: Text(
             'Time: ${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
             style: TextStyle(
-              fontSize: 16.0,
+              fontSize: 14.0,
             ),
           ),
           subtitle: Text(
             'Number of People: ${timeSlot.numberOfPeople}',
             style: TextStyle(
-              fontSize: 14.0,
+              fontSize: 12.0,
               color: Colors.grey[600],
             ),
           ),
@@ -795,7 +628,7 @@ Widget _buildDoubleProgressBar(context, String title, double completedHours, dou
 Widget build(BuildContext context) {
   return Scaffold(
     appBar: AppBar(
-      elevation: 20,
+      elevation: 15,
       shadowColor: Theme.of(context).colorScheme.shadow,
       title: Text(
         'Home',
@@ -887,6 +720,7 @@ Widget build(BuildContext context) {
               icon: Icon(Icons.calendar_today),
               label: Text('Add to Calendar'),
               onPressed: () {
+                _signUpForTimeSlot(event, timeSlot);
                 _addEventToCalendar(event, timeSlot);
                 Navigator.of(context).pop();
               },
@@ -938,51 +772,62 @@ Widget build(BuildContext context) {
       _fetchEvents();
     }
   }
-  void _signUpForTimeSlot(Event event, TimeSlot timeSlot) async {
+  void _signUpForTimeSlot(Event pEvent, TimeSlot timeSlot) async {
   // Get the current user's UUID
   final User? user = supabase.auth.currentUser;
   final userId = user?.id;
-  final userName = await _getUserName(userId);
+  print(pEvent.name);
+  if (userId != null) {
+    // Fetch the latest event data from Supabase
+    final eventData = await Supabase.instance.client
+        .from('Events')
+        .select()
+        .eq('name', pEvent.name)
+        .single();
+    if (eventData != null) {
+      final event = Event.fromJson(eventData);
+      // Find the time slot index
+      final timeSlotIndex = event.timeSlots.indexWhere((slot) =>
+          slot.time == timeSlot.time && slot.endTime == timeSlot.endTime);
 
-  // Update the event in the Supabase database
-  await Supabase.instance.client.from('Events').update({
-    'timeSlots': event.timeSlots.map((slot) {
-      if (slot == timeSlot && (slot.numberOfPeople > 0)) {
-        final updatedAttendees = slot.attendees.where((attendee) => attendee.name != userId).toList();
-        final updatedNumberOfPeople = slot.numberOfPeople - 1;
+      if (timeSlotIndex != -1) {
+        final slot = event.timeSlots[timeSlotIndex];
+        if (slot.numberOfPeople > 0 &&
+            !slot.attendees.any((attendee) => attendee.name == userId)) {
+          final updatedAttendees = List<Attendee>.from(slot.attendees)
+            ..add(Attendee(name: userId, isPresent: false, userId: userId));
+          final updatedNumberOfPeople = slot.numberOfPeople - 1;
 
-        if (slot.numberOfPeople > 0) {
           // Update the time slot with the user signed up
-          return {
+          final updatedTimeSlot = {
             'time': '${slot.time.hour}:${slot.time.minute}',
-            "endTime": '${slot.endTime.hour}:${slot.endTime.minute}',
+            'endTime': '${slot.endTime.hour}:${slot.endTime.minute}',
             'numberOfPeople': updatedNumberOfPeople,
-            'attendees': [
-              ...updatedAttendees.map((attendee) => {
-                    'name': attendee.userId,
-                    'isPresent': attendee.isPresent,
-                  }).toList(),
-              {'name': userId, 'isPresent': false},
-            ],
+            'attendees': updatedAttendees.map((attendee) => {
+                  'name': attendee.userId,
+                  'isPresent': attendee.isPresent,
+                }).toList(),
           };
-        }
-      } else {
+          // Update the event in the Supabase database
+ await Supabase.instance.client.from('Events').update({
+    'timeSlots': event.timeSlots.map((slot) {
         // Keep the other time slots unchanged
         return {
           'time': '${slot.time.hour}:${slot.time.minute}',
-          "endTime": '${slot.endTime.hour}:${slot.endTime.minute}',
-          'numberOfPeople': slot.numberOfPeople,
-          'attendees': slot.attendees.map((attendee) => {
-                'name': attendee.userId,
-                'isPresent': attendee.isPresent,
-              }).toList(),
+            'endTime': '${slot.endTime.hour}:${slot.endTime.minute}',
+            'numberOfPeople': updatedNumberOfPeople,
+            'attendees': updatedAttendees.map((attendee) => {
+                  'name': attendee.userId,
+                  'isPresent': attendee.isPresent,
+                }).toList(),
         };
-      }
     }).toList(),
   }).eq('name', event.name);
-
-  _fetchEvents();
-  // Refresh the events list after signing up
+          _fetchEvents();
+        }
+      }
+    }
+  }
 }
   void _addEventToCalendar(Event event, TimeSlot timeSlot) {
   final calendarEvent = addEvent(
@@ -1150,7 +995,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        elevation: 20,
+        elevation: 15,
         shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
           'Completed Hours',
@@ -1315,12 +1160,12 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _fetchThemeColorFromPrefs() async {
-  final prefs = await SharedPreferences.getInstance();
-  final colorValue = prefs.getInt('themeColor');
-  setState(() {
-    _selectedColor = colorValue != null ? Color(colorValue) : Colors.blue;
-  });
-}
+    final prefs = await SharedPreferences.getInstance();
+    final colorValue = prefs.getInt('themeColor');
+    setState(() {
+      _selectedColor = colorValue != null ? Color(colorValue) : Colors.blue;
+    });
+  }
 
 
   Future<void> _fetchUserProfile() async {
@@ -1346,94 +1191,38 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  Future<void> _updateUserProfile() async {
-  final User? user = supabase.auth.currentUser;
-  final userId = user?.id;
+   Future<void> _updateUserProfile() async {
+    final User? user = supabase.auth.currentUser;
+    final userId = user?.id;
 
-  if (userId != null) {
-    await Supabase.instance.client
-        .from('profiles')
-        .update({
-          'name': _name,
-          'email': _email,
-          'graduation_year': int.tryParse(_graduationYear) ?? 0,
-        })
-        .eq('user_id', userId);
-  }
+    if (userId != null) {
+      await Supabase.instance.client
+          .from('profiles')
+          .update({
+            'graduation_year': int.tryParse(_graduationYear) ?? 0,
+          })
+          .eq('user_id', userId);
+    }
   }
 
   void _handleColorChange(Color color) {
-  setState(() {
-    _selectedColor = color;
-  });
-  _saveThemeColorToPrefs(color);
-  Provider.of<ThemeNotifier>(context, listen: false).updateThemeColor(color);
-}
-
-Future<void> _saveThemeColorToPrefs(Color color) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setInt('themeColor', color.value);
-}
-  
-  
- Future<void> _updatePassword(String newPassword) async {
-  final User? user = supabase.auth.currentUser;
-
-  if (newPassword.length >= 6){
-   try {final response = await supabase.auth.updateUser(UserAttributes(password: newPassword));}
-   catch (e) {}
-   
-   
+    setState(() {
+      _selectedColor = color;
+    });
+    _saveThemeColorToPrefs(color);
+    Provider.of<ThemeNotifier>(context, listen: false).updateThemeColor(color);
   }
-  else {
-  const snackBar = SnackBar(content: Text('Password must Be more than 6 Characters'),);
-   ScaffoldMessenger.of(context).showSnackBar(snackBar);
-  }
- }
 
- Future<void> _updateEmail(String newEmail) async {
-  final User? user = supabase.auth.currentUser;
-  if (user?.email != newEmail){
-   try {final response = await supabase.auth.updateUser(UserAttributes(email: newEmail));
-   toastification.show(
-	  context: context,
-	  type: ToastificationType.success,
-	  style: ToastificationStyle.simple,
-	  title: const Text("Check your Email To Confirm Change"),
-	  description: const Text(""),
-	  alignment: Alignment.center,
-	  autoCloseDuration: const Duration(seconds: 4),
-	  borderRadius: BorderRadius.circular(12.0),
-	  boxShadow: lowModeShadow,
-	  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-    foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
-   );
-   
-   }
-   catch (e) {toastification.show(
-	  context: context,
-	  type: ToastificationType.error,
-	  style: ToastificationStyle.simple,
-	  title: const Text("Email overflow, Try again later"),
-	  description: const Text(""),
-	  alignment: Alignment.center,
-	  autoCloseDuration: const Duration(seconds: 4),
-	  borderRadius: BorderRadius.circular(12.0),
-	  boxShadow: lowModeShadow,
-	  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-    foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
-	);
-    }
+  Future<void> _saveThemeColorToPrefs(Color color) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('themeColor', color.value);
   }
-  else {}
-   
- }
 
    @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        elevation: 20,
+        elevation: 15,
         shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
           'Profile',
@@ -1457,7 +1246,7 @@ Future<void> _saveThemeColorToPrefs(Color color) async {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Card(
-            elevation: 4,
+            elevation: 2,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
@@ -1498,40 +1287,10 @@ Future<void> _saveThemeColorToPrefs(Color color) async {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   TextFormField(
-                    initialValue: _name,
-                    decoration: InputDecoration(labelText: 'Name'),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your name';
-                      }
-                      return null;
-                    },
-                    onChanged: (value) {
-                      setState(() {
-                        _name = value;
-                      });
-                    },
-                  ),
-                  SizedBox(height: 16.0),
-                  TextFormField(
-                    initialValue: _email,
-                    decoration: InputDecoration(labelText: 'Email'),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your email';
-                      }
-                      return null;
-                    },
-                    onChanged: (value) {
-                      setState(() {
-                        _email = value;
-                      });
-                    },
-                  ),
-                  SizedBox(height: 16.0),
-                  TextFormField(
                     keyboardType: TextInputType.number,
-                    inputFormatters: <TextInputFormatter>[ FilteringTextInputFormatter.digitsOnly],
+                    inputFormatters: <TextInputFormatter>[
+                      FilteringTextInputFormatter.digitsOnly
+                    ],
                     initialValue: _graduationYear,
                     decoration: InputDecoration(labelText: 'Graduation Year'),
                     validator: (value) {
@@ -1546,42 +1305,10 @@ Future<void> _saveThemeColorToPrefs(Color color) async {
                       });
                     },
                   ),
-                  SizedBox(height: 16.0),
-                  TextFormField(
-                    decoration: InputDecoration(labelText: 'Password'),
-                    obscureText: true,
-                    onChanged: (value) {
-                      setState(() {
-                        _password = value;
-                      });
-                    },
-                  ),
                   SizedBox(height: 24.0),
                   ElevatedButton(
                     onPressed: () async {
                       if (_formKey.currentState!.validate()) {
-                        if (_password.isNotEmpty) {
-                          if(_password.length > 7){
-                            try {final response = await supabase.auth.updateUser(UserAttributes(password: _password,));}
-                          catch (e) {};
-                          }
-                          else {
-                          toastification.show(
-                                context: context,
-                                type: ToastificationType.error,
-                                style: ToastificationStyle.simple,
-                                title: const Text("Password must be longer than 6 characters"),
-                                description: const Text(""),
-                                alignment: Alignment.center,
-                                autoCloseDuration: const Duration(seconds: 4),
-                                borderRadius: BorderRadius.circular(12.0),
-                                boxShadow: lowModeShadow,
-                                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                                 foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
-                              );
-                       }
-                        }
-                        _updateEmail(_email);
                         _updateUserProfile();
                         toastification.show(
                           context: context,
@@ -1593,68 +1320,67 @@ Future<void> _saveThemeColorToPrefs(Color color) async {
                           autoCloseDuration: const Duration(seconds: 4),
                           borderRadius: BorderRadius.circular(12.0),
                           boxShadow: lowModeShadow,
-                           backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                                 foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+                          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                          foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
                         );
                       }
                     },
                     child: Text('Update'),
                   ),
-                 SizedBox(height: 24.0),
-          ListTile(
-            leading: Icon(Icons.color_lens),
-            title: Text('Theme Color'),
-            trailing: CircleAvatar(
-              backgroundColor: _selectedColor,
-            ),
-            onTap: () {
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: Text('Select Theme Color'),
-                    content: SingleChildScrollView(
-                      child: SlidePicker(
-                        pickerColor: _selectedColor,
-                        onColorChanged: _handleColorChange,
-                      ),
+                  SizedBox(height: 24.0),
+                  ListTile(
+                    leading: Icon(Icons.color_lens),
+                    title: Text('Theme Color'),
+                    trailing: CircleAvatar(
+                      backgroundColor: _selectedColor,
                     ),
-                    actions: [
-                      TextButton(
-                        child: Text('OK'),
-                        onPressed: () {
-                          Navigator.of(context).pop();
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            title: Text('Select Theme Color'),
+                            content: SingleChildScrollView(
+                              child: SlidePicker(
+                                pickerColor: _selectedColor,
+                                onColorChanged: _handleColorChange,
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                child: Text('OK'),
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                },
+                              ),
+                            ],
+                          );
                         },
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
-          ),
-           SwitchListTile(
-            title: Text('Dark Mode'),
-            value: Provider.of<ThemeProvider>(context).isDarkMode,
-            onChanged: (_) {
-              Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
-            },
-          ),
-        ],
-      ),
-    ),
+                      );
+                    },
+                  ),
+                  SwitchListTile(
+                    title: Text('Dark Mode'),
+                    value: Provider.of<ThemeProvider>(context).isDarkMode,
+                    onChanged: (_) {
+                      Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
+                    },
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
-  );
-}
+    );
+  }
 
-Future<void> _signOut() async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.remove('sessionData');
-  await supabase.auth.signOut();
-  Navigator.pushReplacementNamed(context, '/');
-}
-
+  Future<void> _signOut() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('sessionData');
+    await supabase.auth.signOut();
+    Navigator.pushReplacementNamed(context, '/');
+  }
 }
 // admin_events_page.dart
 class AdminEventsPage extends StatefulWidget {
@@ -1693,7 +1419,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        elevation: 20,
+        elevation: 15,
         shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
           'Events',
@@ -1722,7 +1448,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            elevation: 4,
+            elevation: 2,
             margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: CustomExpansionTile(
               title: ListTile(
@@ -2395,7 +2121,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        elevation: 20,
+        elevation: 15,
         shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
           'Attendance',
@@ -2422,7 +2148,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            elevation: 4,
+            elevation: 2,
             margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: CustomExpansionTile(
               title: ListTile(
@@ -2475,136 +2201,14 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
   }
 
   void _showAttendanceDialog(Event event, TimeSlot timeSlot) async {
-    final updatedAttendees = await Future.wait(
-      timeSlot.attendees.map((attendee) async {
-        final userId = attendee.name;
-        final userName = await _getUserName(userId);
-        return Attendee(
-          name: userName,
-          isPresent: attendee.isPresent,
-          userId: userId,
-        );
-      }),
-    );
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
-            return AlertDialog(
-              title: Text(
-                'Attendance for ${event.name}',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20.0,
-                ),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Time: ${timeSlot.time.format(context)}',
-                    style: TextStyle(
-                      fontSize: 16.0,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  SizedBox(height: 16.0),
-                  Text(
-                    'Attendees:',
-                    style: TextStyle(
-                      fontSize: 18.0,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 8.0),
-                  Container(
-                    height: 200.0,
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: updatedAttendees.map((attendee) {
-                          return ListTile(
-                            title: Text(
-                              attendee.name,
-                              style: TextStyle(
-                                fontSize: 16.0,
-                              ),
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (!attendee.isPresent)
-                                  IconButton(
-                                    icon: Icon(Icons.swap_horiz),
-                                    onPressed: () {
-                                      _showSwapDialog(attendee, updatedAttendees, setState);
-                                    },
-                                  ),
-                                Checkbox(
-                                  value: attendee.isPresent,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      attendee.isPresent = value!;
-                                    });
-                                  },
-                                  activeColor: Colors.blue,
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  child: Text(
-                    'Cancel',
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontSize: 16.0,
-                    ),
-                  ),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                ),
-                ElevatedButton(
-                  child: Text(
-                    'Save',
-                    style: TextStyle(
-                      fontSize: 16.0,
-                    ),
-                  ),
-                  onPressed: () {
-                    timeSlot.attendees.clear();
-                    timeSlot.attendees.addAll(updatedAttendees.map((attendee) => Attendee(
-                      name: attendee.userId,
-                      isPresent: attendee.isPresent,
-                      userId: attendee.userId,
-                    )));
-                    _saveAttendance(event, timeSlot);
-                    Navigator.of(context).pop();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.blue,
-                    padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
+  await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => AttendanceCheckPage(event: event, timeSlot: timeSlot),
+    ),
+  );
+  _fetchEvents();
+}
 
   void _showSwapDialog(Attendee currentAttendee, List<Attendee> updatedAttendees, StateSetter parentSetState) {
     showDialog(
@@ -2980,7 +2584,7 @@ Future<void> _deleteServiceHour(CompletedUserHour hour, String userId) async {
     final filteredUsers = _getFilteredUsers();
     return Scaffold(
       appBar: AppBar(
-        elevation: 20,
+        elevation: 15,
         shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
           'List',
@@ -3041,7 +2645,7 @@ Future<void> _deleteServiceHour(CompletedUserHour hour, String userId) async {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            elevation: 4,
+            elevation: 2,
             margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: CustomExpansionTile(
               title: ListTile(
@@ -3117,7 +2721,217 @@ void _openBulkCustomEventForm(BuildContext context) async {
   }
 }
 
+class AttendanceCheckPage extends StatefulWidget {
+  final Event event;
+  final TimeSlot timeSlot;
 
+  AttendanceCheckPage({required this.event, required this.timeSlot});
+
+  @override
+  _AttendanceCheckPageState createState() => _AttendanceCheckPageState();
+}
+
+class _AttendanceCheckPageState extends State<AttendanceCheckPage> {
+  List<Attendee> _attendees = [];
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAttendees();
+  }
+
+  Future<void> _fetchAttendees() async {
+    final updatedAttendees = await Future.wait(
+      widget.timeSlot.attendees.map((attendee) async {
+        final userId = attendee.name;
+        final userName = await _getUserName(userId);
+        return Attendee(
+          name: userName,
+          isPresent: attendee.isPresent,
+          userId: userId,
+        );
+      }),
+    );
+
+    setState(() {
+      _attendees = updatedAttendees;
+    });
+  }
+
+  List<Attendee> _getFilteredAttendees() {
+    if (_searchQuery.isEmpty) {
+      return _attendees;
+    }
+
+    final lowercaseQuery = _searchQuery.toLowerCase();
+    return _attendees.where((attendee) {
+      final lowercaseName = attendee.name.toLowerCase();
+      return lowercaseName.contains(lowercaseQuery);
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filteredAttendees = _getFilteredAttendees();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Attendance Check'),
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Event: ${widget.event.name}',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Time: ${widget.timeSlot.time.format(context)}',
+                  style: TextStyle(
+                    fontSize: 16,
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
+                  decoration: InputDecoration(
+                    labelText: 'Search Attendees',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: filteredAttendees.length,
+              itemBuilder: (context, index) {
+                final attendee = filteredAttendees[index];
+                return CheckboxListTile(
+                  title: Text(attendee.name),
+                  value: attendee.isPresent,
+                  onChanged: (value) {
+                    setState(() {
+                      attendee.isPresent = value!;
+                    });
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          _saveAttendance();
+          Navigator.pop(context);
+        },
+        child: Icon(Icons.save),
+      ),
+    );
+  }
+
+  void _saveAttendance() async {
+  final attendees = _attendees
+      .map((attendee) => {
+            'name': attendee.userId,
+            'isPresent': attendee.isPresent,
+          })
+      .toList();
+
+  final serviceHoursToAdd = <Map<String, dynamic>>[];
+  final serviceHoursToRemove = <Map<String, dynamic>>[];
+
+  for (final attendee in _attendees) {
+    final existingServiceHour = await Supabase.instance.client
+        .from('Service hours')
+        .select()
+        .eq('event_name', widget.event.name)
+        .eq('timeslot', '${widget.timeSlot.time.hour}:${widget.timeSlot.time.minute}')
+        .eq('user_id', attendee.userId);
+
+    if (attendee.isPresent) {
+      if (existingServiceHour.isEmpty) {
+        final duration = _calculateDuration(widget.timeSlot.time, widget.timeSlot.endTime);
+        serviceHoursToAdd.add({
+          'event_name': widget.event.name,
+          'event_description': widget.event.description,
+          'date': widget.event.date.toIso8601String(),
+          'timeslot': '${widget.timeSlot.time.hour}:${widget.timeSlot.time.minute}',
+          'user_id': attendee.userId,
+          'hours': duration,
+          'type': widget.event.type,
+        });
+      }
+    } else {
+      if (existingServiceHour.isNotEmpty) {
+        serviceHoursToRemove.add({
+          'event_name': widget.event.name,
+          'timeslot': '${widget.timeSlot.time.hour}:${widget.timeSlot.time.minute}',
+          'user_id': attendee.userId,
+        });
+      }
+    }
+  }
+
+  if (serviceHoursToAdd.isNotEmpty) {
+    await Supabase.instance.client.from('Service hours').insert(serviceHoursToAdd);
+  }
+
+  if (serviceHoursToRemove.isNotEmpty) {
+    for (final serviceHour in serviceHoursToRemove) {
+      await Supabase.instance.client
+          .from('Service hours')
+          .delete()
+          .eq('event_name', serviceHour['event_name'])
+          .eq('timeslot', serviceHour['timeslot'])
+          .eq('user_id', serviceHour['user_id']);
+    }
+  }
+
+  await Supabase.instance.client.from('Events').update({
+    'timeSlots': widget.event.timeSlots
+        .map((slot) => {
+              'time': '${slot.time.hour}:${slot.time.minute}',
+              'endTime': '${slot.endTime.hour}:${slot.endTime.minute}',
+              'numberOfPeople': slot.numberOfPeople,
+              'attendees': slot == widget.timeSlot
+                  ? attendees
+                  : slot.attendees
+                      .map((attendee) => {
+                            'name': attendee.userId,
+                            'isPresent': attendee.isPresent,
+                          })
+                      .toList(),
+            })
+        .toList(),
+  }).eq('name', widget.event.name);
+if (this.mounted) {
+  Navigator.pop(context);
+}
+}
+
+double _calculateDuration(TimeOfDay startTime, TimeOfDay endTime) {
+  final startMinutes = startTime.hour * 60 + startTime.minute;
+  final endMinutes = endTime.hour * 60 + endTime.minute;
+  final duration = (endMinutes - startMinutes) / 60;
+  return duration;
+}
+}
 
 
 class BulkCustomEventFormPage extends StatefulWidget {
@@ -3485,7 +3299,7 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        elevation: 20,
+        elevation: 15,
         shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
           'Total NHS Hours',
@@ -3549,7 +3363,7 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
 
   Widget _buildHoursCard(String title, double hours, Color color) {
     return Card(
-      elevation: 4,
+      elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
