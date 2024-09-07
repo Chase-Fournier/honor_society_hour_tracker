@@ -1,22 +1,12 @@
-import 'dart:isolate';
-import 'dart:math';
-import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:english_words/english_words.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:bottom_navy_bar/bottom_navy_bar.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:add_2_calendar/add_2_calendar.dart';
-import 'dart:convert';
 import 'package:toastification/toastification.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 
@@ -407,6 +397,7 @@ class _HomePageState extends State<HomePage> {
   double  _meetingPotentialHours = 0;
 
   List<Event> _events = [];
+  String _selectedEventType = 'All';
 
   @override
 void initState() {
@@ -414,7 +405,7 @@ void initState() {
   _fetchEvents();
 }
 
-  Future<void> _fetchEvents() async {
+   Future<void> _fetchEvents() async {
     final response = await Supabase.instance.client
         .from('Events')
         .select('*')
@@ -423,13 +414,64 @@ void initState() {
 
     final List<dynamic> data = response;
     if (this.mounted) {
-  setState(() {
-      _events = data.map((json) => Event.fromJson(json)).toList();
-    });
-    _fetchCompletedHours();
-}
-    
+      setState(() {
+        _events = data.map((json) => Event.fromJson(json)).toList();
+        // Sort events from closest to furthest date
+        _events.sort((a, b) => a.date.compareTo(b.date));
+      });
+      _fetchCompletedHours();
+    }
   }
+
+  List<Widget> _buildEventTypeChips() {
+    return [
+      FilterChip(
+        label: Text('All'),
+        selected: _selectedEventType == 'All',
+        onSelected: (selected) {
+          setState(() {
+            _selectedEventType = 'All';
+          });
+        },
+      ),
+      FilterChip(
+        label: Text('Service'),
+        selected: _selectedEventType == 'Service',
+        onSelected: (selected) {
+          setState(() {
+            _selectedEventType = 'Service';
+          });
+        },
+      ),
+      FilterChip(
+        label: Text('Tutoring'),
+        selected: _selectedEventType == 'Tutoring',
+        onSelected: (selected) {
+          setState(() {
+            _selectedEventType = 'Tutoring';
+          });
+        },
+      ),
+      FilterChip(
+        label: Text('Meeting'),
+        selected: _selectedEventType == 'Meeting',
+        onSelected: (selected) {
+          setState(() {
+            _selectedEventType = 'Meeting';
+          });
+        },
+      ),
+    ];
+  }
+
+  List<Event> _getFilteredEvents() {
+    if (_selectedEventType == 'All') {
+      return _events;
+    } else {
+      return _events.where((event) => event.type == _selectedEventType).toList();
+    }
+  }
+
 
  Future<void> _fetchCompletedHours() async {
   final User? user = supabase.auth.currentUser;
@@ -547,6 +589,37 @@ Widget _buildDoubleProgressBar(context, String title, double completedHours, dou
   );
 }
 
+Widget _buildMeetingProgressBar(BuildContext context, double completedHours, int hoursNeeded) {
+    final meetingsAttended = completedHours.floor();
+    final meetingsLeft = _events.where((event) => event.type == 'Meeting').length;
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Meetings Attended: $meetingsAttended',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 10),
+          LinearProgressIndicator(
+            value: completedHours / hoursNeeded,
+            backgroundColor: Colors.grey[300],
+            valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
+            minHeight: 10,
+            borderRadius: BorderRadius.all(Radius.circular(33)),
+          ),
+          SizedBox(height: 5),
+          Text(
+            'Meetings Left: $meetingsLeft',
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildEventCard(Event event) {
   return Card(
     shape: RoundedRectangleBorder(
@@ -574,9 +647,14 @@ Widget _buildDoubleProgressBar(context, String title, double completedHours, dou
       children: event.timeSlots.map((timeSlot) {
         final isSignedUp = timeSlot.attendees.any((attendee) => attendee.name == supabase.auth.currentUser?.id);
         final isEventInFuture = event.date.isAfter(DateTime.now().add(Duration(days: 1)));
+        final isMandatory = event.isMandatory;
+        final isMeeting = event.type == 'Meeting';
+
         return ListTile(
           title: Text(
-            'Time: ${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
+              event.type == 'Meeting'
+                  ? 'Time: ${timeSlot.time.format(context)}'
+                  : 'Time: ${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
             style: TextStyle(
               fontSize: 14.0,
             ),
@@ -589,43 +667,46 @@ Widget _buildDoubleProgressBar(context, String title, double completedHours, dou
             ),
           ),
           trailing: isSignedUp
-              ? Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: Icon(Icons.calendar_today),
-                      onPressed: () {
-                        _addEventToCalendar(event, timeSlot);
-                      },
-                    ),
-                    if (isEventInFuture)
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       IconButton(
-                        icon: Icon(Icons.cancel),
+                        icon: Icon(Icons.calendar_today),
                         onPressed: () {
-                          _removeAttendee(event, timeSlot);
+                          _addEventToCalendar(event, timeSlot);
                         },
                       ),
-                  ],
-                )
-              : ElevatedButton(
-                  child: Text('  Sign Up  '),
-                  onPressed: () {
-                    _showSignUpForm(event, timeSlot);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                ),
-        );
-      }).toList(),
-    ),
-  );
-}
+                      if (isEventInFuture && !isMandatory && !isMeeting)
+                        IconButton(
+                          icon: Icon(Icons.cancel),
+                          onPressed: () {
+                            _removeAttendee(event, timeSlot);
+                          },
+                        ),
+                    ],
+                  )
+                : isMandatory || isMeeting
+                    ? Text('Automatically Signed Up')
+                    : ElevatedButton(
+                        child: Text('  Sign Up  '),
+                        onPressed: () {
+                          _showSignUpForm(event, timeSlot);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                      ),
+          );
+        }).toList(),
+      ),
+    );
+  }
 
  @override
 Widget build(BuildContext context) {
+  final filteredEvents = _getFilteredEvents();
   return Scaffold(
     appBar: AppBar(
       elevation: 15,
@@ -651,26 +732,24 @@ Widget build(BuildContext context) {
         children: [
           _buildDoubleProgressBar(context, 'Service Hours', _serviceHoursCompleted, _servicePotentialHours, 14),
           _buildDoubleProgressBar(context, 'Tutoring Hours', _tutoringHoursCompleted, _tutoringPotentialHours, 6),
-          _buildDoubleProgressBar(context, 'Meeting Hours', _meetingHoursCompleted, _meetingPotentialHours, 5),
+          _buildMeetingProgressBar(context, _meetingHoursCompleted, 5),
           SizedBox(height: 20),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: NeverScrollableScrollPhysics(),
-            itemCount: _events.length,
-            itemBuilder: (context, index) {
-              final event = _events[index];
-              return _buildEventCard(event);
-            },
-          ),
-        ],
-      ),
-    ),
-    floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Open the website when the button is pressed
-          _openWebsite();
-        },
-        child:const Icon(Icons.school),
+          Wrap(
+              spacing: 8,
+              children: _buildEventTypeChips(),
+            ),
+            SizedBox(height: 20),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              itemCount: filteredEvents.length,
+              itemBuilder: (context, index) {
+                final event = filteredEvents[index];
+                return _buildEventCard(event);
+              },
+            ),
+          ],
+        ),
       ),
       
   );
@@ -917,10 +996,78 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
   List<CompletedHour> _completedTutoringHours = [];
   List<CompletedHour> _completedMeetingHours = [];
 
+  List<MeetingNote> _meetingNotes = [];
+
   @override
   void initState() {
     super.initState();
     _fetchCompletedHours();
+    _fetchMeetingNotes();
+  }
+
+  Future<void> _fetchMeetingNotes() async {
+    final response = await Supabase.instance.client
+        .from('Notes')
+        .select('*')
+        .order('created_at', ascending: false);
+
+    final List<dynamic> data = response;
+    setState(() {
+      _meetingNotes = data.map((json) => MeetingNote.fromJson(json)).toList();
+    });
+  }
+
+  void _showMeetingNotesDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Meeting Notes'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: _meetingNotes.map((note) {
+                return ListTile(
+                  title: Text(note.title),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _showNoteDetailsDialog(note);
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: Text('Close'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showNoteDetailsDialog(MeetingNote note) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(note.title),
+          content: Text(note.text),
+          actions: [
+            TextButton(
+              child: Text('Close'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _fetchCompletedHours() async {
@@ -1016,6 +1163,18 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
+            Container(
+              margin: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: ListTile(
+                leading: Icon(Icons.notes),
+                title: Text('Meeting Notes'),
+                onTap: _showMeetingNotesDialog,
+              ),
+            ),
             _buildProgressBar(context, 'Service Hours', _serviceHoursCompleted, 14),
             _buildCompletedHoursList(_completedServiceHours),
             SizedBox(height: 20),
@@ -1394,6 +1553,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   late String _eventDescription;
   late DateTime _eventDate;
   List<TimeSlot> _timeSlots = [];
+  bool _isMandatory = false;
 
   List<Event> _events = [];
 
@@ -1419,7 +1579,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        elevation: 15,
+        elevation: 10,
         shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
           'Events',
@@ -1456,13 +1616,13 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                   event.name + " - " + event.date.month.toString() + "/" + event.date.day.toString() + "/" + event.date.year.toString(),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 18.0,
+                    fontSize: 14.0,
                   ),
                 ),
                 subtitle: Text(
                   event.description,
                   style: TextStyle(
-                    fontSize: 16.0,
+                    fontSize: 12.0,
                     color: Colors.grey[600],
                   ),
                 ),
@@ -1521,6 +1681,9 @@ void _showAddEventDialog() async {
   _eventDate = DateTime.now();
   _timeSlots = [];
   _selectedEventType = null;
+  setState(() {
+  _isMandatory = false;
+  });
   final result = await showDialog(
     context: context,
     builder: (context) {
@@ -1566,17 +1729,27 @@ void _showAddEventDialog() async {
                   },
                 ),
                     SizedBox(height: 16.0),
-                InkWell(
-                  onTap: () => _selectDate(setState),
-                  child: InputDecorator(
-                    decoration: InputDecoration(
-                      labelText: 'Event Date',
+            
+                    InkWell(
+                      onTap: () => _selectDate(setState),
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: 'Event Date',
+                        ),
+                        child: Text(
+                          '${_eventDate.year}/${_eventDate.month}/${_eventDate.day}',
+                        ),
+                      ),
                     ),
-                    child: Text(
-                      '${_eventDate.year}/${_eventDate.month}/${_eventDate.day}',
-                    ),
-                  ),
-                ),
+                    SwitchListTile(
+                        title: Text('Mandatory'),
+                        value: _isMandatory,
+                        onChanged: (value) {
+                          setState(() {
+                            _isMandatory = value;
+                          });
+                        },
+                      ),
                  DropdownButtonFormField<String>(
                     value: _selectedEventType,
                     onChanged: (value) {
@@ -1937,13 +2110,38 @@ void _addEvent() async {
         numberOfPeople: slot.numberOfPeople,
         attendees: [],
       )).toList(),
-    );
-    setState(() {
-      _events.add(newEvent);
-    });
-    Navigator.of(context).pop();
-    // Save to Supabase
-    await Supabase.instance.client.from('Events').insert({
+      isMandatory: _isMandatory,
+      );
+      setState(() {
+        _events.add(newEvent);
+      });
+      Navigator.of(context).pop();
+
+      if (newEvent.type == 'Meeting') {
+        // Automatically sign up all users for mandatory meetings
+        final profileResponse = await Supabase.instance.client.from('profiles').select('user_id');
+        final List<dynamic> profileData = profileResponse;
+
+        final attendees = profileData.map((profile) => profile['user_id'] as String).toList();
+
+        final updatedTimeSlots = newEvent.timeSlots.map((slot) {
+          final updatedAttendees = List<Attendee>.from(slot.attendees)
+            ..addAll(attendees.map((userId) => Attendee(name: userId, isPresent: false, userId: userId)));
+          final updatedNumberOfPeople = slot.numberOfPeople - attendees.length;
+
+          return TimeSlot(
+            time: slot.time,
+            endTime: slot.endTime,
+            numberOfPeople: updatedNumberOfPeople,
+            attendees: updatedAttendees,
+          );
+        }).toList();
+
+        newEvent.timeSlots = updatedTimeSlots;
+      }
+
+      // Save to Supabase
+      await Supabase.instance.client.from('Events').insert({
       'name': newEvent.name,
       'description': newEvent.description,
       'date': newEvent.date.toIso8601String(),
@@ -2005,7 +2203,8 @@ class Event {
   final String description;
   final DateTime date;
   final String type;
-  final List<TimeSlot> timeSlots;
+  final bool isMandatory;
+  List<TimeSlot> timeSlots;
 
   Event({
     required this.name,
@@ -2013,13 +2212,15 @@ class Event {
     required this.date,
     required this.type,
     required this.timeSlots,
+    this.isMandatory = false,
   });
 
-   Event.fromJson(Map<String, dynamic> json)
+  Event.fromJson(Map<String, dynamic> json)
       : name = json['name'] ?? '',
         description = json['description'] ?? '',
         date = json['date'] != null ? DateTime.parse(json['date']) : DateTime.now(),
         type = json['type'] ?? '',
+        isMandatory = json['isMandatory'] ?? false,
         timeSlots = json['timeSlots'] != null
             ? (json['timeSlots'] as List<dynamic>)
                 .map((slot) => TimeSlot(
@@ -2046,6 +2247,29 @@ class Event {
                     ))
                 .toList()
             : [];
+}
+
+class MeetingNote {
+  final int id;
+  final String title;
+  final String text;
+  final DateTime createdAt;
+
+  MeetingNote({
+    required this.id,
+    required this.title,
+    required this.text,
+    required this.createdAt,
+  });
+
+  factory MeetingNote.fromJson(Map<String, dynamic> json) {
+    return MeetingNote(
+      id: json['id'],
+      title: json['title'] ?? '',
+      text: json['text'] ?? '',
+      createdAt: DateTime.parse(json['created_at']),
+    );
+  }
 }
 
 class CustomExpansionTile extends ExpansionTile {
@@ -3254,13 +3478,198 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
   double _totalServiceHours = 0;
   double _totalTutoringHours = 0;
   double _totalMeetingHours = 0;
+  String _notesTitle = '';
+  String _notesText = '';
+  List<MeetingNote> _meetingNotes = [];
 
   @override
   void initState() {
     super.initState();
     _fetchTotalHours();
+    _fetchMeetingNotes();
   }
 
+   void _showAddNotesDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Add Meeting Notes'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                decoration: InputDecoration(
+                  labelText: 'Title',
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _notesTitle = value;
+                  });
+                },
+              ),
+              SizedBox(height: 16),
+              TextField(
+                decoration: InputDecoration(
+                  labelText: 'Notes',
+                ),
+                maxLines: 10,
+                onChanged: (value) {
+                  setState(() {
+                    _notesText = value;
+                  });
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            ElevatedButton(
+              child: Text('Save'),
+              onPressed: () {
+                _saveNotes();
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showMeetingNotesDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Meeting Notes'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: _meetingNotes.map((note) {
+                return ListTile(
+                  title: Text(note.title),
+                  trailing: IconButton(
+                    icon: Icon(Icons.edit),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _showEditNotesDialog(note);
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: Text('Close'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEditNotesDialog(MeetingNote note) {
+    String updatedTitle = note.title;
+    String updatedText = note.text;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Edit Meeting Note'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                decoration: InputDecoration(
+                  labelText: 'Title',
+                ),
+                controller: TextEditingController(text: note.title),
+                onChanged: (value) {
+                  updatedTitle = value;
+                },
+              ),
+              SizedBox(height: 16),
+              TextField(
+                decoration: InputDecoration(
+                  labelText: 'Notes',
+                ),
+                maxLines: 10,
+                controller: TextEditingController(text: note.text),
+                onChanged: (value) {
+                  updatedText = value;
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            ElevatedButton(
+              child: Text('Save'),
+              onPressed: () {
+                _updateNotes(note.id, updatedTitle, updatedText);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _updateNotes(int noteId, String title, String text) async {
+    await Supabase.instance.client
+        .from('Meeting Notes')
+        .update({
+          'title': title,
+          'text': text,
+        })
+        .eq('id', noteId);
+
+    _fetchMeetingNotes();
+  }
+
+ Future<void> _fetchMeetingNotes() async {
+    final response = await Supabase.instance.client
+        .from('Notes')
+        .select('*')
+        .order('created_at', ascending: false);
+
+    final List<dynamic> data = response;
+    setState(() {
+      _meetingNotes = data.map((json) => MeetingNote.fromJson(json)).toList();
+    });
+  }
+
+  
+
+ void _saveNotes() async {
+  await Supabase.instance.client.from('Meeting Notes').insert({
+    'title': _notesTitle,
+    'text': _notesText,
+    'created_at': DateTime.now().toIso8601String(),
+  });
+
+  _notesTitle = '';
+  _notesText = '';
+
+  _fetchMeetingNotes();
+}
   Future<void> _fetchTotalHours() async {
     final response = await Supabase.instance.client
         .from('Service hours')
@@ -3286,12 +3695,14 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
         }
       }
 
-      setState(() {
+      if (mounted) {
+        setState(() {
         _totalServiceHours = serviceHours;
         _totalTutoringHours = tutoringHours;
         _totalMeetingHours = meetingHours;
         _totalHours = serviceHours + tutoringHours + meetingHours;
       });
+    }
     }
   }
 
@@ -3346,7 +3757,7 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
                 ],
               ),
             ),
-            SizedBox(height: 32),
+            SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -3355,8 +3766,23 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
                 _buildHoursCard('Meeting', _totalMeetingHours, Theme.of(context).colorScheme.tertiary),
               ],
             ),
+            SizedBox(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: _showAddNotesDialog,
+                  child: Icon(Icons.notes),
+                ),
+                SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: _showMeetingNotesDialog,
+                  child: Icon(Icons.edit),
+                ),
           ],
         ),
+          ],
+      ),
       ),
     );
   }
