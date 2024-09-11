@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
@@ -9,7 +11,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:add_2_calendar/add_2_calendar.dart';
 import 'package:toastification/toastification.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
-
+import 'package:barcode_widget/barcode_widget.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:barcode/barcode.dart' as barcodeGen;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -621,30 +625,72 @@ Widget _buildMeetingProgressBar(BuildContext context, double completedHours, int
   }
 
   Widget _buildEventCard(Event event) {
-  return Card(
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(20),
-    ),
-    elevation: 2,
-    margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-    child: CustomExpansionTile(
-      title: ListTile(
-        title: Text(
-          event.name + " - " + event.date.month.toString() + "/" + event.date.day.toString() + "/" + event.date.year.toString(),
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16.0,
-          ),
-        ),
-        subtitle: Text(
-          event.description + " - " + event.type,
-          style: TextStyle(
-            fontSize: 14.0,
-            color: Colors.grey[600],
-          ),
-        ),
+    final bool isNew = event.createdAt.isAfter(DateTime.now().subtract(Duration(days: 7)));
+    final bool isMandatory = event.isMandatory;
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
       ),
-      children: event.timeSlots.map((timeSlot) {
+      elevation: 2,
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Stack(
+        children: [
+
+          if (isMandatory)
+            Positioned(
+              left: 255,
+              top: 32,
+              child: Container(
+                padding: EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.amber,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.star,
+                  color: Theme.of(context).colorScheme.onError,
+                  size: 16,
+                ),
+              ),
+            )
+          else if (isNew)
+            Positioned(
+              left:250,
+              top: 32,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'New',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          CustomExpansionTile(
+            title: ListTile(
+              title: Text(
+                event.name + " - " + event.date.month.toString() + "/" + event.date.day.toString() + "/" + event.date.year.toString(),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16.0,
+                ),
+              ),
+              subtitle: Text(
+                event.description,
+                style: TextStyle(
+                  fontSize: 14.0,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ),
+            children: event.timeSlots.map((timeSlot) {
         final isSignedUp = timeSlot.attendees.any((attendee) => attendee.name == supabase.auth.currentUser?.id);
         final isEventInFuture = event.date.isAfter(DateTime.now().add(Duration(days: 1)));
         final isMandatory = event.isMandatory;
@@ -659,13 +705,26 @@ Widget _buildMeetingProgressBar(BuildContext context, double completedHours, int
               fontSize: 14.0,
             ),
           ),
-          subtitle: Text(
-            'Number of People: ${timeSlot.numberOfPeople}',
-            style: TextStyle(
-              fontSize: 12.0,
-              color: Colors.grey[600],
-            ),
-          ),
+          subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Number of People: ${timeSlot.numberOfPeople}',
+                      style: TextStyle(
+                        fontSize: 12.0,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    if (timeSlot.notes.isNotEmpty)
+                      Text(
+                        'Notes: ${timeSlot.notes}',
+                        style: TextStyle(
+                          fontSize: 12.0,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                  ],
+                ),
           trailing: isSignedUp
                 ? Row(
                     mainAxisSize: MainAxisSize.min,
@@ -699,7 +758,9 @@ Widget _buildMeetingProgressBar(BuildContext context, double completedHours, int
                         ),
                       ),
           );
-        }).toList(),
+       }).toList(),
+          ),
+        ],
       ),
     );
   }
@@ -1012,9 +1073,11 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
         .order('created_at', ascending: false);
 
     final List<dynamic> data = response;
+    if (mounted) {
     setState(() {
       _meetingNotes = data.map((json) => MeetingNote.fromJson(json)).toList();
     });
+  }
   }
 
   void _showMeetingNotesDialog() {
@@ -1124,14 +1187,16 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
       }
     }
 
-    setState(() {
-      _serviceHoursCompleted = serviceHours;
-      _tutoringHoursCompleted = tutoringHours;
-      _meetingHoursCompleted = meetingHours;
-      _completedServiceHours = serviceHoursList;
-      _completedTutoringHours = tutoringHoursList;
-      _completedMeetingHours = meetingHoursList;
-    });
+    if (mounted) {
+  setState(() {
+    _serviceHoursCompleted = serviceHours;
+    _tutoringHoursCompleted = tutoringHours;
+    _meetingHoursCompleted = meetingHours;
+    _completedServiceHours = serviceHoursList;
+    _completedTutoringHours = tutoringHoursList;
+    _completedMeetingHours = meetingHoursList;
+  });
+}
   } else {
     // Handle the error case
     print('Error fetching completed hours: ${response}');
@@ -1528,7 +1593,14 @@ class _SettingsPageState extends State<SettingsPage> {
                 ],
               ),
             ),
-          ],
+              SizedBox(height: 24.0),
+              BarcodeWidget(
+                barcode: barcodeGen.Barcode.qrCode(),
+                data: supabase.auth.currentUser?.id ?? '',
+                width: 200,
+                height: 200,
+              ),
+            ],
         ),
       ),
     );
@@ -1601,7 +1673,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
       ListView.separated(
         scrollDirection: Axis.vertical,
         itemCount: _events.length,
-        separatorBuilder: (context, index) => SizedBox(height: 16),
+        separatorBuilder: (context, index) => SizedBox(height: 8),
         itemBuilder: (context, index) {
           final event = _events[index];
           return Card(
@@ -1648,7 +1720,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
               ),
               children: event.timeSlots.map((timeSlot) {
                 return ListTile(
-                                  title: Text(
+                      title: Text(
                       'Time: ${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
                       style: const TextStyle(
                         fontSize: 16.0,
@@ -1661,6 +1733,12 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                         color: Colors.grey[600],
                     ),
                   ),
+                  trailing: IconButton(
+                  icon: Icon(Icons.notes),
+                  onPressed: () {
+                    _showEditNotesDialog(event, timeSlot);
+                  },
+                ),
                 );
               }).toList(),
             ),
@@ -1675,7 +1753,65 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   }
 
   String? _selectedEventType;
+void _showEditNotesDialog(Event event, TimeSlot timeSlot) {
+  String notes = timeSlot.notes;
 
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Text('Edit Notes'),
+        content: TextField(
+          decoration: InputDecoration(
+            labelText: 'Notes',
+          ),
+          maxLines: 3,
+          controller: TextEditingController(text: notes),
+          onChanged: (value) {
+            notes = value;
+          },
+        ),
+        actions: [
+          TextButton(
+            child: Text('Cancel'),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+          ElevatedButton(
+            child: Text('Save'),
+            onPressed: () {
+              _updateNotes(event, timeSlot, notes);
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
+
+void _updateNotes(Event event, TimeSlot timeSlot, String notes) async {
+  final index = event.timeSlots.indexOf(timeSlot);
+  if (index != -1) {
+    event.timeSlots[index].notes = notes;
+    await Supabase.instance.client
+        .from('Events')
+        .update({
+          'timeSlots': event.timeSlots.map((slot) => {
+                'time': '${slot.time.hour}:${slot.time.minute}',
+                'endTime': '${slot.endTime.hour}:${slot.endTime.minute}',
+                'numberOfPeople': slot.numberOfPeople,
+                'attendees': slot.attendees.map((attendee) => {
+                      'name': attendee.userId,
+                      'isPresent': attendee.isPresent,
+                    }).toList(),
+                'notes': slot.notes,
+              }).toList(),
+        })
+        .eq('name', event.name);
+  }
+}
 
 void _showAddEventDialog() async {
   _eventDate = DateTime.now();
@@ -2067,6 +2203,7 @@ void _updateEvent(Event event) async {
     date: _eventDate,
     type: _selectedEventType!, // Add the updated event type
     timeSlots: _timeSlots,
+    createdAt: DateTime.now(),
   );
 
   await Supabase.instance.client
@@ -2111,13 +2248,14 @@ void _addEvent() async {
         attendees: [],
       )).toList(),
       isMandatory: _isMandatory,
+      createdAt: DateTime.now(),
       );
       setState(() {
         _events.add(newEvent);
       });
       Navigator.of(context).pop();
 
-      if (newEvent.type == 'Meeting') {
+      if (newEvent.type == 'Meeting' || _isMandatory) {
         // Automatically sign up all users for mandatory meetings
         final profileResponse = await Supabase.instance.client.from('profiles').select('user_id');
         final List<dynamic> profileData = profileResponse;
@@ -2155,8 +2293,10 @@ void _addEvent() async {
           'isPresent': attendee.isPresent,
         }).toList(),
       }).toList(),
-      'attendees': "Null"
+      'attendees': "Null",
+      'isMandatory': newEvent.isMandatory,
     });
+    
   }
 }
 
@@ -2189,12 +2329,14 @@ class TimeSlot {
   final TimeOfDay endTime;
   final int numberOfPeople;
   final List<Attendee> attendees;
+  String notes;
 
   TimeSlot({
     required this.time,
     required this.endTime,
     required this.numberOfPeople,
     this.attendees = const [],
+    this.notes = '',
   });
 }
 
@@ -2204,6 +2346,7 @@ class Event {
   final DateTime date;
   final String type;
   final bool isMandatory;
+  final DateTime createdAt;
   List<TimeSlot> timeSlots;
 
   Event({
@@ -2213,40 +2356,43 @@ class Event {
     required this.type,
     required this.timeSlots,
     this.isMandatory = false,
+    required this.createdAt,
   });
 
   Event.fromJson(Map<String, dynamic> json)
-      : name = json['name'] ?? '',
-        description = json['description'] ?? '',
-        date = json['date'] != null ? DateTime.parse(json['date']) : DateTime.now(),
-        type = json['type'] ?? '',
-        isMandatory = json['isMandatory'] ?? false,
-        timeSlots = json['timeSlots'] != null
-            ? (json['timeSlots'] as List<dynamic>)
-                .map((slot) => TimeSlot(
-                      time: TimeOfDay(
-                        hour: int.parse(slot['time'].split(':')[0]),
-                        minute: int.parse(slot['time'].split(':')[1]),
-                      ),
-                      endTime: slot['endTime'] != null
-                          ? TimeOfDay(
-                              hour: int.parse(slot['endTime'].split(':')[0]),
-                              minute: int.parse(slot['endTime'].split(':')[1]),
-                            )
-                          : TimeOfDay.now(),
-                      numberOfPeople: slot['numberOfPeople'] ?? 0,
-                      attendees: slot['attendees'] != null
-                          ? (slot['attendees'] as List<dynamic>)
-                              .map((attendee) => Attendee(
-                                    name: attendee['name'] ?? '',
-                                    isPresent: attendee['isPresent'] ?? false,
-                                    userId: attendee['name'] ?? '',
-                                  ))
-                              .toList()
-                          : [],
-                    ))
-                .toList()
-            : [];
+    : name = json['name'] ?? '',
+      description = json['description'] ?? '',
+      date = json['date'] != null ? DateTime.parse(json['date']) : DateTime.now(),
+      type = json['type'] ?? '',
+      isMandatory = json['isMandatory'] ?? false,
+      createdAt = json['created_at'] != null ? DateTime.parse(json['created_at']) : DateTime.now(),
+      timeSlots = json['timeSlots'] != null
+          ? (json['timeSlots'] as List<dynamic>)
+              .map((slot) => TimeSlot(
+                    time: TimeOfDay(
+                      hour: int.parse(slot['time'].split(':')[0]),
+                      minute: int.parse(slot['time'].split(':')[1]),
+                    ),
+                    endTime: slot['endTime'] != null
+                        ? TimeOfDay(
+                            hour: int.parse(slot['endTime'].split(':')[0]),
+                            minute: int.parse(slot['endTime'].split(':')[1]),
+                          )
+                        : TimeOfDay.now(),
+                    numberOfPeople: slot['numberOfPeople'] ?? 0,
+                    attendees: slot['attendees'] != null
+                        ? (slot['attendees'] as List<dynamic>)
+                            .map((attendee) => Attendee(
+                                  name: attendee['name'] ?? '',
+                                  isPresent: attendee['isPresent'] ?? false,
+                                  userId: attendee['name'] ?? '',
+                                ))
+                            .toList()
+                        : [],
+                    notes: slot['notes'] ?? '',
+                  ))
+              .toList()
+          : [];
 }
 
 class MeetingNote {
@@ -2311,7 +2457,6 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
   void initState() {
     super.initState();
     _fetchEvents();
-    _fetchAllUsers();
   }
 
   Future<void> _fetchEvents() async {
@@ -2323,21 +2468,6 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
     final List<dynamic> data = response;
     setState(() {
       _events = data.map((json) => Event.fromJson(json)).toList();
-    });
-  }
-
-  Future<void> _fetchAllUsers() async {
-    final response = await Supabase.instance.client
-        .from('profiles')
-        .select('*');
-
-    final List<dynamic> data = response;
-    setState(() {
-      _allUsers = data.map((json) => UserProfile(
-        name: json['name'] ?? 'Unknown',
-        id: json['user_id'],
-        completedHours: [],
-      )).toList();
     });
   }
 
@@ -2365,7 +2495,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
       ),
       body: ListView.separated(
         itemCount: _events.length,
-        separatorBuilder: (context, index) => SizedBox(height: 16),
+        separatorBuilder: (context, index) => SizedBox(height: 8),
         itemBuilder: (context, index) {
           final event = _events[index];
           return Card(
@@ -2412,7 +2542,12 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                       color: Theme.of(context).colorScheme.secondary,
                     ),
                     onPressed: () {
-                      _showAttendanceDialog(event, timeSlot);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AttendanceCheckPage(event: event, timeSlot: timeSlot),
+                        ),
+                      );
                     },
                   ),
                 );
@@ -2424,14 +2559,15 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
     );
   }
 
-  void _showAttendanceDialog(Event event, TimeSlot timeSlot) async {
-  await Navigator.push(
+  Future<bool> _showAttendanceDialog(Event event, TimeSlot timeSlot) async {
+  final result = await Navigator.push(
     context,
     MaterialPageRoute(
       builder: (context) => AttendanceCheckPage(event: event, timeSlot: timeSlot),
     ),
   );
-  _fetchEvents();
+
+  return result ?? true;
 }
 
   void _showSwapDialog(Attendee currentAttendee, List<Attendee> updatedAttendees, StateSetter parentSetState) {
@@ -2690,9 +2826,11 @@ class _AdminListPageState extends State<AdminListPage> {
             ),
             Padding(padding: EdgeInsets.only(top: 20.0),
             child: ElevatedButton(
-              child: Text(selectedTime != null
-                  ? '${selectedTime.format(context)}'
-                  : 'Select Time'),
+              child: Center(
+                child: Text(selectedTime != null
+                    ? '${selectedTime.format(context)}'
+                    : 'Select Time'),
+              ),
               onPressed: () async {
                 final TimeOfDay? pickedTime = await showTimePicker(
                   context: context,
@@ -2862,7 +3000,7 @@ Future<void> _deleteServiceHour(CompletedUserHour hour, String userId) async {
         Expanded(
             child: ListView.separated(
               itemCount: filteredUsers.length,
-              separatorBuilder: (context, index) => SizedBox(height: 16),
+              separatorBuilder: (context, index) => SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final user = filteredUsers[index];
                 return Card(
@@ -2958,12 +3096,56 @@ class AttendanceCheckPage extends StatefulWidget {
 class _AttendanceCheckPageState extends State<AttendanceCheckPage> {
   List<Attendee> _attendees = [];
   String _searchQuery = '';
+  List<UserProfile> _allUsers = [];
+  StreamSubscription<dynamic>? _eventSubscription;
 
   @override
   void initState() {
     super.initState();
     _fetchAttendees();
+    _fetchAllUsers();
+    _subscribeToEventChanges();
   }
+
+  @override
+  void dispose() {
+    _eventSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeToEventChanges() {
+  _eventSubscription = Supabase.instance.client
+      .from('Events')
+      .stream(primaryKey: ['name'])
+      .eq('name', widget.event.name)
+      .listen((event) async {
+    if (event != null && event.isNotEmpty) {
+      final updatedEvent = Event.fromJson(event.first);
+      final updatedTimeSlot = updatedEvent.timeSlots.firstWhere(
+        (slot) => slot.time == widget.timeSlot.time,
+        orElse: () => widget.timeSlot,
+      );
+
+      final updatedAttendees = await Future.wait(
+        updatedTimeSlot.attendees.map((attendee) async {
+          final userName = await _getUserName(attendee.userId);
+          return Attendee(
+            name: userName,
+            isPresent: attendee.isPresent,
+            userId: attendee.userId,
+          );
+        }),
+      );
+
+      if (mounted) {
+        setState(() {
+          _attendees = updatedAttendees;
+        });
+      }
+    }
+  });
+}
+
 
   Future<void> _fetchAttendees() async {
     final updatedAttendees = await Future.wait(
@@ -2980,6 +3162,19 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage> {
 
     setState(() {
       _attendees = updatedAttendees;
+    });
+  }
+
+  Future<void> _fetchAllUsers() async {
+    final response = await Supabase.instance.client.from('profiles').select('*');
+
+    final List<dynamic> data = response;
+    setState(() {
+      _allUsers = data.map((json) => UserProfile(
+        name: json['name'] ?? 'Unknown',
+        id: json['user_id'],
+        completedHours: [],
+      )).toList();
     });
   }
 
@@ -3002,6 +3197,12 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Attendance Check'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.qr_code_scanner),
+            onPressed: _scanBarcode,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -3053,6 +3254,12 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage> {
                       attendee.isPresent = value!;
                     });
                   },
+                  secondary: IconButton(
+                    icon: Icon(Icons.swap_horiz),
+                    onPressed: () {
+                      _showSwapDialog(attendee);
+                    },
+                  ),
                 );
               },
             ),
@@ -3061,6 +3268,7 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
+
           _saveAttendance();
           Navigator.pop(context);
         },
@@ -3069,7 +3277,109 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage> {
     );
   }
 
-  void _saveAttendance() async {
+    Future<void> _scanBarcode() async {
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BarcodeScannerPage(attendees: _attendees),
+        ),
+      );
+
+      if (result != null) {
+        final attendeeIndex = _attendees.indexWhere((attendee) => attendee.userId == result);
+        if (attendeeIndex != -1 && mounted) {
+          setState(() {
+            _attendees[attendeeIndex].isPresent = true;
+          });
+          await _saveAttendance();
+          _showToastNotification('Scanned in: ${_attendees[attendeeIndex].name}');
+        }
+      }
+    }
+
+    void _showToastNotification(String message) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message),
+      duration: Duration(seconds: 2),
+    ),
+  );
+}
+
+
+  void _showSwapDialog(Attendee currentAttendee) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        String searchQuery = '';
+        List<UserProfile> filteredUsers = List.from(_allUsers);
+
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return AlertDialog(
+              title: Text('Swap Attendee'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    onChanged: (value) {
+                      setState(() {
+                        searchQuery = value;
+                        filteredUsers = _allUsers
+                            .where((user) => user.name.toLowerCase().contains(searchQuery.toLowerCase()))
+                            .toList();
+                      });
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Search',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  Container(
+                    height: 300,
+                    width: 300,
+                    child: ListView.builder(
+                      itemCount: filteredUsers.length,
+                      itemBuilder: (context, index) {
+                        final user = filteredUsers[index];
+                        return ListTile(
+                          title: Text(user.name),
+                          onTap: () {
+                            setState(() {
+                              int index = _attendees.indexOf(currentAttendee);
+                              _attendees[index] = Attendee(
+                                name: user.name,
+                                isPresent: false,
+                                userId: user.id,
+                              );
+                            });
+                            Navigator.of(context).pop();
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+             actions: [
+              TextButton(
+                child: Text('Cancel'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
+    },
+  ).then((_) {
+    setState(() {});
+  });
+}
+
+ Future<void> _saveAttendance() async {
   final attendees = _attendees
       .map((attendee) => {
             'name': attendee.userId,
@@ -3144,18 +3454,39 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage> {
             })
         .toList(),
   }).eq('name', widget.event.name);
-if (this.mounted) {
-  Navigator.pop(context);
-}
+
+  // Fetch the latest event data from Supabase
+    final eventData = await Supabase.instance.client
+      .from('Events')
+      .select()
+      .eq('name', widget.event.name)
+      .single();
+  
+  final updatedEvent = Event.fromJson(eventData);
+  final updatedTimeSlotIndex = updatedEvent.timeSlots.indexWhere((slot) => slot.time == widget.timeSlot.time);
+
+  if (updatedTimeSlotIndex != -1 && mounted) {
+    final updatedTimeSlot = updatedEvent.timeSlots[updatedTimeSlotIndex];
+    final updatedAttendees = updatedTimeSlot.attendees.map((attendee) => Attendee(
+      name: attendee.name,
+      isPresent: attendee.isPresent,
+      userId: attendee.userId,
+    )).toList();
+
+    setState(() {
+      _attendees = updatedAttendees;
+    });
+  }
 }
 
-double _calculateDuration(TimeOfDay startTime, TimeOfDay endTime) {
-  final startMinutes = startTime.hour * 60 + startTime.minute;
-  final endMinutes = endTime.hour * 60 + endTime.minute;
-  final duration = (endMinutes - startMinutes) / 60;
-  return duration;
+  double _calculateDuration(TimeOfDay startTime, TimeOfDay endTime) {
+    final startMinutes = startTime.hour * 60 + startTime.minute;
+    final endMinutes = endTime.hour * 60 + endTime.minute;
+    final duration = (endMinutes - startMinutes) / 60;
+    return duration;
+  }
 }
-}
+
 
 
 class BulkCustomEventFormPage extends StatefulWidget {
@@ -3634,7 +3965,7 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
 
   void _updateNotes(int noteId, String title, String text) async {
     await Supabase.instance.client
-        .from('Meeting Notes')
+        .from('Notes')
         .update({
           'title': title,
           'text': text,
@@ -3651,15 +3982,18 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
         .order('created_at', ascending: false);
 
     final List<dynamic> data = response;
-    setState(() {
+    if(mounted){
+      setState(() {
       _meetingNotes = data.map((json) => MeetingNote.fromJson(json)).toList();
     });
+    }
+    
   }
 
   
 
  void _saveNotes() async {
-  await Supabase.instance.client.from('Meeting Notes').insert({
+  await Supabase.instance.client.from('Notes').insert({
     'title': _notesTitle,
     'text': _notesText,
     'created_at': DateTime.now().toIso8601String(),
@@ -3739,7 +4073,7 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
                 fit: StackFit.expand,
                 children: [
                   CircularProgressIndicator(
-                    value: _totalHours / 100,
+                    value: _totalHours / 2000,
                     strokeWidth: 16,
                     backgroundColor: Colors.grey[300],
                     valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
@@ -3888,4 +4222,51 @@ class Attendee {
     required this.isPresent,
     required this.userId,
   });
+}
+
+class BarcodeScannerPage extends StatefulWidget {
+  final List<Attendee> attendees;
+
+  const BarcodeScannerPage({required this.attendees});
+
+  @override
+  _BarcodeScannerPageState createState() => _BarcodeScannerPageState();
+}
+
+class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
+  final MobileScannerController _controller = MobileScannerController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Scan QR Code'),
+      ),
+      body: Stack(
+        children: [
+          MobileScanner(
+            controller: _controller,
+            onDetect: _foundBarcode,
+          ),
+          // ...
+        ],
+      ),
+    );
+  }
+
+      void _foundBarcode(BarcodeCapture capture) {
+      final barcode = capture.barcodes.first;
+      final userId = barcode.rawValue;
+
+      final attendeeIndex = widget.attendees.indexWhere((attendee) => attendee.userId == userId);
+      if (attendeeIndex != -1) {
+        Navigator.pop(context, userId);
+      }
+    }
 }
