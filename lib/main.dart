@@ -2275,7 +2275,7 @@ void _removeEventFromCollection(Event event, Collection collection) async {
             ),
           CustomExpansionTile(
             title: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(8.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -2290,7 +2290,6 @@ void _removeEventFromCollection(Event event, Collection collection) async {
                       fontSize: 14.0,
                     ),
                   ),
-                  SizedBox(width: 16),
                       IconButton(
                         icon: const Icon(Icons.edit),
                         onPressed: () {
