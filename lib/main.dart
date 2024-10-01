@@ -406,6 +406,7 @@ class _HomePageState extends State<HomePage> {
 
   List<Event> _events = [];
   String _selectedEventType = 'All';
+  final Set<int> _renderedCollections = Set<int>();
 
   @override
 void initState() {
@@ -642,39 +643,55 @@ Widget _buildMeetingProgressBar(BuildContext context, double completedHours, int
     );
   }
 
+List<Collection> _getUniqueCollections(List<Event> events) {
+    final collectionIds = events.map((event) => event.collectionId).whereType<int>().toSet();
+    return collectionIds.map((id) => _collections.firstWhere((collection) => collection.id == id)).toList();
+  }
+
+DateTime _getClosestEventDate(Collection collection) {
+    final collectionEvents = _events.where((event) => event.collectionId == collection.id).toList();
+    return collectionEvents.map((event) => event.date).reduce((a, b) => a.isBefore(b) ? a : b);
+  }
+
   Widget _buildEventCard(Event event) {
   final bool isNew = event.createdAt.isAfter(DateTime.now().subtract(const Duration(days: 7)));
   final bool isMandatory = event.isMandatory;
 
   if (_selectedEventType == 'All') {
-    if (event.collectionId != null) {
-      // Display collection
-      final collection = _collections.firstWhere((c) => c.id == event.collectionId);
-      final collectionEvents = _events.where((e) => e.collectionId == event.collectionId).toList();
+      if (event.collectionId != null) {
+        // Check if the collection has already been rendered
+        if (_renderedCollections.contains(event.collectionId)) {
+          return Container();
+        }
+
+        // Mark the collection as rendered
+        _renderedCollections.add(event.collectionId!);
+
+        // Display collection
+        final collection = _collections.firstWhere((c) => c.id == event.collectionId);
+        final collectionEvents = _events.where((e) => e.collectionId == event.collectionId).toList();
 
       return Card(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        elevation: 2,
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: CustomExpansionTile(
-          title: ListTile(
-            leading: const Icon(Icons.folder),
-            title: Text(
-              collection.name,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16.0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          elevation: 2,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: CustomExpansionTile(
+            title: ListTile(
+              leading: const Icon(Icons.folder),
+              title: Text(
+                collection?.name ?? 'Unknown Collection',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16.0,
+                ),
               ),
             ),
+            children: collectionEvents.map((event) => _buildCollectionEventCard(event)).toList(),
           ),
-          children: collectionEvents.map((event) {
-            return _buildCollectionEventCard(event);
-          }).toList(),
-        ),
-      );
-    } else {
+        );
+      } else {
       // Display event
       return Card(
         shape: RoundedRectangleBorder(
@@ -1100,6 +1117,15 @@ Widget _buildCollectionEventCard(Event event) {
  @override
 Widget build(BuildContext context) {
   final filteredEvents = _getFilteredEvents();
+  final collections = _getUniqueCollections(filteredEvents);
+   final combinedList = <dynamic>[...collections, ...filteredEvents.where((event) => event.collectionId == null)];
+
+  combinedList.sort((a, b) {
+      final dateA = a is Collection ? _getClosestEventDate(a) : a.date;
+      final dateB = b is Collection ? _getClosestEventDate(b) : b.date;
+      return dateA.compareTo(dateB);
+    });
+
   return Scaffold(
     appBar: AppBar(
       elevation: 15,
@@ -1135,10 +1161,14 @@ Widget build(BuildContext context) {
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: filteredEvents.length,
+              itemCount: combinedList.length,
               itemBuilder: (context, index) {
-                final event = filteredEvents[index];
-                return _buildEventCard(event);
+                final item = combinedList[index];
+                if (item is Collection) {
+                  return _buildCollectionCard(item);
+                } else {
+                  return _buildEventCard(item as Event);
+                }
               },
             ),
           ],
@@ -1147,6 +1177,32 @@ Widget build(BuildContext context) {
       
   );
 }
+
+Widget _buildCollectionCard(Collection collection) {
+    final collectionEvents = _events.where((event) => event.collectionId == collection.id).toList();
+
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: CustomExpansionTile(
+        title: ListTile(
+          leading: const Icon(Icons.folder),
+          title: Text(
+            collection.name,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16.0,
+            ),
+          ),
+        ),
+        children: collectionEvents.map((event) => _buildCollectionEventCard(event)).toList(),
+      ),
+    );
+  }
+
 
   void _showSignUpForm(Event event, TimeSlot timeSlot) {
   showDialog(
@@ -1637,22 +1693,24 @@ class Collection {
   final int id;
   final String name;
   final List<String> eventIds;
+  bool rendered;
 
   Collection({
     required this.id,
     required this.name,
     required this.eventIds,
+    this.rendered = false,
   });
 
   factory Collection.fromJson(Map<String, dynamic> json) {
-  return Collection(
-    id: json['id'],
-    name: json['name'],
-    eventIds: json['event_ids'] is List<dynamic>
-        ? List<String>.from(json['event_ids'])
-        : [],
-  );
-}
+    return Collection(
+      id: json['id'],
+      name: json['name'],
+      eventIds: json['event_ids'] is List<dynamic>
+          ? List<String>.from(json['event_ids'])
+          : [],
+    );
+  }
 }
 
 class CompletedHour {
@@ -1752,7 +1810,7 @@ class _SettingsPageState extends State<SettingsPage> {
           .eq('user_id', userId)
           .single();
 
-      if (this.mounted) {
+      if (mounted) {
       setState(() {
         _name = response['name'] ?? '';
         _email = response['email'] ?? '';
@@ -1983,6 +2041,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   Event? _draggedEvent;
   int? _hoveredCollectionIndex;
 
+
   @override
   void initState() {
     super.initState();
@@ -2015,6 +2074,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
 
   @override
   Widget build(BuildContext context) {
+  final uncategorizedEvents = _events.where((event) => event.collectionId == null).toList();
     return Scaffold(
       appBar: AppBar(
         elevation: 10,
@@ -2036,13 +2096,13 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
         ),
       ),
       body: ListView.builder(
-        itemCount: _collections.length + _events.length,
+        itemCount: _collections.length + uncategorizedEvents.length,
         itemBuilder: (context, index) {
           if (index < _collections.length) {
             final collection = _collections[index];
             return _buildCollectionCard(collection, index);
           } else {
-            final event = _events[index - _collections.length];
+            final event = uncategorizedEvents[index - _collections.length];
             return _buildEventCard(event);
           }
         },
@@ -2213,7 +2273,7 @@ void _removeEventFromCollection(Event event, Collection collection) async {
           'collection_id': collectionId,
         })
         .eq('id', event.id);
-        
+
     setState(() {
       final index = _events.indexWhere((e) => e.id == event.id);
       if (index != -1) {
@@ -2221,6 +2281,7 @@ void _removeEventFromCollection(Event event, Collection collection) async {
       }
     });
   }
+
 
   Widget _buildEventCard(Event event) {
   final bool isNew = event.createdAt.isAfter(DateTime.now().subtract(const Duration(days: 7)));
@@ -2297,7 +2358,6 @@ void _removeEventFromCollection(Event event, Collection collection) async {
                         },
                       ),
                       IconButton(
- 
                         icon: const Icon(Icons.delete),
                         onPressed: () {
                           _deleteEvent(event);
@@ -2475,20 +2535,20 @@ void _removeEventFromCollection(Event event, Collection collection) async {
   }
 
 void _onEventDragCanceled(Event event) async {
-  await Supabase.instance.client
-      .from('Events')
-      .update({
-        'collection_id': null,
-      })
-      .eq('id', event.id);
+    await Supabase.instance.client
+        .from('Events')
+        .update({
+          'collection_id': null,
+        })
+        .eq('id', event.id);
 
-  setState(() {
-    final index = _events.indexWhere((e) => e.id == event.id);
-    if (index != -1) {
-      _events[index] = _events[index].copyWith(collectionId: null);
-    }
-  });
-}
+    setState(() {
+      final index = _events.indexWhere((e) => e.id == event.id);
+      if (index != -1) {
+        _events[index] = _events[index].copyWith(collectionId: null);
+      }
+    });
+  }
 
 void _showEditNotesDialog(Event event, TimeSlot timeSlot) {
   String notes = timeSlot.notes;
