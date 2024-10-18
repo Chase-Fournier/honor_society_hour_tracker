@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
@@ -13,6 +14,7 @@ import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import 'package:barcode_widget/barcode_widget.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:barcode/barcode.dart' as barcodeGen;
+import 'package:url_launcher/url_launcher_string.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -387,8 +389,9 @@ class WaitingPage extends StatelessWidget {
   }
 }
 
+
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({Key? key}) : super(key: key);
 
   @override
   _HomePageState createState() => _HomePageState();
@@ -396,36 +399,64 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int currentPageIndex = 0;
-   double _serviceHoursCompleted = 0;
+  double _serviceHoursCompleted = 0;
   double _tutoringHoursCompleted = 0;
   double _meetingHoursCompleted = 0;
   double _servicePotentialHours = 0;
   double _tutoringPotentialHours = 0;
-  double  _meetingPotentialHours = 0;
+  double _meetingPotentialHours = 0;
   List<Collection> _collections = [];
-
   List<Event> _events = [];
   String _selectedEventType = 'All';
   final Set<int> _renderedCollections = Set<int>();
 
   @override
-void initState() {
-  super.initState();
-  _fetchEvents();
-  _fetchCollections();
-}
+  void initState() {
+    super.initState();
+    _fetchEvents();
+    _fetchCollections();
+  }
 
-   Future<void> _fetchEvents() async {
-    final response = await Supabase.instance.client
+  Future<void> _fetchEvents() async {
+    final eventResponse = await Supabase.instance.client
         .from('Events')
-        .select('*')
+        .select()
         .gt('date', DateTime.now().subtract(const Duration(days: 1)).toIso8601String())
         .order('date');
 
-    final List<dynamic> data = response;
+    final List<dynamic> eventData = eventResponse;
+    final List<Event> events = eventData.map((json) => Event.fromJson(json)).toList();
+
+    // Fetch time slots for each event
+    for (var event in events) {
+      final timeSlotResponse = await Supabase.instance.client
+          .from('Time slots')
+          .select()
+          .eq('event_id', event.id);
+
+      final List<dynamic> timeSlotData = timeSlotResponse;
+      final List<TimeSlot> timeSlots = timeSlotData.map((json) => TimeSlot.fromJson(json)).toList();
+      
+  for (var timeSlot in timeSlots) {
+          final attendeeResponse = await Supabase.instance.client
+              .from('Attendees')
+              .select('*, profiles!inner(name)')
+              .eq('timeslot_id', timeSlot.id ?? 0);
+
+          final List<Attendee> attendees = attendeeResponse.map((json) => Attendee.fromJson({
+            ...json,
+            'name': json['profiles']['name'],
+          })).toList();
+
+          timeSlot.attendees = attendees;
+        }
+
+      event.timeSlots = timeSlots;
+    }
+
     if (mounted) {
       setState(() {
-        _events = data.map((json) => Event.fromJson(json)).toList();
+        _events = events;
         // Sort events from closest to furthest date
         _events.sort((a, b) => a.date.compareTo(b.date));
       });
@@ -439,12 +470,13 @@ void initState() {
         .select('*');
 
     final List<dynamic> data = response;
-    if(mounted){
-    setState(() {
-      _collections = data.map((json) => Collection.fromJson(json)).toList();
-    });
+    if (mounted) {
+      setState(() {
+        _collections = data.map((json) => Collection.fromJson(json)).toList();
+      });
     }
   }
+
 
   List<Widget> _buildEventTypeChips() {
     return [
@@ -496,121 +528,118 @@ void initState() {
   }
 
 
- Future<void> _fetchCompletedHours() async {
-  final User? user = supabase.auth.currentUser;
-  final userId = user?.id;
+  Future<void> _fetchCompletedHours() async {
+    final User? user = supabase.auth.currentUser;
+    final userId = user?.id;
 
-  if (userId != null) {
-    final response = await Supabase.instance.client
-        .from('Service hours')
-        .select('hours, type')
-        .eq('user_id', userId);
+    if (userId != null) {
+      final response = await Supabase.instance.client
+          .from('Service hours')
+          .select('hours, type')
+          .eq('user_id', userId);
 
-    if (_events != null) {
-      final data = response;
-      double serviceHours = 0;
-      double tutoringHours = 0;
-      double meetingHours = 0;
-      double serviceHoursC = 0;
-      double tutoringHoursC = 0;
-      double meetingHoursC = 0;
+      if (_events != null) {
+        final data = response;
+        double serviceHours = 0;
+        double tutoringHours = 0;
+        double meetingHours = 0;
+        double serviceHoursC = 0;
+        double tutoringHoursC = 0;
+        double meetingHoursC = 0;
 
-      for (final entry in data) {
-        final hours = entry['hours'];
-        final eventType = entry['type'] as String;
+        for (final entry in data) {
+          final hours = entry['hours'];
+          final eventType = entry['type'] as String;
 
-        if (eventType == 'service' || eventType == 'Service') {
-          serviceHours += hours;
-          serviceHoursC += hours;
-        } else if (eventType == 'tutoring' || eventType == 'Tutoring') {
-          tutoringHours += hours;
-          tutoringHoursC += hours;
-        } else if (eventType == 'meeting' || eventType == 'Meeting') {
-          meetingHours += hours;
-          meetingHoursC += hours;
+          if (eventType == 'service' || eventType == 'Service') {
+            serviceHours += hours;
+            serviceHoursC += hours;
+          } else if (eventType == 'tutoring' || eventType == 'Tutoring') {
+            tutoringHours += hours;
+            tutoringHoursC += hours;
+          } else if (eventType == 'meeting' || eventType == 'Meeting') {
+            meetingHours += hours;
+            meetingHoursC += hours;
+          }
         }
-      }
 
-      for (final event in _events) {
-        for (final timeSlot in event.timeSlots) {
-          final isSignedUp = timeSlot.attendees.any((attendee) => attendee.name == userId);
-          final isNotPresent = timeSlot.attendees.any((attendee) => attendee.name == userId && !attendee.isPresent);
+        for (final event in _events) {
+          for (final timeSlot in event.timeSlots) {
+            final isSignedUp = timeSlot.attendees.any((attendee) => attendee.userId == userId);
+            final isNotPresent = timeSlot.attendees.any((attendee) => attendee.userId == userId && !attendee.isPresent);
 
-          if (isSignedUp && isNotPresent) {
-            final duration = _calculateDuration(timeSlot.time, timeSlot.endTime);
-            if (event.type == 'Service') {
-              serviceHours += duration;
-            } else if (event.type == 'Tutoring') {
-              tutoringHours += duration;
-            } else if (event.type == 'Meeting') {
-              meetingHours += duration;
+            if (isSignedUp && isNotPresent) {
+              final duration = _calculateDuration(timeSlot.time, timeSlot.endTime);
+              if (event.type == 'Service') {
+                serviceHours += duration;
+              } else if (event.type == 'Tutoring') {
+                tutoringHours += duration;
+              } else if (event.type == 'Meeting') {
+                meetingHours += duration;
+              }
             }
           }
         }
-      }
 
-      if (mounted) {
-        setState(() {
-          _servicePotentialHours = serviceHours;
-          _tutoringPotentialHours = tutoringHours;
-          _meetingPotentialHours = meetingHours;
-          _serviceHoursCompleted = serviceHoursC;
-          _tutoringHoursCompleted = tutoringHoursC;
-          _meetingHoursCompleted = meetingHoursC;
-        });
-      } else {
-        // Handle the error case
-        print('Error fetching completed hours: $response');
+        if (mounted) {
+          setState(() {
+            _servicePotentialHours = serviceHours;
+            _tutoringPotentialHours = tutoringHours;
+            _meetingPotentialHours = meetingHours;
+            _serviceHoursCompleted = serviceHoursC;
+            _tutoringHoursCompleted = tutoringHoursC;
+            _meetingHoursCompleted = meetingHoursC;
+          });
+        }
       }
     }
   }
-}
 
 double _calculateDuration(TimeOfDay startTime, TimeOfDay endTime) {
-  final startMinutes = startTime.hour * 60 + startTime.minute;
-  final endMinutes = endTime.hour * 60 + endTime.minute;
-  final duration = (endMinutes - startMinutes) / 60;
-  return duration;
-}
+    final startMinutes = startTime.hour * 60 + startTime.minute;
+    final endMinutes = endTime.hour * 60 + endTime.minute;
+    final duration = (endMinutes - startMinutes) / 60;
+    return duration;
+  }
 
-Widget _buildDoubleProgressBar(context, String title, double completedHours, double potentialHours, int hoursNeeded) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Completed: ${completedHours.toStringAsFixed(2)} hours',
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 10),
-        Stack(
-          children: [
-            LinearProgressIndicator(
-              value: potentialHours / hoursNeeded,
-              backgroundColor: Colors.grey[300],
-              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.5)),
-              minHeight: 10,
-              borderRadius: const BorderRadius.all(Radius.circular(33)),
-            ),
-            LinearProgressIndicator(
-              value: completedHours / hoursNeeded,
-              backgroundColor: Colors.transparent,
-              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
-              minHeight: 10,
-              borderRadius: const BorderRadius.all(Radius.circular(33)),
-            ),
-          ],
-        ),
-        const SizedBox(height: 5),
-        Text(
-          'Potential $title: ${potentialHours.toStringAsFixed(2)} hours',
-          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-        ),
-      ],
-    ),
-  );
-}
+Widget _buildDoubleProgressBar(BuildContext context, String title, double completedHours, double potentialHours, int hoursNeeded) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Completed: ${completedHours.toStringAsFixed(2)} hours',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          Stack(
+            children: [
+              LinearProgressIndicator(
+                value: potentialHours / hoursNeeded,
+                backgroundColor: Colors.grey[300],
+                valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.5)),
+                minHeight: 10,
+                borderRadius: const BorderRadius.all(Radius.circular(33)),
+              ),
+              LinearProgressIndicator(
+                value: completedHours / hoursNeeded,
+                backgroundColor: Colors.transparent,
+                valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
+                minHeight: 10,
+                borderRadius: const BorderRadius.all(Radius.circular(33)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            'Potential $title: ${potentialHours.toStringAsFixed(2)} hours',
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          ),
+        ],
+      ),
+    );
+  }
 
 Widget _buildMeetingProgressBar(BuildContext context, double completedHours, int hoursNeeded) {
     final meetingsAttended = completedHours.floor();
@@ -648,328 +677,278 @@ List<Collection> _getUniqueCollections(List<Event> events) {
     return collectionIds.map((id) => _collections.firstWhere((collection) => collection.id == id)).toList();
   }
 
-DateTime _getClosestEventDate(Collection collection) {
+  DateTime _getClosestEventDate(Collection collection) {
     final collectionEvents = _events.where((event) => event.collectionId == collection.id).toList();
     return collectionEvents.map((event) => event.date).reduce((a, b) => a.isBefore(b) ? a : b);
   }
 
-  Widget _buildEventCard(Event event) {
+
+Widget _buildEventCard(Event event) {
   final bool isNew = event.createdAt.isAfter(DateTime.now().subtract(const Duration(days: 7)));
   final bool isMandatory = event.isMandatory;
+  final currentUserId = supabase.auth.currentUser?.id;
 
-  if (_selectedEventType == 'All') {
-      if (event.collectionId != null) {
-        // Check if the collection has already been rendered
-        if (_renderedCollections.contains(event.collectionId)) {
-          return Container();
-        }
+  // Check if the user is signed up for any time slot of this event
+  final bool isSignedUp = event.timeSlots.any((timeSlot) =>
+      timeSlot.attendees.any((attendee) => attendee.userId == currentUserId));
 
-        // Mark the collection as rendered
-        _renderedCollections.add(event.collectionId!);
+  // Check if the user has completed the forms for this event
+  final bool formsCompleted = event.timeSlots.any((timeSlot) =>
+      timeSlot.attendees.any((attendee) =>
+          attendee.userId == currentUserId && attendee.formsCompleted));
 
-        // Display collection
-        final collection = _collections.firstWhere((c) => c.id == event.collectionId);
-        final collectionEvents = _events.where((e) => e.collectionId == event.collectionId).toList();
+  // Determine if we should show the "Required Forms" sticker
+  final bool showRequiredFormsStickerprogram = event.requiresForms && isSignedUp && !formsCompleted;
 
-      return Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          elevation: 2,
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: CustomExpansionTile(
-            title: ListTile(
-              leading: const Icon(Icons.folder),
-              title: Text(
-                collection?.name ?? 'Unknown Collection',
-                style: const TextStyle(
+  return Card(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(20),
+    ),
+    elevation: 2,
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    child: Stack(
+      children: [
+        if (showRequiredFormsStickerprogram)
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.orange,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'Required Forms',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ),
+          )
+        else if (isMandatory)
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.amber,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'Mandatory',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ),
+          )
+        else if (isNew)
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'New',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  fontSize: 16.0,
                 ),
               ),
             ),
-            children: collectionEvents.map((event) => _buildCollectionEventCard(event)).toList(),
           ),
-        );
-      } else {
-      // Display event
-      return Card(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        elevation: 2,
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Stack(
-          children: [
-            if (isMandatory)
-              Positioned(
-                left: 255,
-                top: 32,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Colors.amber,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.star,
-                    color: Theme.of(context).colorScheme.onError,
-                    size: 16,
-                  ),
+        CustomExpansionTile(
+          title: ListTile(
+            title: Text(
+              "${event.name} - ${event.date.month}/${event.date.day}/${event.date.year}",
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16.0,
+              ),
+            ),
+            subtitle: Text(
+              event.description,
+              style: TextStyle(
+                fontSize: 14.0,
+                color: Colors.grey[600],
+              ),
+            ),
+          ),
+          children: event.timeSlots.map((timeSlot) {
+            final isSignedUp = timeSlot.attendees.any((attendee) => attendee.userId == currentUserId);
+            final isEventInFuture = event.date.isAfter(DateTime.now().add(const Duration(days: 1)));
+            final isMandatory = event.isMandatory;
+            final isMeeting = event.type == 'Meeting';
+            final formsCompleted = timeSlot.attendees
+                .firstWhere((attendee) => attendee.userId == currentUserId, orElse: () => Attendee(id: 0, timeSlotId: 0, userId: '', name: ''))
+                .formsCompleted;
+
+            return ListTile(
+              title: Text(
+                event.type == 'Meeting'
+                    ? 'Time: ${timeSlot.time.format(context)}'
+                    : 'Time: ${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
+                style: const TextStyle(
+                  fontSize: 14.0,
                 ),
-              )
-            else if (isNew)
-              Positioned(
-                left: 250,
-                top: 32,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'New',
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Number of People: ${timeSlot.numberOfPeople}',
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 12.0,
+                      color: Colors.grey[600],
                     ),
                   ),
-                ),
-              ),
-            CustomExpansionTile(
-              title: ListTile(
-                title: Text(
-                  "${event.name} - ${event.date.month}/${event.date.day}/${event.date.year}",
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16.0,
-                  ),
-                ),
-                subtitle: Text(
-                  event.description,
-                  style: TextStyle(
-                    fontSize: 14.0,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ),
-              children: event.timeSlots.map((timeSlot) {
-        final isSignedUp = timeSlot.attendees.any((attendee) => attendee.name == supabase.auth.currentUser?.id);
-        final isEventInFuture = event.date.isAfter(DateTime.now().add(const Duration(days: 1)));
-        final isMandatory = event.isMandatory;
-        final isMeeting = event.type == 'Meeting';
-
-        return ListTile(
-          title: Text(
-              event.type == 'Meeting'
-                  ? 'Time: ${timeSlot.time.format(context)}'
-                  : 'Time: ${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
-            style: const TextStyle(
-              fontSize: 14.0,
-            ),
-          ),
-          subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  if (timeSlot.notes.isNotEmpty)
                     Text(
-                      'Number of People: ${timeSlot.numberOfPeople}',
+                      'Notes: ${timeSlot.notes}',
                       style: TextStyle(
                         fontSize: 12.0,
                         color: Colors.grey[600],
                       ),
                     ),
-                    if (timeSlot.notes.isNotEmpty)
-                      Text(
-                        'Notes: ${timeSlot.notes}',
-                        style: TextStyle(
-                          fontSize: 12.0,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                  ],
-                ),
-          trailing: isSignedUp
-                ? Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.calendar_today),
-                        onPressed: () {
-                          _addEventToCalendar(event, timeSlot);
-                        },
-                      ),
-                      if (isEventInFuture && !isMandatory && !isMeeting)
+                ],
+              ),
+              trailing: isSignedUp
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                         IconButton(
-                          icon: const Icon(Icons.cancel),
+                          icon: const Icon(Icons.calendar_today),
                           onPressed: () {
-                            _removeAttendee(event, timeSlot);
+                            _addEventToCalendar(event, timeSlot);
                           },
                         ),
-                    ],
-                  )
-                : isMandatory || isMeeting
-                    ? const Text('Automatically Signed Up')
-                    : ElevatedButton(
-                        onPressed: () {
-                          _showSignUpForm(event, timeSlot);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
+                        if (isEventInFuture && !isMandatory && !isMeeting)
+                          IconButton(
+                            icon: const Icon(Icons.cancel),
+                            onPressed: () {
+                              _removeAttendee(event, timeSlot);
+                            },
                           ),
+                        if (event.requiresForms)
+                          IconButton(
+                            icon: Icon(formsCompleted ? Icons.inventory : Icons.pending_actions),
+                            onPressed: () {
+                              _showUploadFormsDialog(event, timeSlot, formsCompleted);
+                            },
+                          ),
+                      ],
+                    )
+                  : isMandatory || isMeeting
+                      ? const Text('Automatically Signed Up')
+                      : ElevatedButton(
+                          onPressed: () {
+                            _showSignUpForm(event, timeSlot);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                          child: const Text('  Sign Up  '),
                         ),
-                        child: Text('  Sign Up  '),
-                      ),
-          );
-       }).toList(),
-            ),
-          ],
+            );
+          }).toList(),
         ),
-      );
-    }
-  } else {
-    // Display event if it matches the selected category
-    if (event.type == _selectedEventType) {
-      return Card(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        elevation: 2,
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Stack(
-          children: [
-            if (isMandatory)
-              Positioned(
-                left: 255,
-                top: 32,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Colors.amber,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.star,
-                    color: Theme.of(context).colorScheme.onError,
-                    size: 16,
-                  ),
-                ),
-              )
-            else if (isNew)
-              Positioned(
-                left: 250,
-                top: 32,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'New',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            CustomExpansionTile(
-              title: ListTile(
-                title: Text(
-                  "${event.name} - ${event.date.month}/${event.date.day}/${event.date.year}",
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16.0,
-                  ),
-                ),
-                subtitle: Text(
-                  event.description,
-                  style: TextStyle(
-                    fontSize: 14.0,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ),
-              children: event.timeSlots.map((timeSlot) {
-        final isSignedUp = timeSlot.attendees.any((attendee) => attendee.name == supabase.auth.currentUser?.id);
-        final isEventInFuture = event.date.isAfter(DateTime.now().add(const Duration(days: 1)));
-        final isMandatory = event.isMandatory;
-        final isMeeting = event.type == 'Meeting';
+      ],
+    ),
+  );
+}
 
-        return ListTile(
-          title: Text(
-              event.type == 'Meeting'
-                  ? 'Time: ${timeSlot.time.format(context)}'
-                  : 'Time: ${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
-            style: const TextStyle(
-              fontSize: 14.0,
+void _showUploadFormsDialog(Event event, TimeSlot timeSlot, bool hasFilledForms) {
+  final currentUserId = supabase.auth.currentUser?.id;
+  final attendee = event.timeSlots
+      .expand((timeSlot) => timeSlot.attendees)
+      .firstWhere((attendee) => attendee.userId == currentUserId, 
+                  orElse: () => Attendee(id: 0, timeSlotId: 0, userId: '', name: ''));
+  
+  final bool formsCompleted = attendee.formsCompleted;
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Text(formsCompleted ? 'Forms Completed' : 'Required Forms'),
+        content: Text(formsCompleted 
+          ? 'You have already completed the forms for this event.'
+          : 'This event requires forms to be completed.'),
+        actions: [
+          Row(
+            children: [
+              TextButton(
+                child: const Text('Cancel'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            SizedBox(width: 4,),
+          if (!formsCompleted) ...[
+            ElevatedButton(
+              child: const Text('Fill Out'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _launchFormLink(event.formLink!);
+              },
             ),
+            SizedBox(width: 4,),
+            ElevatedButton(
+              child: const Text('Complete'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _markFormsAsCompleted(event, timeSlot, true);
+              },
+            ),
+          ] else
+            ElevatedButton(
+              child: const Text('Remove Completion'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _markFormsAsCompleted(event, timeSlot, false);
+              },
+            ),
+            ],
           ),
-          subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Number of People: ${timeSlot.numberOfPeople}',
-                      style: TextStyle(
-                        fontSize: 12.0,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    if (timeSlot.notes.isNotEmpty)
-                      Text(
-                        'Notes: ${timeSlot.notes}',
-                        style: TextStyle(
-                          fontSize: 12.0,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                  ],
-                ),
-          trailing: isSignedUp
-                ? Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.calendar_today),
-                        onPressed: () {
-                          _addEventToCalendar(event, timeSlot);
-                        },
-                      ),
-                      if (isEventInFuture && !isMandatory && !isMeeting)
-                        IconButton(
-                          icon: const Icon(Icons.cancel),
-                          onPressed: () {
-                            _removeAttendee(event, timeSlot);
-                          },
-                        ),
-                    ],
-                  )
-                : isMandatory || isMeeting
-                    ? const Text('Automatically Signed Up')
-                    : ElevatedButton(
-                        onPressed: () {
-                          _showSignUpForm(event, timeSlot);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        child: Text('  Sign Up  '),
-                      ),
-          );
-       }).toList(),
-            ),
-          ],
-        ),
+        ],
       );
-    } else {
-      return Container();
+    },
+  );
+}
+
+  void _launchFormLink(String urls) async {
+    final Uri url = Uri.parse(urls);
+    await launchUrl(url);
+  }
+
+  Future<void> _markFormsAsCompleted(Event event, TimeSlot timeSlot, bool completed) async {
+  try {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId != null) {
+      await Supabase.instance.client
+          .from('Attendees')
+          .update({'forms_completed': completed})
+          .eq('user_id', userId)
+          .eq('timeslot_id', timeSlot.id ?? 0);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(completed 
+          ? 'Forms marked as completed' 
+          : 'Form completion status removed')),
+      );
+
+      // Refresh the events to update the UI
+      _fetchEvents();
     }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error updating form status: $e')),
+    );
   }
 }
 
@@ -1114,46 +1093,47 @@ Widget _buildCollectionEventCard(Event event) {
   );
 }
 
- @override
-Widget build(BuildContext context) {
-  final filteredEvents = _getFilteredEvents();
-  final collections = _getUniqueCollections(filteredEvents);
-   final combinedList = <dynamic>[...collections, ...filteredEvents.where((event) => event.collectionId == null)];
 
-  combinedList.sort((a, b) {
+@override
+  Widget build(BuildContext context) {
+    final filteredEvents = _getFilteredEvents();
+    final collections = _getUniqueCollections(filteredEvents);
+    final combinedList = <dynamic>[...collections, ...filteredEvents.where((event) => event.collectionId == null)];
+
+    combinedList.sort((a, b) {
       final dateA = a is Collection ? _getClosestEventDate(a) : a.date;
       final dateB = b is Collection ? _getClosestEventDate(b) : b.date;
       return dateA.compareTo(dateB);
     });
 
-  return Scaffold(
-    appBar: AppBar(
-      elevation: 15,
-      shadowColor: Theme.of(context).colorScheme.shadow,
-      title: Text(
-        'Home',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 24.0,
-          color: Theme.of(context).colorScheme.onPrimary
+    return Scaffold(
+      appBar: AppBar(
+        elevation: 15,
+        shadowColor: Theme.of(context).colorScheme.shadow,
+        title: Text(
+          'Home',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 24.0,
+            color: Theme.of(context).colorScheme.onPrimary
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(13),
+          ),
         ),
       ),
-      centerTitle: true,
-      backgroundColor: Theme.of(context).colorScheme.primary,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          bottom: Radius.circular(13),
-        ),
-      ),
-    ),
-    body: SingleChildScrollView(
-      child: Column(
-        children: [
-          _buildDoubleProgressBar(context, 'Service Hours', _serviceHoursCompleted, _servicePotentialHours, 14),
-          _buildDoubleProgressBar(context, 'Tutoring Hours', _tutoringHoursCompleted, _tutoringPotentialHours, 6),
-          _buildMeetingProgressBar(context, _meetingHoursCompleted, 5),
-          const SizedBox(height: 20),
-          Wrap(
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            _buildDoubleProgressBar(context, 'Service Hours', _serviceHoursCompleted, _servicePotentialHours, 14),
+            _buildDoubleProgressBar(context, 'Tutoring Hours', _tutoringHoursCompleted, _tutoringPotentialHours, 6),
+            _buildMeetingProgressBar(context, _meetingHoursCompleted, 5),
+            const SizedBox(height: 20),
+            Wrap(
               spacing: 8,
               children: _buildEventTypeChips(),
             ),
@@ -1174,9 +1154,8 @@ Widget build(BuildContext context) {
           ],
         ),
       ),
-      
-  );
-}
+    );
+  }
 
 Widget _buildCollectionCard(Collection collection) {
     final collectionEvents = _events.where((event) => event.collectionId == collection.id).toList();
@@ -1198,163 +1177,123 @@ Widget _buildCollectionCard(Collection collection) {
             ),
           ),
         ),
-        children: collectionEvents.map((event) => _buildCollectionEventCard(event)).toList(),
+        children: collectionEvents.map((event) => _buildEventCard(event)).toList(),
       ),
     );
   }
 
 
   void _showSignUpForm(Event event, TimeSlot timeSlot) {
-  showDialog(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: const Text('Sign Up'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Event: ${event.name}'),
-            const SizedBox(height: 8),
-            Text('Time: ${timeSlot.time.format(context)}'),
-            const SizedBox(height: 8),
-            Text('Number of People: ${timeSlot.numberOfPeople}'),
-          ],
-        ),
-        actions: [
-          Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextButton(
-                  child: const Text('Cancel'),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                ),
-                const SizedBox(width: 3),
-                ElevatedButton(
-                  child: const Text('Sign Up'),
-                  onPressed: () {
-                    _signUpForTimeSlot(event, timeSlot);
-                    Navigator.of(context).pop();
-                  },
-                ),
-              ],
-            ),
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Sign Up'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Event: ${event.name}'),
+              const SizedBox(height: 8),
+              Text('Time: ${timeSlot.time.format(context)}'),
+              const SizedBox(height: 8),
+              Text('Number of People: ${timeSlot.numberOfPeople}'),
+            ],
           ),
-          const SizedBox(height: 16),
-          Center(
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.calendar_today),
-              label: const Text('Add to Calendar'),
-              onPressed: () {
-                _signUpForTimeSlot(event, timeSlot);
-                _addEventToCalendar(event, timeSlot);
-                Navigator.of(context).pop();
-              },
-              style: ElevatedButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+          actions: [
+            Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton(
+                    child: const Text('Cancel'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                  const SizedBox(width: 3),
+                  ElevatedButton(
+                    child: const Text('Sign Up'),
+                    onPressed: () {
+                      _signUpForTimeSlot(event, timeSlot);
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.calendar_today),
+                label: const Text('Add to Calendar'),
+                onPressed: () {
+                  _signUpForTimeSlot(event, timeSlot);
+                  _addEventToCalendar(event, timeSlot);
+                  Navigator.of(context).pop();
+                },
+                style: ElevatedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
-      );
-    },
-  );
-}
-  void _removeAttendee(Event event, TimeSlot timeSlot) async {
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _removeAttendee(Event event, TimeSlot timeSlot) async {
     final userId = supabase.auth.currentUser?.id;
 
     if (userId != null) {
-      await Supabase.instance.client.from('Events').update({
-        'timeSlots': event.timeSlots.map((slot) {
-          if (slot == timeSlot) {
-            return {
-              'time': '${slot.time.hour}:${slot.time.minute}',
-              'endTime': '${slot.endTime.hour}:${slot.endTime.minute}',
-              'numberOfPeople': slot.numberOfPeople + 1,
-              'attendees': slot.attendees
-                  .where((attendee) => attendee.name != userId)
-                  .map((attendee) => {
-                        'name': attendee.userId,
-                        'isPresent': attendee.isPresent,
-                      })
-                  .toList(),
-            };
-          } else {
-            return {
-              'time': '${slot.time.hour}:${slot.time.minute}',
-              'endTime': '${slot.endTime.hour}:${slot.endTime.minute}',
-              'numberOfPeople': slot.numberOfPeople,
-              'attendees': slot.attendees.map((attendee) => {
-                    'name': attendee.userId,
-                    'isPresent': attendee.isPresent,
-                  }).toList(),
-            };
-          }
-        }).toList(),
-      }).eq('id', event.id);
+      await Supabase.instance.client
+          .from('Attendees')
+          .delete()
+          .eq('timeslot_id', timeSlot?.id ?? 0)
+          .eq('user_id', userId);
+
+      await Supabase.instance.client
+          .from('Time slots')
+          .update({'number_of_people': timeSlot.numberOfPeople + 1})
+          .eq('id', timeSlot?.id ?? 0);
 
       _fetchEvents();
     }
   }
-  void _signUpForTimeSlot(Event pEvent, TimeSlot timeSlot) async {
-  // Get the current user's UUID
-  final User? user = supabase.auth.currentUser;
-  final userId = user?.id;
-  print(pEvent.name);
-  if (userId != null) {
-    // Fetch the latest event data from Supabase
-    final eventData = await Supabase.instance.client
-        .from('Events')
-        .select()
-        .eq('id', pEvent.id)
-        .single();
-    final event = Event.fromJson(eventData);
-    // Find the time slot index
-    final timeSlotIndex = event.timeSlots.indexWhere((slot) =>
-        slot.time == timeSlot.time && slot.endTime == timeSlot.endTime);
 
-    if (timeSlotIndex != -1) {
-      final slot = event.timeSlots[timeSlotIndex];
-      if (slot.numberOfPeople > 0 &&
-          !slot.attendees.any((attendee) => attendee.name == userId)) {
-        final updatedAttendees = List<Attendee>.from(slot.attendees)
-          ..add(Attendee(name: userId, isPresent: false, userId: userId));
-        final updatedNumberOfPeople = slot.numberOfPeople - 1;
+  Future<void> _signUpForTimeSlot(Event event, TimeSlot timeSlot) async {
+    final User? user = supabase.auth.currentUser;
+    final userId = user?.id;
 
-        // Update the time slot with the user signed up
-        final updatedTimeSlot = {
-          'time': '${slot.time.hour}:${slot.time.minute}',
-          'endTime': '${slot.endTime.hour}:${slot.endTime.minute}',
-          'numberOfPeople': updatedNumberOfPeople,
-          'attendees': updatedAttendees.map((attendee) => {
-                'name': attendee.userId,
-                'isPresent': attendee.isPresent,
-              }).toList(),
-        };
-        // Update the event in the Supabase database
- await Supabase.instance.client.from('Events').update({
-  'timeSlots': event.timeSlots.map((slot) {
-      // Keep the other time slots unchanged
-      return {
-        'time': '${slot.time.hour}:${slot.time.minute}',
-          'endTime': '${slot.endTime.hour}:${slot.endTime.minute}',
-          'numberOfPeople': updatedNumberOfPeople,
-          'attendees': updatedAttendees.map((attendee) => {
-                'name': attendee.userId,
-                'isPresent': attendee.isPresent,
-              }).toList(),
-      };
-  }).toList(),
-}).eq('id', event.id);
+    if (userId != null) {
+      // Check if the user is already signed up
+      final existingAttendee = await Supabase.instance.client
+          .from('Attendees')
+          .select()
+          .eq('timeslot_id', timeSlot.id ?? 0)
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (existingAttendee == null) {
+        // Add the user to the Attendees table
+        await Supabase.instance.client.from('Attendees').insert({
+          'timeslot_id': timeSlot?.id ?? 0,
+          'user_id': userId,
+          'is_present': false,
+        });
+
+        // Update the number of people in the time slot
+        await Supabase.instance.client
+            .from('Time slots')
+            .update({'number_of_people': timeSlot.numberOfPeople - 1})
+            .eq('id', timeSlot?.id ?? 0);
+
         _fetchEvents();
       }
     }
-    }
-}
+  }
   void _addEventToCalendar(Event event, TimeSlot timeSlot) {
   final calendarEventp = addEvent(
     title: event.name,
@@ -2019,8 +1958,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 }
 // admin_events_page.dart
+
 class AdminEventsPage extends StatefulWidget {
-  const AdminEventsPage({super.key});
+  const AdminEventsPage({Key? key}) : super(key: key);
 
   @override
   _AdminEventsPageState createState() => _AdminEventsPageState();
@@ -2028,19 +1968,10 @@ class AdminEventsPage extends StatefulWidget {
 
 class _AdminEventsPageState extends State<AdminEventsPage> {
   final _formKey = GlobalKey<FormState>();
-  late String _eventName;
-  late String _eventDescription;
-  late DateTime _eventDate;
-  List<TimeSlot> _timeSlots = [];
-  bool _isMandatory = false;
-  String? _selectedEventType;
-  int? _selectedCollectionId;
-
   List<Event> _events = [];
   List<Collection> _collections = [];
   Event? _draggedEvent;
   int? _hoveredCollectionIndex;
-
 
   @override
   void initState() {
@@ -2050,16 +1981,48 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   }
 
   Future<void> _fetchEvents() async {
-    final response = await Supabase.instance.client
+    final eventResponse = await Supabase.instance.client
         .from('Events')
-        .select('*')
+        .select()
         .order('date');
 
-    final List<dynamic> data = response;
+    final List<dynamic> eventData = eventResponse;
+    final List<Event> events = eventData.map((json) => Event.fromJson(json)).toList();
+
+    // Fetch time slots for each event
+    for (var event in events) {
+      final timeSlotResponse = await Supabase.instance.client
+          .from('Time slots')
+          .select()
+          .eq('event_id', event.id);
+
+      final List<dynamic> timeSlotData = timeSlotResponse;
+      final List<TimeSlot> timeSlots = timeSlotData.map((json) => TimeSlot.fromJson(json)).toList();
+
+      // Fetch attendees for each time slot
+      for (var timeSlot in timeSlots) {
+        final attendeeResponse = await Supabase.instance.client
+            .from('Attendees')
+            .select('*, profiles!inner(name)')
+            .eq('timeslot_id', timeSlot.id ?? 0);
+
+        final List<Attendee> attendees = attendeeResponse.map((json) => Attendee.fromJson({
+          ...json,
+          'name': json['profiles']['name'],
+        })).toList();
+
+        timeSlot.attendees = attendees;
+      }
+
+      event.timeSlots = timeSlots;
+    }
+    if (mounted) {
     setState(() {
-      _events = data.map((json) => Event.fromJson(json)).toList();
+      _events = events;
     });
+}
   }
+
 
   Future<void> _fetchCollections() async {
     final response = await Supabase.instance.client
@@ -2125,46 +2088,46 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   }
 
   Widget _buildCollectionCard(Collection collection, int index) {
-  final isHovered = _hoveredCollectionIndex == index;
+    final isHovered = _hoveredCollectionIndex == index;
 
-  return DragTarget<Event>(
-    onWillAccept: (data) => true,
-    onAccept: (data) {
-      if (data is Event) {
-        _onEventDropped(data, collection.id);
-      }
-    },
-    onLeave: (data) {
-      setState(() {
-        _hoveredCollectionIndex = null;
-      });
-    },
-    builder: (context, candidateData, rejectedData) {
-      return Card(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        elevation: 2,
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        color: isHovered ? Colors.grey[200] : null,
-        child: ExpansionTile(
-          leading: const Icon(Icons.folder),
-          title: Text(
-            collection.name,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16.0,
-            ),
+    return DragTarget<Event>(
+      onWillAccept: (data) => true,
+      onAccept: (data) {
+        if (data is Event) {
+          _onEventDropped(data, collection.id);
+        }
+      },
+      onLeave: (data) {
+        setState(() {
+          _hoveredCollectionIndex = null;
+        });
+      },
+      builder: (context, candidateData, rejectedData) {
+        return Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-          children: _events
-              .where((event) => event.collectionId == collection.id)
-              .map((event) => _buildEventCard(event))
-              .toList(),
-        ),
-      );
-    },
-  );
-}
+          elevation: 2,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          color: isHovered ? Colors.grey[200] : null,
+          child: ExpansionTile(
+            leading: const Icon(Icons.folder),
+            title: Text(
+              collection.name,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16.0,
+              ),
+            ),
+            children: _events
+                .where((event) => event.collectionId == collection.id)
+                .map((event) => _buildEventCard(event))
+                .toList(),
+          ),
+        );
+      },
+    );
+  }
 
 
 void _showCollectionEvents(Collection collection) {
@@ -2227,7 +2190,6 @@ void _removeEventFromCollection(Event event, Collection collection) async {
         description: event.description,
         date: event.date,
         type: event.type,
-        timeSlots: event.timeSlots,
         collectionId: null,
         createdAt: event.createdAt,
       );
@@ -2238,188 +2200,138 @@ void _removeEventFromCollection(Event event, Collection collection) async {
   
   Navigator.of(context).pop();
 }
-  void _onEventDragStarted(Event event) {
-    if(mounted){
-    setState(() {
-      _draggedEvent = event;
-    });
-    }
-  }
-
-  void _onEventDragEnded(Event event) {
-    if(mounted){
-      setState(() {
-      _draggedEvent = null;
-    });
-    }
-  }
-  
-
-  void _onEventDropped(Event event, int collectionId) async {
-    final updatedEvent = Event(
-      id: event.id,
-      name: event.name,
-      description: event.description,
-      date: event.date,
-      type: event.type,
-      timeSlots: event.timeSlots,
-      collectionId: collectionId,
-      createdAt: event.createdAt,
-    );
-
-    await Supabase.instance.client
-        .from('Events')
-        .update({
-          'collection_id': collectionId,
-        })
-        .eq('id', event.id);
-
-    setState(() {
-      final index = _events.indexWhere((e) => e.id == event.id);
-      if (index != -1) {
-        _events[index] = _events[index].copyWith(collectionId: collectionId);
-      }
-    });
-  }
-
 
   Widget _buildEventCard(Event event) {
-  final bool isNew = event.createdAt.isAfter(DateTime.now().subtract(const Duration(days: 7)));
-  final bool isMandatory = event.isMandatory;
+    final bool isNew = event.createdAt.isAfter(DateTime.now().subtract(const Duration(days: 7)));
+    final bool isMandatory = event.isMandatory;
 
-  return Card(
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(20),
-    ),
-    elevation: 2,
-    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-    child: Draggable<Event>(
-      data: event,
-      child: Stack(
-        children: [
-          if (isMandatory)
-            Positioned(
-              left: 255,
-              top: 32,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  color: Colors.amber,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.star,
-                  color: Theme.of(context).colorScheme.onError,
-                  size: 16,
-                ),
-              ),
-            )
-          else if (isNew)
-            Positioned(
-              left: 250,
-              top: 32,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.errorContainer,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  'New',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Draggable<Event>(
+        data: event,
+        child: Stack(
+          children: [
+            if (isMandatory)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.amber,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'Mandatory',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 ),
-              ),
-            ),
-          CustomExpansionTile(
-            title: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Text(
-                    "${event.name} - ${event.date.month}/${event.date.day}/${event.date.year}",
-                    style: const TextStyle(
+              )
+            else if (isNew)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'New',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      fontSize: 14.0,
                     ),
                   ),
-                      IconButton(
-                        icon: const Icon(Icons.edit),
-                        onPressed: () {
-                          _showEditEventDialog(event);
-                        },
+                ),
+              ),
+            CustomExpansionTile(
+              title: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            "${event.name} - ${event.date.month}/${event.date.day}/${event.date.year}",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16.0,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.edit),
+                          onPressed: () => _showEditEventDialog(event),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () => _deleteEvent(event),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      event.description,
+                      style: TextStyle(
+                        fontSize: 14.0,
+                        color: Colors.grey[600],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.delete),
-                        onPressed: () {
-                          _deleteEvent(event);
-                        },
+                    ),
+                  ],
+                ),
+              ),
+              children: event.timeSlots.map((timeSlot) {
+                return ListTile(
+                  title: Text(
+                    'Time: ${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
+                    style: const TextStyle(fontSize: 16.0),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Number of People: ${timeSlot.numberOfPeople}',
+                        style: TextStyle(fontSize: 14.0, color: Colors.grey[600]),
+                      ),
+                      Text(
+                        'Attendees: ${timeSlot.attendees.length}',
+                        style: TextStyle(fontSize: 14.0, color: Colors.grey[600]),
                       ),
                     ],
                   ),
-                  
-                  Text(
-                    event.description,
-                    style: TextStyle(
-                      fontSize: 12.0,
-                      color: Colors.grey[600],
-                    ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: () => _showEditTimeSlotDialog(event, timeSlot),
                   ),
-                  const SizedBox(height: 8),
-                  
-                ],
-              ),
+                );
+              }).toList(),
             ),
-            children: event.timeSlots.map((timeSlot) {
-              return ListTile(
-                title: Text(
-                  'Time: ${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
-                  style: const TextStyle(
-                    fontSize: 16.0,
-                  ),
-                ),
-                subtitle: Text(
-                  'Number of People: ${timeSlot.numberOfPeople}',
-                  style: TextStyle(
-                    fontSize: 14.0,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.notes),
-                  onPressed: () {
-                    _showEditNotesDialog(event, timeSlot);
-                  },
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-      feedback: Material(
-        child: Container(
-          width: 400,
-          height: 100,
-          decoration: BoxDecoration(
-                    
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-          child: Card(
-            child: ListTile(
-              title: Text(event.name),
+          ],
+        ),
+        feedback: Material(
+          elevation: 4.0,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              event.name,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
         ),
-      ),
-      childWhenDragging: Opacity(
+        childWhenDragging: Opacity(
         opacity: 0.5,
         child: Stack(
           children: [
@@ -2521,34 +2433,66 @@ void _removeEventFromCollection(Event event, Collection collection) async {
           ],
         ),
         ),
-        onDragStarted: () {
-          _onEventDragStarted(event);
-        },
-        onDragCompleted: () {
-          _onEventDragEnded(event);
-        },
-        onDraggableCanceled: (velocity, offset) {
-        _onEventDragCanceled(event);
+        onDragStarted: () => _onEventDragStarted(event),
+         onDragEnd: (details) {
+          if (event.collectionId != null) {
+            _onEventDropped(event, null);
+          
+        }
       },
       ),
     );
   }
 
-void _onEventDragCanceled(Event event) async {
+void _onEventDragStarted(Event event) {
+    setState(() {
+      _draggedEvent = event;
+    });
+  }
+
+  void _onEventDragEnded(Event event) {
+    setState(() {
+      _draggedEvent = null;
+    });
+  }
+
+ Future<void> _onEventDropped(Event event, int? collectionId) async {
+  try {
+    // Update the event in the database
     await Supabase.instance.client
         .from('Events')
-        .update({
-          'collection_id': null,
-        })
+        .update({'collection_id': collectionId})
         .eq('id', event.id);
 
     setState(() {
       final index = _events.indexWhere((e) => e.id == event.id);
       if (index != -1) {
-        _events[index] = _events[index].copyWith(collectionId: null);
+        // Create a new Event object with the updated collectionId
+        _events[index] = Event(
+          id: event.id,
+          name: event.name,
+          description: event.description,
+          date: event.date,
+          type: event.type,
+          timeSlots: event.timeSlots,
+          isMandatory: event.isMandatory,
+          createdAt: event.createdAt,
+          collectionId: collectionId,
+        );
       }
     });
+
+    // Show a success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(collectionId != null ? 'Event moved to collection' : 'Event removed from collection')),
+    );
+  } catch (e) {
+    // Show an error message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error updating event: $e')),
+    );
   }
+}
 
 void _showEditNotesDialog(Event event, TimeSlot timeSlot) {
   String notes = timeSlot.notes;
@@ -2588,452 +2532,387 @@ void _showEditNotesDialog(Event event, TimeSlot timeSlot) {
   );
 }
 
-void _updateNotes(Event event, TimeSlot timeSlot, String notes) async {
-  final index = event.timeSlots.indexOf(timeSlot);
-  if (index != -1) {
-    event.timeSlots[index].notes = notes;
+Future<void> _updateNotes(Event event, TimeSlot timeSlot, String notes) async {
+  try {
+    // Update the notes in the TimeSlot object
+    final updatedTimeSlot = timeSlot.copyWith(notes: notes);
+
+    // Update the TimeSlot in the database
     await Supabase.instance.client
-        .from('Events')
+        .from('Time slots')
         .update({
-          'timeSlots': event.timeSlots.map((slot) => {
-                'time': '${slot.time.hour}:${slot.time.minute}',
-                'endTime': '${slot.endTime.hour}:${slot.endTime.minute}',
-                'numberOfPeople': slot.numberOfPeople,
-                'attendees': slot.attendees.map((attendee) => {
-                      'name': attendee.userId,
-                      'isPresent': attendee.isPresent,
-                    }).toList(),
-                'notes': slot.notes,
-              }).toList(),
+          'notes': notes,
         })
-        .eq('name', event.name);
+        .eq('id', timeSlot.id ?? 0);
+
+    // Update the TimeSlot in the Event object
+    final index = event.timeSlots.indexWhere((slot) => slot.id == timeSlot.id);
+    if (index != -1) {
+      event.timeSlots[index] = updatedTimeSlot;
+    }
+
+    // Optionally, you can trigger a UI update here if needed
+    // setState(() {});
+
+    // Show a success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Notes updated successfully')),
+    );
+  } catch (e) {
+    // Show an error message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error updating notes: $e')),
+    );
   }
 }
 
-void _showAddEventDialog() async {
-    _eventDate = DateTime.now();
-    _timeSlots = [];
-    _selectedEventType = null;
-    _selectedCollectionId = null;
-    setState(() {
-      _isMandatory = false;
-    });
+void _showAddEventDialog() {
+  final _formKey = GlobalKey<FormState>();
+  String _eventName = '';
+  String _eventDescription = '';
+  DateTime _eventDate = DateTime.now();
+  List<TimeSlot> _timeSlots = [];
+  bool _isMandatory = false;
+  String? _selectedEventType;
+  int? _selectedCollectionId;
+  bool _requiresForms = false;
+  String _formLink = '';
 
-    final result = await showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
-            return AlertDialog(
-              title: const Text('Add Event'),
-              content: SingleChildScrollView(
-                child: SizedBox(
-                  width: double.maxFinite,
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextFormField(
-                          decoration: const InputDecoration(
-                            labelText: 'Event Name',
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter the event name';
-                            }
-                            return null;
-                          },
-                          onSaved: (value) {
-                            _eventName = value!;
-                          },
-                        ),
-                        const SizedBox(height: 16.0),
-                        TextFormField(
-                          decoration: const InputDecoration(
-                            labelText: 'Event Description',
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter the event description';
-                            }
-                            return null;
-                          },
-                          onSaved: (value) {
-                            _eventDescription = value!;
-                          },
-                        ),
-                        const SizedBox(height: 16.0),
-                        InkWell(
-                          onTap: () => _selectDate(setState),
-                          child: InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: 'Event Date',
-                            ),
-                            child: Text(
-                              '${_eventDate.year}/${_eventDate.month}/${_eventDate.day}',
-                            ),
-                          ),
-                        ),
-                        SwitchListTile(
-                          title: const Text('Mandatory'),
-                          value: _isMandatory,
-                          onChanged: (value) {
-                            setState(() {
-                              _isMandatory = value;
-                            });
-                          },
-                        ),
-                        DropdownButtonFormField<String>(
-                          value: _selectedEventType,
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedEventType = value;
-                            });
-                          },
-                          borderRadius: BorderRadius.circular(30),
-                          dropdownColor: Theme.of(context).colorScheme.primaryContainer,
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'Service',
-                              child: Text('Service'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Tutoring',
-                              child: Text('Tutoring'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Meeting',
-                              child: Text('Meeting'),
-                            ),
-                          ],
-                          decoration: const InputDecoration(
-                            labelText: 'Event Type',
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please select an event type';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16.0),
-                        DropdownButtonFormField<int>(
-                          value: _selectedCollectionId,
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedCollectionId = value;
-                            });
-                          },
-                          borderRadius: BorderRadius.circular(30),
-                          dropdownColor: Theme.of(context).colorScheme.primaryContainer,
-                          items: [
-                            const DropdownMenuItem(
-                              value: null,
-                              child: Text('No Collection'),
-                            ),
-                            ..._collections.map((collection) {
-                              return DropdownMenuItem(
-                                value: collection.id,
-                                child: Text(collection.name),
-                              );
-                            }).toList(),
-                          ],
-                          decoration: const InputDecoration(
-                            labelText: 'Collection',
-                          ),
-                        ),
-                        const SizedBox(height: 16.0),
-                        Container(
-                          constraints: const BoxConstraints(maxHeight: 200),
-                          child: SingleChildScrollView(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                for (int i = 0; i < _timeSlots.length; i++)
-                                  ListTile(
-                                    title: Text('${_timeSlots[i].time.format(context)} - ${_timeSlots[i].endTime.format(context)}'),
-                                    subtitle: Text('Number of people: ${_timeSlots[i].numberOfPeople}'),
-                                    trailing: IconButton(
-                                      icon: const Icon(Icons.delete),
-                                      onPressed: () {
-                                        setState(() {
-                                          _timeSlots.removeAt(i);
-                                        });
-                                      },
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16.0),
-                        ElevatedButton(
-                          child: const Text('Add Time Slot'),
-                          onPressed: () {
-                            _addTimeSlot(setState);
-                          },
-                        ),
-                      ],
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (BuildContext context, StateSetter setState) {
+          return AlertDialog(
+            title: const Text('Add Event'),
+            content: SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      decoration: const InputDecoration(labelText: 'Event Name'),
+                      validator: (value) => value!.isEmpty ? 'Please enter an event name' : null,
+                      onSaved: (value) => _eventName = value!,
                     ),
-                  ),
+                    TextFormField(
+                      decoration: const InputDecoration(labelText: 'Event Description'),
+                      validator: (value) => value!.isEmpty ? 'Please enter a description' : null,
+                      onSaved: (value) => _eventDescription = value!,
+                    ),
+                    SizedBox(height: 15,),
+                    ElevatedButton(
+                      child: Text(_eventDate == null
+                          ? 'Select Date'
+                          : '${_eventDate.toString().substring(0, 10)}'),
+                      onPressed: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: _eventDate,
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (picked != null) {
+                          setState(() => _eventDate = picked);
+                        }
+                      },
+                    ),
+                    DropdownButtonFormField<String>(
+                      value: _selectedEventType,
+                      items: ['Service', 'Tutoring', 'Meeting']
+                          .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                          .toList(),
+                      onChanged: (value) => setState(() => _selectedEventType = value),
+                      decoration: const InputDecoration(labelText: 'Event Type'),
+                      validator: (value) => value == null ? 'Please select an event type' : null,
+                    ),
+                    DropdownButtonFormField<int>(
+                      value: _selectedCollectionId,
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('No Collection')),
+                        ..._collections.map((collection) => DropdownMenuItem(
+                              value: collection.id,
+                              child: Text(collection.name),
+                            )),
+                      ],
+                      onChanged: (value) => setState(() => _selectedCollectionId = value),
+                      decoration: const InputDecoration(labelText: 'Collection'),
+                    ),
+                    CheckboxListTile(
+                      title: const Text('Mandatory'),
+                      value: _isMandatory,
+                      onChanged: (bool? value) {
+                        setState(() => _isMandatory = value!);
+                      },
+                    ),
+                    CheckboxListTile(
+                      title: const Text('Requires Forms'),
+                      value: _requiresForms,
+                      onChanged: (bool? value) {
+                        setState(() => _requiresForms = value!);
+                      },
+                    ),
+                    if (_requiresForms)
+                      TextFormField(
+                        decoration: const InputDecoration(labelText: 'Form Link'),
+                        validator: (value) => value!.isEmpty ? 'Please enter a form link' : null,
+                        onSaved: (value) => _formLink = value!,
+                      ),
+                      SizedBox(height: 15,),
+                    ElevatedButton(
+                      child: const Text('Add Time Slot'),
+                      onPressed: () => _showAddTimeSlotDialog(setState, _timeSlots),
+                    ),
+                    ..._timeSlots.map((timeSlot) => ListTile(
+                          title: Text('${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}'),
+                          subtitle: Text('Capacity: ${timeSlot.numberOfPeople}'),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete),
+                            onPressed: () => setState(() => _timeSlots.remove(timeSlot)),
+                          ),
+                        )),
+                  ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  child: const Text('Cancel'),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                ),
-                ElevatedButton(
-                  child: const Text('Add'),
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      _formKey.currentState!.save();
-                      _addEvent();
-                    }
-                  },
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-void _removeTimeSlot(int index) {
-  setState(() {
-    _timeSlots.removeAt(index);
-  });
-}
-
-void _addTimeSlot(StateSetter setState) async {
-  final TimeOfDay? selectedStartTime = await showTimePicker(
-    context: context,
-    initialTime: TimeOfDay.now(),
-  );
-  if (selectedStartTime != null) {
-    final TimeOfDay? selectedEndTime = await showTimePicker(
-      context: context,
-      initialTime: selectedStartTime,
-    );
-    if (selectedEndTime != null) {
-      int? numberOfPeople;
-      await showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: const Text('Enter Number of People'),
-            content: TextFormField(
-              keyboardType: TextInputType.number,
-              onChanged: (value) {
-                numberOfPeople = int.tryParse(value);
-              },
             ),
             actions: [
               TextButton(
                 child: const Text('Cancel'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
+                onPressed: () => Navigator.of(context).pop(),
               ),
               ElevatedButton(
-                child: const Text('OK'),
+                child: const Text('Add Event'),
                 onPressed: () {
-                  Navigator.of(context).pop();
+                  if (_formKey.currentState!.validate()) {
+                    _formKey.currentState!.save();
+                    _addEvent(_eventName, _eventDescription, _eventDate, _selectedEventType!,
+                        _isMandatory, _selectedCollectionId, _timeSlots, _requiresForms, _formLink);
+                    Navigator.of(context).pop();
+                  }
                 },
               ),
             ],
           );
         },
       );
-      if (numberOfPeople != null) {
-        setState(() {
-          _timeSlots.add(TimeSlot(
-            time: selectedStartTime,
-            endTime: selectedEndTime,
-            numberOfPeople: numberOfPeople!,
-          ));
-        });
-      }
-    }
-  }
+    },
+  );
 }
 
-  void _showEditEventDialog(Event event) async {
-  _eventName = event.name;
-  _eventDescription = event.description;
-  _eventDate = event.date;
-  _timeSlots = List<TimeSlot>.from(event.timeSlots);
-  _selectedEventType = event.type;
-  _selectedCollectionId = event.collectionId;
 
-  final result = await showDialog(
+void _showAddTimeSlotDialog(StateSetter parentSetState, List<TimeSlot> timeSlots) {
+  final _formKey = GlobalKey<FormState>();
+  TimeOfDay _startTime = TimeOfDay.now();
+  TimeOfDay _endTime = TimeOfDay.now();
+  int _capacity = 1;
+  String _notes = '';
+
+  showDialog(
     context: context,
-    builder: (context) {
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (BuildContext context, StateSetter setState) {
+          return AlertDialog(
+            title: const Text('Add Time Slot'),
+            content: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ElevatedButton(
+                    child: Text('Start Time: ${_startTime.format(context)}'),
+                    onPressed: () async {
+                      final TimeOfDay? picked = await showTimePicker(
+                        context: context,
+                        initialTime: _startTime,
+                      );
+                      if (picked != null) {
+                        setState(() => _startTime = picked);
+                      }
+                    },
+                  ),
+                  SizedBox(height: 14),
+                  ElevatedButton(
+                    child: Text('End Time: ${_endTime.format(context)}'),
+                    onPressed: () async {
+                      final TimeOfDay? picked = await showTimePicker(
+                        context: context,
+                        initialTime: _endTime,
+                      );
+                      if (picked != null) {
+                        setState(() => _endTime = picked);
+                      }
+                    },
+                  ),
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'Capacity'),
+                    keyboardType: TextInputType.number,
+                    validator: (value) => int.tryParse(value!) == null ? 'Please enter a valid number' : null,
+                    onSaved: (value) => _capacity = int.parse(value!),
+                  ),
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'Notes'),
+                    onSaved: (value) => _notes = value!,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                child: const Text('Cancel'),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              ElevatedButton(
+                child: const Text('Add Time Slot'),
+                onPressed: () {
+                  if (_formKey.currentState!.validate()) {
+                    _formKey.currentState!.save();
+                    parentSetState(() {
+                      timeSlots.add(TimeSlot(
+                        id: DateTime.now().millisecondsSinceEpoch, // Temporary ID
+                        time: _startTime,
+                        endTime: _endTime,
+                        numberOfPeople: _capacity,
+                        notes: _notes,
+                        eventId: 0, // This will be set when the event is created
+                        createdAt: DateTime.now(),
+                        attendees: [],
+                      ));
+                    });
+                    Navigator.of(context).pop();
+                  }
+                },
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
+void _showEditEventDialog(Event event) {
+  final _formKey = GlobalKey<FormState>();
+  String _eventName = event.name;
+  String _eventDescription = event.description;
+  DateTime _eventDate = event.date;
+  List<TimeSlot> _timeSlots = List.from(event.timeSlots);
+  bool _isMandatory = event.isMandatory;
+  String? _selectedEventType = event.type;
+  int? _selectedCollectionId = event.collectionId;
+  bool _requiresForms = event.requiresForms;
+  String _formLink = event.formLink ?? '';
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
       return StatefulBuilder(
         builder: (BuildContext context, StateSetter setState) {
           return AlertDialog(
             title: const Text('Edit Event'),
             content: SingleChildScrollView(
-              child: SizedBox(
-                width: double.maxFinite,
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextFormField(
-                        initialValue: _eventName,
-                        decoration: const InputDecoration(
-                          labelText: 'Event Name',
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter the event name';
-                          }
-                          return null;
-                        },
-                        onSaved: (value) {
-                          _eventName = value!;
-                        },
-                      ),
-                      const SizedBox(height: 16.0),
-                      TextFormField(
-                        initialValue: _eventDescription,
-                        decoration: const InputDecoration(
-                          labelText: 'Event Description',
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter the event description';
-                          }
-                          return null;
-                        },
-                        onSaved: (value) {
-                          _eventDescription = value!;
-                        },
-                      ),
-                      const SizedBox(height: 16.0),
-                      InkWell(
-                        onTap: () => _selectDate(setState),
-                        child: InputDecorator(
-                          decoration: const InputDecoration(
-                            labelText: 'Event Date',
-                          ),
-                          child: Text(
-                            '${_eventDate.year}/${_eventDate.month}/${_eventDate.day}',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16.0),
-                      DropdownButtonFormField<String>(
-                        value: _selectedEventType,
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedEventType = value;
-                          });
-                        },
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'Service',
-                            child: Text('Service'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Tutoring',
-                            child: Text('Tutoring'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Meeting',
-                            child: Text('Meeting'),
-                          ),
-                        ],
-                        decoration: const InputDecoration(
-                          labelText: 'Event Type',
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please select an event type';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16.0),
-                      DropdownButtonFormField<int>(
-                        value: _selectedCollectionId,
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedCollectionId = value;
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(30),
-                        dropdownColor: Theme.of(context).colorScheme.primaryContainer,
-                        items: [
-                          const DropdownMenuItem(
-                            value: null,
-                            child: Text('No Collection'),
-                          ),
-                          ..._collections.map((collection) {
-                            return DropdownMenuItem(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      initialValue: _eventName,
+                      decoration: const InputDecoration(labelText: 'Event Name'),
+                      validator: (value) => value!.isEmpty ? 'Please enter an event name' : null,
+                      onSaved: (value) => _eventName = value!,
+                    ),
+                    TextFormField(
+                      initialValue: _eventDescription,
+                      decoration: const InputDecoration(labelText: 'Event Description'),
+                      validator: (value) => value!.isEmpty ? 'Please enter a description' : null,
+                      onSaved: (value) => _eventDescription = value!,
+                    ),
+                    ElevatedButton(
+                      child: Text('Date: ${_eventDate.toString().substring(0, 10)}'),
+                      onPressed: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: _eventDate,
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (picked != null) {
+                          setState(() => _eventDate = picked);
+                        }
+                      },
+                    ),
+                    DropdownButtonFormField<String>(
+                      value: _selectedEventType,
+                      items: ['Service', 'Tutoring', 'Meeting']
+                          .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                          .toList(),
+                      onChanged: (value) => setState(() => _selectedEventType = value),
+                      decoration: const InputDecoration(labelText: 'Event Type'),
+                      validator: (value) => value == null ? 'Please select an event type' : null,
+                    ),
+                    DropdownButtonFormField<int>(
+                      value: _selectedCollectionId,
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('No Collection')),
+                        ..._collections.map((collection) => DropdownMenuItem(
                               value: collection.id,
                               child: Text(collection.name),
-                            );
-                          }).toList(),
-                        ],
-                        decoration: const InputDecoration(
-                          labelText: 'Collection',
-                        ),
+                            )),
+                      ],
+                      onChanged: (value) => setState(() => _selectedCollectionId = value),
+                      decoration: const InputDecoration(labelText: 'Collection'),
+                    ),
+                    CheckboxListTile(
+                      title: const Text('Mandatory'),
+                      value: _isMandatory,
+                      onChanged: (bool? value) {
+                        setState(() => _isMandatory = value!);
+                      },
+                    ),
+                    CheckboxListTile(
+                      title: const Text('Requires Forms'),
+                      value: _requiresForms,
+                      onChanged: (bool? value) {
+                        setState(() => _requiresForms = value!);
+                      },
+                    ),
+                    if (_requiresForms)
+                      TextFormField(
+                        initialValue: _formLink,
+                        decoration: const InputDecoration(labelText: 'Form Link'),
+                        validator: (value) => value!.isEmpty ? 'Please enter a form link' : null,
+                        onSaved: (value) => _formLink = value!,
                       ),
-                      Container(
-                        constraints: const BoxConstraints(maxHeight: 200),
-                        child: SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              for (int i = 0; i < _timeSlots.length; i++)
-                                ListTile(
-                                  title: Text('${_timeSlots[i].time.format(context)} - ${_timeSlots[i].endTime.format(context)}'),
-                                  subtitle: Text('Number of people: ${_timeSlots[i].numberOfPeople}'),
-                                  trailing: IconButton(
-                                    icon: const Icon(Icons.delete),
-                                    onPressed: () {
-                                      setState(() {
-                                        _timeSlots.removeAt(i);
-                                      });
-                                    },
-                                  ),
-                                ),
-                            ],
+                    ElevatedButton(
+                      child: const Text('Add Time Slot'),
+                      onPressed: () => _showAddTimeSlotDialog(setState, _timeSlots),
+                    ),
+                    ..._timeSlots.map((timeSlot) => ListTile(
+                          title: Text('${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}'),
+                          subtitle: Text('Capacity: ${timeSlot.numberOfPeople}'),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete),
+                            onPressed: () => setState(() => _timeSlots.remove(timeSlot)),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 16.0),
-                      ElevatedButton(
-                        child: const Text('Add Time Slot'),
-                        onPressed: () {
-                          _addTimeSlot(setState);
-                        },
-                      ),
-                    ],
-                  ),
+                        )),
+                  ],
                 ),
               ),
             ),
             actions: [
               TextButton(
                 child: const Text('Cancel'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
+                onPressed: () => Navigator.of(context).pop(),
               ),
               ElevatedButton(
-                child: const Text('Save'),
+                child: const Text('Update Event'),
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
                     _formKey.currentState!.save();
-                    _updateEvent(event);
+                    _updateEvent(event.id, _eventName, _eventDescription, _eventDate, _selectedEventType!,
+                        _isMandatory, _selectedCollectionId, _timeSlots, _requiresForms, _formLink);
                     Navigator.of(context).pop();
                   }
                 },
@@ -3111,109 +2990,339 @@ Future<void> _addCollection(String name) async {
   }
 }
 
-void _updateEvent(Event event) async {
-  final updatedEvent = Event(
-    id: event.id,
-    name: _eventName,
-    description: _eventDescription,
-    date: _eventDate,
-    type: _selectedEventType!, // Add the updated event type
-    timeSlots: _timeSlots,
-    createdAt: DateTime.now(),
-  );
+Future<void> _updateEvent(int eventId, String name, String description, DateTime date, 
+    String type, bool isMandatory, int? collectionId, List<TimeSlot> timeSlots, 
+    bool requiresForms, String formLink) async {
+  try {
+    // Update the event
+    await Supabase.instance.client
+        .from('Events')
+        .update({
+          'name': name,
+          'description': description,
+          'date': date.toIso8601String(),
+          'type': type,
+          'isMandatory': isMandatory,
+          'collection_id': collectionId,
+          'requires_forms': requiresForms,
+          'form_link': requiresForms ? formLink : null,
+        })
+        .eq('id', eventId);
 
-  await Supabase.instance.client
-      .from('Events')
-      .update({
-        'name': updatedEvent.name,
-        'description': updatedEvent.description,
-        'date': updatedEvent.date.toIso8601String(),
-        'type': updatedEvent.type, // Update the event type in Supabase
-        'timeSlots': updatedEvent.timeSlots.map((slot) => {
-              'time': '${slot.time.hour}:${slot.time.minute}',
-              'endTime': '${slot.endTime.hour}:${slot.endTime.minute}',
-              'numberOfPeople': slot.numberOfPeople,
-              'attendees': slot.attendees.map((attendee) => {
-                    'name': attendee.name,
-                    'isPresent': attendee.isPresent,
-                  }).toList(),
-            }).toList(),
-      })
-      .eq('id', updatedEvent.id);
+    // Fetch existing time slots
+    final existingTimeSlotsResponse = await Supabase.instance.client
+        .from('Time slots')
+        .select()
+        .eq('event_id', eventId);
+    
+    final existingTimeSlots = existingTimeSlotsResponse.map((slot) => TimeSlot.fromJson(slot)).toList();
 
-  setState(() {
-    final index = _events.indexWhere((e) => e.name == event.name);
-    if (index != -1) {
-      _events[index] = updatedEvent;
+    // Update, add, or delete time slots
+    for (var timeSlot in timeSlots) {
+      if (timeSlot.id != null) {
+        // Update existing time slot
+        await Supabase.instance.client
+            .from('Time slots')
+            .update({
+              'start_time': '${timeSlot.time.hour}:${timeSlot.time.minute}',
+              'end_time': '${timeSlot.endTime.hour}:${timeSlot.endTime.minute}',
+              'number_of_people': timeSlot.numberOfPeople,
+              'notes': timeSlot.notes,
+            })
+            .eq('id', timeSlot?.id ?? 0 );
+        
+        // Remove from existingTimeSlots list
+        existingTimeSlots.removeWhere((slot) => slot.id == (timeSlot?.id ?? 0));
+      } else {
+        // Add new time slot
+        final newTimeSlotResponse = await Supabase.instance.client
+            .from('Time slots')
+            .insert({
+              'event_id': eventId,
+              'start_time': '${timeSlot.time.hour}:${timeSlot.time.minute}',
+              'end_time': '${timeSlot.endTime.hour}:${timeSlot.endTime.minute}',
+              'number_of_people': timeSlot.numberOfPeople,
+              'notes': timeSlot.notes,
+              'created_at': DateTime.now().toIso8601String(),
+            })
+            .select()
+            .single();
+
+        final newTimeSlotId = newTimeSlotResponse['id'];
+
+        // If the event is mandatory, add all users as attendees for the new time slot
+        if (isMandatory) {
+          final usersResponse = await Supabase.instance.client
+              .from('profiles')
+              .select('user_id');
+
+          for (var user in usersResponse) {
+            await Supabase.instance.client
+                .from('Attendees')
+                .insert({
+                  'timeslot_id': newTimeSlotId,
+                  'user_id': user['user_id'],
+                  'is_present': false,
+                });
+          }
+        }
+      }
     }
-  });
+
+    // Delete time slots that are no longer present
+    for (var slotToDelete in existingTimeSlots) {
+      await Supabase.instance.client
+          .from('Time slots')
+          .delete()
+          .eq('id', slotToDelete?.id ?? 0 );
+      
+      // Also delete associated attendees
+      await Supabase.instance.client
+          .from('Attendees')
+          .delete()
+          .eq('timeslot_id', slotToDelete?.id ?? 0);
+    }
+
+    // If the event has become mandatory, add all users to all time slots
+    if (isMandatory) {
+      final allTimeSlots = await Supabase.instance.client
+          .from('Time slots')
+          .select()
+          .eq('event_id', eventId);
+
+      final usersResponse = await Supabase.instance.client
+          .from('profiles')
+          .select('user_id');
+
+      for (var timeSlot in allTimeSlots) {
+        for (var user in usersResponse) {
+          // Check if the user is already an attendee
+          final existingAttendee = await Supabase.instance.client
+              .from('Attendees')
+              .select()
+              .eq('timeslot_id', timeSlot['id'])
+              .eq('user_id', user['user_id'])
+              .maybeSingle();
+
+          if (existingAttendee == null) {
+            await Supabase.instance.client
+                .from('Attendees')
+                .insert({
+                  'timeslot_id': timeSlot['id'],
+                  'user_id': user['user_id'],
+                  'is_present': false,
+                });
+          }
+        }
+      }
+    }
+
+    // Refresh the events list
+    await _fetchEvents();
+
+    // Show a success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Event updated successfully')),
+    );
+  } catch (e) {
+    // Show an error message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error updating event: $e')),
+    );
+  }
 }
 
-void _addEvent() async {
-  if (_formKey.currentState!.validate()) {
-    _formKey.currentState!.save();
-    final newEvent = Event(
-      id: DateTime.now().millisecondsSinceEpoch, // Generate a unique ID
-      name: _eventName,
-      description: _eventDescription,
-      date: _eventDate,
-      type: _selectedEventType!,
-      timeSlots: _timeSlots.map((slot) => TimeSlot(
-        time: slot.time,
-        endTime: slot.endTime,
-        numberOfPeople: slot.numberOfPeople,
-        attendees: [],
-      )).toList(),
-      isMandatory: _isMandatory,
-      createdAt: DateTime.now(),
-    );
-    setState(() {
-      _events.add(newEvent);
-    });
-    Navigator.of(context).pop();
+void _showEditTimeSlotDialog(Event event, TimeSlot timeSlot) {
+  final _formKey = GlobalKey<FormState>();
+  TimeOfDay _startTime = timeSlot.time;
+  TimeOfDay _endTime = timeSlot.endTime;
+  int _capacity = timeSlot.numberOfPeople;
+  String _notes = timeSlot.notes;
 
-    if (newEvent.type == 'Meeting' || _isMandatory) {
-      // Automatically sign up all users for mandatory meetings
-      final profileResponse = await Supabase.instance.client.from('profiles').select('user_id');
-      final List<dynamic> profileData = profileResponse;
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text('Edit Time Slot'),
+        content: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ElevatedButton(
+                child: Text('Start Time: ${_startTime.format(context)}'),
+                onPressed: () async {
+                  final TimeOfDay? picked = await showTimePicker(
+                    context: context,
+                    initialTime: _startTime,
+                  );
+                  if (picked != null) {
+                    setState(() => _startTime = picked);
+                  }
+                },
+              ),
+              SizedBox(height: 14),
+              ElevatedButton(
+                child: Text('End Time: ${_endTime.format(context)}'),
+                onPressed: () async {
+                  final TimeOfDay? picked = await showTimePicker(
+                    context: context,
+                    initialTime: _endTime,
+                  );
+                  if (picked != null) {
+                    setState(() => _endTime = picked);
+                  }
+                },
+              ),
+              TextFormField(
+                initialValue: _capacity.toString(),
+                decoration: const InputDecoration(labelText: 'Capacity'),
+                keyboardType: TextInputType.number,
+                validator: (value) => int.tryParse(value!) == null ? 'Please enter a valid number' : null,
+                onSaved: (value) => _capacity = int.parse(value!),
+              ),
+              TextFormField(
+                initialValue: _notes,
+                decoration: const InputDecoration(labelText: 'Notes'),
+                onSaved: (value) => _notes = value!,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          ElevatedButton(
+            child: const Text('Update Time Slot'),
+            onPressed: () {
+              if (_formKey.currentState!.validate()) {
+                _formKey.currentState!.save();
+                _updateTimeSlot(event, timeSlot, _startTime, _endTime, _capacity, _notes);
+                Navigator.of(context).pop();
+              }
+            },
+          ),
+        ],
+      );
+    },
+  );
 
-      final attendees = profileData.map((profile) => profile['user_id'] as String).toList();
 
-      final updatedTimeSlots = newEvent.timeSlots.map((slot) {
-        final updatedAttendees = List<Attendee>.from(slot.attendees)
-          ..addAll(attendees.map((userId) => Attendee(name: userId, isPresent: false, userId: userId)));
-        final updatedNumberOfPeople = slot.numberOfPeople - attendees.length;
+}
 
-        return TimeSlot(
-          time: slot.time,
-          endTime: slot.endTime,
-          numberOfPeople: updatedNumberOfPeople,
-          attendees: updatedAttendees,
+Future<void> _updateTimeSlot(Event event, TimeSlot timeSlot, TimeOfDay startTime, TimeOfDay endTime, int capacity, String notes) async {
+    try {
+      // Update the time slot in the database
+      await Supabase.instance.client
+          .from('Time slots')
+          .update({
+            'start_time': '${startTime.hour}:${startTime.minute}',
+            'end_time': '${endTime.hour}:${endTime.minute}',
+            'number_of_people': capacity,
+            'notes': notes,
+          })
+          .eq('id', timeSlot.id ?? 0);
+
+      // Update the time slot in the local state
+      setState(() {
+        final updatedTimeSlot = timeSlot.copyWith(
+          time: startTime,
+          endTime: endTime,
+          numberOfPeople: capacity,
+          notes: notes,
         );
-      }).toList();
+        
+        final eventIndex = _events.indexWhere((e) => e.id == event.id);
+        if (eventIndex != -1) {
+          final timeSlotIndex = _events[eventIndex].timeSlots.indexWhere((ts) => ts.id == timeSlot.id);
+          if (timeSlotIndex != -1) {
+            _events[eventIndex].timeSlots[timeSlotIndex] = updatedTimeSlot;
+          }
+        }
+      });
 
-      newEvent.timeSlots = updatedTimeSlots;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Time slot updated successfully')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating time slot: $e')),
+      );
+    }
+  }
+
+
+Future<void> _addEvent(String name, String description, DateTime date, String type,
+    bool isMandatory, int? collectionId, List<TimeSlot> timeSlots, bool requiresForms, String formLink) async {
+  try {
+    // Insert the event
+    final eventResponse = await Supabase.instance.client
+        .from('Events')
+        .insert({
+          'name': name,
+          'description': description,
+          'date': date.toIso8601String(),
+          'type': type,
+          'isMandatory': isMandatory,
+          'collection_id': collectionId,
+          'created_at': DateTime.now().toIso8601String(),
+          'requires_forms': requiresForms,
+          'form_link': requiresForms ? formLink : null,
+        })
+        .select()
+        .single();
+
+    final newEventId = eventResponse['id'];
+
+    // Insert time slots
+    for (var timeSlot in timeSlots) {
+      final timeSlotResponse = await Supabase.instance.client
+          .from('Time slots')
+          .insert({
+            'event_id': newEventId,
+            'start_time': DateTime(DateTime.now().year, date.month, date.day, timeSlot.time.hour, timeSlot.time.minute).toIso8601String(),
+            'end_time': DateTime(DateTime.now().year, date.month, date.day, timeSlot.endTime.hour, timeSlot.endTime.minute).toIso8601String(),
+            'number_of_people': timeSlot.numberOfPeople,
+            'notes': timeSlot.notes,
+            'created_at': DateTime.now().toIso8601String(),
+          })
+          .select()
+          .single();
+
+      final newTimeSlotId = timeSlotResponse['id'];
+
+      // If the event is mandatory, add all users as attendees
+      if (isMandatory) {
+        final usersResponse = await Supabase.instance.client
+            .from('profiles')
+            .select('user_id');
+
+        for (var user in usersResponse) {
+          await Supabase.instance.client
+              .from('Attendees')
+              .insert({
+                'timeslot_id': newTimeSlotId,
+                'user_id': user['user_id'],
+                'is_present': false,
+              });
+        }
+      }
     }
 
-    // Save to Supabase
-    await Supabase.instance.client.from('Events').insert({
-      'id': newEvent.id, // Include the unique ID
-      'name': newEvent.name,
-      'description': newEvent.description,
-      'date': newEvent.date.toIso8601String(),
-      'type': newEvent.type,
-      'timeSlots': newEvent.timeSlots.map((slot) => {
-        'time': '${slot.time.hour}:${slot.time.minute}',
-        'endTime': '${slot.endTime.hour}:${slot.endTime.minute}',
-        'numberOfPeople': slot.numberOfPeople,
-        'attendees': slot.attendees.map((attendee) => {
-          'name': attendee.name,
-          'isPresent': attendee.isPresent,
-        }).toList(),
-      }).toList(),
-      'attendees': "Null",
-      'isMandatory': newEvent.isMandatory,
-    });
+    // Refresh the events list
+    await _fetchEvents();
+
+    // Show a success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Event added successfully')),
+    );
+  } catch (e) {
+    // Show an error message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error adding event: $e')),
+    );
   }
 }
 
@@ -3225,40 +3334,83 @@ void _addEvent() async {
     
   }
 
-  Future<void> _selectDate(StateSetter setState) async {
-  final DateTime? picked = await showDatePicker(
-    context: context,
-    initialDate: _eventDate,
-    firstDate: DateTime(2023),
-    lastDate: DateTime(2100),
-  );
-  if (picked != null && picked != _eventDate) {
-    setState(() {
-      _eventDate = picked;
-    });
-  }
-}
+
 
 }
 
 class TimeSlot {
+  final int? id;
   final TimeOfDay time;
   final TimeOfDay endTime;
   final int numberOfPeople;
-  final List<Attendee> attendees;
-  String notes;
+  final String notes;
+  final int eventId;
+  final DateTime createdAt;
+  List<Attendee> attendees;
 
   TimeSlot({
+    this.id,
     required this.time,
     required this.endTime,
     required this.numberOfPeople,
-    this.attendees = const [],
     this.notes = '',
-  });
+    required this.eventId,
+    required this.createdAt,
+    List<Attendee>? attendees,
+  }) : attendees = attendees ?? [];
+
+ factory TimeSlot.fromJson(Map<String, dynamic> json) {
+
+    return TimeSlot(
+      id: json['id'],
+      time: TimeOfDay.fromDateTime(DateTime.parse(json['start_time'] ?? "2012-02-27" as String)),
+      endTime: TimeOfDay.fromDateTime(DateTime.parse(json['end_time'] ?? "2012-02-27" as String)),
+      numberOfPeople: json['number_of_people'] as int? ?? 0,
+      notes: json['notes'] as String? ?? '',
+      eventId: json['event_id'] as int? ?? 0,
+      createdAt: json['created_at'] != null 
+          ? DateTime.parse(json['created_at'] as String)
+          : DateTime.now(),
+      attendees: [],
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'start_time': '${time.hour}:${time.minute}',
+      'end_time': '${endTime.hour}:${endTime.minute}',
+      'number_of_people': numberOfPeople,
+      'notes': notes,
+      'event_id': eventId,
+      'created_at': createdAt.toIso8601String(),
+      'attendees': attendees.map((attendee) => attendee.toJson()).toList(),
+    };
+  }
+
+  TimeSlot copyWith({
+    int? id,
+    TimeOfDay? time,
+    TimeOfDay? endTime,
+    int? numberOfPeople,
+    String? notes,
+    int? eventId,
+    DateTime? createdAt,
+    List<Attendee>? attendees,
+  }) {
+    return TimeSlot(
+      id: id ?? this.id,
+      time: time ?? this.time,
+      endTime: endTime ?? this.endTime,
+      numberOfPeople: numberOfPeople ?? this.numberOfPeople,
+      notes: notes ?? this.notes,
+      eventId: eventId ?? this.eventId,
+      createdAt: createdAt ?? this.createdAt,
+      attendees: attendees ?? List.from(this.attendees),
+    );
+  }
 }
 
 class Event {
-  final int? collectionId;
   final int id;
   final String name;
   final String description;
@@ -3266,59 +3418,60 @@ class Event {
   final String type;
   final bool isMandatory;
   final DateTime createdAt;
+  final int? collectionId;
   List<TimeSlot> timeSlots;
+  final bool requiresForms;
+  final String? formLink;
 
   Event({
-    this.collectionId,
     required this.id,
     required this.name,
     required this.description,
     required this.date,
     required this.type,
-    required this.timeSlots,
     this.isMandatory = false,
     required this.createdAt,
-  });
+    this.collectionId,
+    List<TimeSlot>? timeSlots,
+    this.requiresForms = false,
+    this.formLink,
+  }) : timeSlots = timeSlots ?? [];
 
-  Event.fromJson(Map<String, dynamic> json)
-    : id = json['id'],
-      collectionId = json['collection_id'],
-      name = json['name'] ?? '',
-      description = json['description'] ?? '',
-      date = json['date'] != null ? DateTime.parse(json['date']) : DateTime.now(),
-      type = json['type'] ?? '',
-      isMandatory = json['isMandatory'] ?? false,
-      createdAt = json['created_at'] != null ? DateTime.parse(json['created_at']) : DateTime.now(),
-      timeSlots = json['timeSlots'] != null
-          ? (json['timeSlots'] as List<dynamic>)
-              .map((slot) => TimeSlot(
-                    time: TimeOfDay(
-                      hour: int.parse(slot['time'].split(':')[0]),
-                      minute: int.parse(slot['time'].split(':')[1]),
-                    ),
-                    endTime: slot['endTime'] != null
-                        ? TimeOfDay(
-                            hour: int.parse(slot['endTime'].split(':')[0]),
-                            minute: int.parse(slot['endTime'].split(':')[1]),
-                          )
-                        : TimeOfDay.now(),
-                    numberOfPeople: slot['numberOfPeople'] ?? 0,
-                    attendees: slot['attendees'] != null
-                        ? (slot['attendees'] as List<dynamic>)
-                            .map((attendee) => Attendee(
-                                  name: attendee['name'] ?? '',
-                                  isPresent: attendee['isPresent'] ?? false,
-                                  userId: attendee['name'] ?? '',
-                                ))
-                            .toList()
-                        : [],
-                    notes: slot['notes'] ?? '',
-                  ))
-              .toList()
-          : [];
+  factory Event.fromJson(Map<String, dynamic> json) {
+    return Event(
+      id: json['id'],
+      name: json['name'],
+      description: json['description'],
+      date: DateTime.parse(json['date']),
+      type: json['type'],
+      isMandatory: json['isMandatory'] ?? false,
+      createdAt: DateTime.parse(json['created_at']),
+      collectionId: json['collection_id'],
+      timeSlots: (json['timeSlots'] as List<dynamic>?)
+          ?.map((timeSlotJson) => TimeSlot.fromJson(timeSlotJson))
+          .toList() ?? [],
+      requiresForms: json['requires_forms'] ?? false,
+      formLink: json['form_link'],
+    );
+  }
 
-          Event copyWith({
-    int? collectionId,
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'date': date.toIso8601String(),
+      'type': type,
+      'isMandatory': isMandatory,
+      'created_at': createdAt.toIso8601String(),
+      'collection_id': collectionId,
+      'timeSlots': timeSlots.map((timeSlot) => timeSlot.toJson()).toList(),
+      'requires_forms': requiresForms,
+      'form_link': formLink,
+    };
+  }
+
+  Event copyWith({
     int? id,
     String? name,
     String? description,
@@ -3326,10 +3479,12 @@ class Event {
     String? type,
     bool? isMandatory,
     DateTime? createdAt,
+    int? collectionId,
     List<TimeSlot>? timeSlots,
+    bool? requiresForms,
+    String? formLink,
   }) {
     return Event(
-      collectionId: collectionId ?? this.collectionId,
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
@@ -3337,7 +3492,10 @@ class Event {
       type: type ?? this.type,
       isMandatory: isMandatory ?? this.isMandatory,
       createdAt: createdAt ?? this.createdAt,
-      timeSlots: timeSlots ?? this.timeSlots,
+      collectionId: collectionId ?? this.collectionId,
+      timeSlots: timeSlots ?? List.from(this.timeSlots),
+      requiresForms: requiresForms ?? this.requiresForms,
+      formLink: formLink ?? this.formLink,
     );
   }
 }
@@ -3362,6 +3520,33 @@ class MeetingNote {
       text: json['text'] ?? '',
       createdAt: DateTime.parse(json['created_at']),
     );
+  }
+}
+
+Future<void> fetchEventDetails(Event event) async {
+  // Fetch time slots
+  final timeSlotResponse = await Supabase.instance.client
+        .from('Time slots')
+        .select()
+        .eq('event_id', event.id);
+
+    final List<TimeSlot> timeSlots = timeSlotResponse.map((json) => TimeSlot.fromJson(json as Map<String, dynamic>)).toList();
+  // Fetch attendees for each time slot
+  for (var timeSlot in timeSlots) {
+    final attendeeResponse = await Supabase.instance.client
+    .from('Attendees')
+    .select('*, profiles!inner(name)')
+    .eq('timeslot_id', timeSlot?.id ?? 0);
+
+    final List<Attendee> attendees = attendeeResponse.map((json) => Attendee.fromJson({
+      ...json,
+      'name': json['profiles']['name'],
+    })).toList();
+
+    timeSlot.attendees = attendees;
+    
+    // Attach attendees to the time slot (you might want to create a new property in TimeSlot class for this)
+    // timeSlot.attendees = attendees;
   }
 }
 
@@ -3394,36 +3579,82 @@ class AdminAttendancePage extends StatefulWidget {
 
 class _AdminAttendancePageState extends State<AdminAttendancePage> {
   List<Event> _events = [];
-  final List<UserProfile> _allUsers = [];
   List<Collection> _collections = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchEvents();
+    _fetchData();
   }
 
-  Future<void> _fetchEvents() async {
-    final response = await Supabase.instance.client
+  Future<void> _fetchData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await Future.wait([
+        _fetchEvents(),
+        _fetchCollections(),
+      ]);
+    } catch (e) {
+      print('Error fetching data: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+ Future<void> _fetchEvents() async {
+    final eventResponse = await Supabase.instance.client
         .from('Events')
-        .select('*')
+        .select()
         .order('date');
 
-     final collectionsResponse = await Supabase.instance.client
-      .from('Collections')
-      .select('*');
+    List<Event> events = eventResponse.map<Event>((json) => Event.fromJson(json)).toList();
 
-    final List<dynamic> collectionsData = collectionsResponse;
-    final collections = collectionsData.map((json) => Collection.fromJson(json)).toList();
+    for (var event in events) {
+      final timeSlotResponse = await Supabase.instance.client
+          .from('Time slots')
+          .select()
+          .eq('event_id', event.id);
 
+      List<TimeSlot> timeSlots = timeSlotResponse.map<TimeSlot>((json) => TimeSlot.fromJson(json)).toList();
 
-    final List<dynamic> data = response;
+      for (var timeSlot in timeSlots) {
+        final attendeeResponse = await Supabase.instance.client
+            .from('Attendees')
+            .select('*, profiles!inner(name)')
+            .eq('timeslot_id', timeSlot.id ?? 0);
+
+        List<Attendee> attendees = attendeeResponse.map<Attendee>((json) => Attendee.fromJson({
+          ...json,
+          'name': json['profiles']['name'],
+        })).toList();
+
+        timeSlot.attendees = attendees;
+      }
+
+      event.timeSlots = timeSlots;
+    }
 
     setState(() {
-      _events = data.map((json) => Event.fromJson(json)).toList();
-      _collections = collections;
+      _events = events;
     });
   }
+
+  Future<void> _fetchCollections() async {
+    final collectionsResponse = await Supabase.instance.client
+        .from('Collections')
+        .select('*');
+
+    setState(() {
+      _collections = collectionsResponse.map<Collection>((json) => Collection.fromJson(json)).toList();
+    });
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -3447,249 +3678,85 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
           ),
         ),
       ),
-      body: ListView.separated(
-        itemCount: _events.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 8),
-        itemBuilder: (context, index) {
-          final event = _events[index];
-          return Card(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            elevation: 2,
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: CustomExpansionTile(
-              title: ListTile(
-                title: Text(
-                  "${event.name} - ${event.date.month}/${event.date.day}/${event.date.year}",
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18.0,
-                  ),
-                ),
-                subtitle: Text(
-                  event.description,
-                  style: TextStyle(
-                    fontSize: 16.0,
-                    color: Colors.grey[600],
-                  ),
-                ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _fetchData,
+              child: ListView.separated(
+                itemCount: _events.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final event = _events[index];
+                  return _buildEventCard(event);
+                },
               ),
-              children: event.timeSlots.map((timeSlot) {
-                return ListTile(
-                  title: Text(
-                    'Time: ${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
-                    style: const TextStyle(
-                      fontSize: 16.0,
-                    ),
-                  ),
-                  subtitle: Text(
-                    'Number of People: ${timeSlot.numberOfPeople}',
-                    style: TextStyle(
-                      fontSize: 14.0,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  trailing: IconButton(
-                    icon: Icon(
-                      Icons.checklist_outlined,
-                      color: Theme.of(context).colorScheme.secondary,
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AttendanceCheckPage(event: event, timeSlot: timeSlot),
-                        ),
-                      );
-                    },
+            ),
+    );
+  }
+
+  Widget _buildEventCard(Event event) {
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: CustomExpansionTile(
+        title: ListTile(
+          title: Text(
+            "${event.name} - ${event.date.month}/${event.date.day}/${event.date.year}",
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18.0,
+            ),
+          ),
+          subtitle: Text(
+            event.description,
+            style: TextStyle(
+              fontSize: 16.0,
+              color: Colors.grey[600],
+            ),
+          ),
+        ),
+        children: event.timeSlots.map((timeSlot) {
+          return ListTile(
+            title: Text(
+              'Time: ${_formatTimeOfDay(timeSlot.time)} - ${_formatTimeOfDay(timeSlot.endTime)}',
+              style: const TextStyle(
+                fontSize: 16.0,
+              ),
+            ),
+            subtitle: Text(
+              'Number of People: ${timeSlot.numberOfPeople}',
+              style: TextStyle(
+                fontSize: 14.0,
+                color: Colors.grey[600],
+              ),
+            ),
+            trailing: IconButton(
+              icon: Icon(
+                Icons.checklist_outlined,
+                color: Theme.of(context).colorScheme.secondary,
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AttendanceCheckPage(event: event, timeSlot: timeSlot),
                   ),
                 );
-              }).toList(),
+              },
             ),
           );
-        },
+        }).toList(),
       ),
     );
   }
 
-  Future<bool> _showAttendanceDialog(Event event, TimeSlot timeSlot) async {
-  final result = await Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => AttendanceCheckPage(event: event, timeSlot: timeSlot),
-    ),
-  );
-
-  return result ?? true;
-}
-
-  void _showSwapDialog(Attendee currentAttendee, List<Attendee> updatedAttendees, StateSetter parentSetState) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        String searchQuery = '';
-        List<UserProfile> filteredUsers = List.from(_allUsers);
-
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
-            return AlertDialog(
-              title: const Text('Swap Attendee'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    onChanged: (value) {
-                      setState(() {
-                        searchQuery = value;
-                        filteredUsers = _allUsers
-                            .where((user) => user.name.toLowerCase().contains(searchQuery.toLowerCase()))
-                            .toList();
-                      });
-                    },
-                    decoration: const InputDecoration(
-                      labelText: 'Search',
-                      prefixIcon: Icon(Icons.search),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 300,
-                    width: 300,
-                    child: ListView.builder(
-                      itemCount: filteredUsers.length,
-                      itemBuilder: (context, index) {
-                        final user = filteredUsers[index];
-                        return ListTile(
-                          title: Text(user.name),
-                          onTap: () {
-                            parentSetState(() {
-                              int index = updatedAttendees.indexOf(currentAttendee);
-                              updatedAttendees[index] = Attendee(
-                                name: user.name,
-                                isPresent: false,
-                                userId: user.id,
-                              );
-                            });
-                            Navigator.of(context).pop();
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  child: const Text('Cancel'),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _saveAttendance(Event event, TimeSlot timeSlot) async {
-    final attendees = timeSlot.attendees
-        .map((attendee) => {
-              'name': attendee.userId,
-              'isPresent': attendee.isPresent,
-            })
-        .toList();
-
-    final serviceHoursToAdd = <Map<String, dynamic>>[];
-    final serviceHoursToRemove = <Map<String, dynamic>>[];
-
-    for (final attendee in timeSlot.attendees) {
-      final existingServiceHour = await Supabase.instance.client
-          .from('Service hours')
-          .select()
-          .eq('event_name', event.name)
-          .eq('timeslot', '${timeSlot.time.hour}:${timeSlot.time.minute}')
-          .eq('user_id', attendee.userId);
-
-      if (attendee.isPresent) {
-        if (existingServiceHour.isEmpty) {
-          final duration = _calculateDuration(timeSlot.time, timeSlot.endTime);
-          serviceHoursToAdd.add({
-            'event_name': event.name,
-            'event_description': event.description,
-            'date': event.date.toIso8601String(),
-            'timeslot': '${timeSlot.time.hour}:${timeSlot.time.minute}',
-            'user_id': attendee.userId,
-            'hours': duration,
-            'type': event.type,
-          });
-        }
-      } else {
-        if (existingServiceHour.isNotEmpty) {
-          serviceHoursToRemove.add({
-            'event_name': event.name,
-            'timeslot': '${timeSlot.time.hour}:${timeSlot.time.minute}',
-            'user_id': attendee.userId,
-          });
-        }
-      }
-    }
-
-    if (serviceHoursToAdd.isNotEmpty) {
-      await Supabase.instance.client.from('Service hours').insert(serviceHoursToAdd);
-    }
-
-    if (serviceHoursToRemove.isNotEmpty) {
-      for (final serviceHour in serviceHoursToRemove) {
-        await Supabase.instance.client
-            .from('Service hours')
-            .delete()
-            .eq('event_name', serviceHour['event_name'])
-            .eq('timeslot', serviceHour['timeslot'])
-            .eq('user_id', serviceHour['user_id']);
-      }
-    }
-
-    await Supabase.instance.client.from('Events').update({
-      'timeSlots': event.timeSlots
-          .map((slot) => {
-                'time': '${slot.time.hour}:${slot.time.minute}',
-                'endTime': '${slot.endTime.hour}:${slot.endTime.minute}',
-                'numberOfPeople': slot.numberOfPeople,
-                'attendees': slot == timeSlot
-                    ? attendees
-                    : slot.attendees
-                        .map((attendee) => {
-                              'name': attendee.userId,
-                              'isPresent': attendee.isPresent,
-                            })
-                        .toList(),
-              })
-          .toList(),
-    }).eq('id', event.id);
-
-    setState(() {
-      final eventIndex = _events.indexWhere((e) => e.name == event.name);
-      final timeSlotIndex = _events[eventIndex].timeSlots.indexOf(timeSlot);
-      
-      final updatedTimeSlot = TimeSlot(
-        time: timeSlot.time,
-        endTime: timeSlot.endTime,
-        numberOfPeople: timeSlot.numberOfPeople,
-        attendees: timeSlot.attendees,
-      );
-      
-      _events[eventIndex].timeSlots[timeSlotIndex] = updatedTimeSlot;
-    });
-  }
-
-  double _calculateDuration(TimeOfDay startTime, TimeOfDay endTime) {
-    final startMinutes = startTime.hour * 60 + startTime.minute;
-    final endMinutes = endTime.hour * 60 + endTime.minute;
-    final duration = (endMinutes - startMinutes) / 60;
-    return duration;
+  String _formatTimeOfDay(TimeOfDay time) {
+    final now = DateTime.now();
+    final dateTime = DateTime(now.year, now.month, now.day, time.hour, time.minute);
+    return TimeOfDay.fromDateTime(dateTime).format(context);
   }
 }
 
@@ -4043,232 +4110,181 @@ class AttendanceCheckPage extends StatefulWidget {
   final Event event;
   final TimeSlot timeSlot;
 
-  const AttendanceCheckPage({super.key, required this.event, required this.timeSlot});
+  const AttendanceCheckPage({Key? key, required this.event, required this.timeSlot}) : super(key: key);
 
   @override
   _AttendanceCheckPageState createState() => _AttendanceCheckPageState();
 }
 
-class _AttendanceCheckPageState extends State<AttendanceCheckPage> {
-  List<Attendee> _attendees = [];
+class _AttendanceCheckPageState extends State<AttendanceCheckPage> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  List<Attendee> _allAttendees = [];
+  List<Attendee> _presentAttendees = [];
+  List<Attendee> _absentAttendees = [];
   String _searchQuery = '';
-  List<UserProfile> _allUsers = [];
-  StreamSubscription<dynamic>? _eventSubscription;
+  bool _isLoading = true;
+  bool _isSaving = false;
+  final MobileScannerController _scannerController = MobileScannerController();
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _fetchAttendees();
-    _fetchAllUsers();
-    _subscribeToEventChanges();
   }
 
   @override
   void dispose() {
-    _eventSubscription?.cancel();
+    _tabController.dispose();
+    _scannerController.dispose();
     super.dispose();
   }
 
-  void _subscribeToEventChanges() {
-  _eventSubscription = Supabase.instance.client
-      .from('Events')
-      .stream(primaryKey: ['name'])
-      .eq('name', widget.event.name)
-      .listen((event) async {
-    if (event.isNotEmpty) {
-      final updatedEvent = Event.fromJson(event.first);
-      final updatedTimeSlot = updatedEvent.timeSlots.firstWhere(
-        (slot) => slot.time == widget.timeSlot.time,
-        orElse: () => widget.timeSlot,
-      );
-
-      final updatedAttendees = await Future.wait(
-        updatedTimeSlot.attendees.map((attendee) async {
-          final userName = await _getUserName(attendee.userId);
-          return Attendee(
-            name: userName,
-            isPresent: attendee.isPresent,
-            userId: attendee.userId,
-          );
-        }),
-      );
-
-      if (mounted) {
-        setState(() {
-          _attendees = updatedAttendees;
-        });
-      }
-    }
-  });
-}
-
 
   Future<void> _fetchAttendees() async {
-    final updatedAttendees = await Future.wait(
-      widget.timeSlot.attendees.map((attendee) async {
-        final userId = attendee.name;
-        final userName = await _getUserName(userId);
-        return Attendee(
-          name: userName,
-          isPresent: attendee.isPresent,
-          userId: userId,
-        );
-      }),
-    );
-
     setState(() {
-      _attendees = updatedAttendees;
+      _isLoading = true;
     });
-  }
 
-  Future<void> _fetchAllUsers() async {
-    final response = await Supabase.instance.client.from('profiles').select('*');
+    try {
+      final response = await Supabase.instance.client
+          .from('Attendees')
+          .select('*, profiles:user_id(name)')
+          .eq('timeslot_id', widget.timeSlot.id ?? 0);
 
-    final List<dynamic> data = response;
-    setState(() {
-      _allUsers = data.map((json) => UserProfile(
-        name: json['name'] ?? 'Unknown',
-        id: json['user_id'],
-        completedHours: [],
-      )).toList();
-    });
-  }
+      _allAttendees = response.map<Attendee>((json) => Attendee.fromJson({
+        ...json,
+        'name': json['profiles']['name'],
+      })).toList();
 
-  List<Attendee> _getFilteredAttendees() {
-    if (_searchQuery.isEmpty) {
-      return _attendees;
+      _presentAttendees = _allAttendees.where((attendee) => attendee.isPresent).toList();
+      _absentAttendees = _allAttendees.where((attendee) => !attendee.isPresent).toList();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching attendees: $e')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
+  }
 
+  List<Attendee> _getFilteredAttendees(List<Attendee> attendees) {
+    if (_searchQuery.isEmpty) {
+      return attendees;
+    }
     final lowercaseQuery = _searchQuery.toLowerCase();
-    return _attendees.where((attendee) {
-      final lowercaseName = attendee.name.toLowerCase();
-      return lowercaseName.contains(lowercaseQuery);
+    return attendees.where((attendee) {
+      return attendee.name.toLowerCase().contains(lowercaseQuery);
     }).toList();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final filteredAttendees = _getFilteredAttendees();
+  Future<void> _saveAttendance() async {
+    setState(() {
+      _isLoading = true;
+    });
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Attendance Check'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.qr_code_scanner),
-            onPressed: _scanBarcode,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Event: ${widget.event.name}',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Time: ${widget.timeSlot.time.format(context)}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                    });
-                  },
-                  decoration: const InputDecoration(
-                    labelText: 'Search Attendees',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: filteredAttendees.length,
-              itemBuilder: (context, index) {
-                final attendee = filteredAttendees[index];
-                return CheckboxListTile(
-                  title: Text(attendee.name),
-                  value: attendee.isPresent,
-                  onChanged: (value) {
-                    setState(() {
-                      attendee.isPresent = value!;
-                    });
-                  },
-                  secondary: IconButton(
-                    icon: const Icon(Icons.swap_horiz),
-                    onPressed: () {
-                      _showSwapDialog(attendee);
-                    },
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
+    try {
+      final List<Attendee> attendeesToUpdate = _tabController.index == 0 
+          ? _absentAttendees.where((a) => a.isPresent).toList()
+          : _presentAttendees.where((a) => !a.isPresent).toList();
 
-          _saveAttendance();
-          Navigator.pop(context);
-        },
-        child: const Icon(Icons.save),
+      for (var attendee in attendeesToUpdate) {
+        // Check if the attendee already has service hours for this event
+        final existingHours = await Supabase.instance.client
+            .from('Service hours')
+            .select()
+            .eq('user_id', attendee.userId)
+            .eq('timeslot_id', widget.timeSlot.id ?? 0)
+            .maybeSingle();
+
+        if (existingHours == null && attendee.isPresent) {
+          // Add service hours
+          await Supabase.instance.client.from('Service hours').insert({
+            'user_id': attendee.userId,
+            'event_name': widget.event.name,
+            'timeslot_id': widget.timeSlot.id,
+            'hours': _calculateHours(widget.timeSlot),
+            'date': widget.event.date.toIso8601String(),
+            'type': widget.event.type,
+          });
+        } else if (existingHours != null && !attendee.isPresent) {
+          // Remove service hours
+          await Supabase.instance.client
+              .from('Service hours')
+              .delete()
+              .eq('user_id', attendee.userId)
+              .eq('timeslot_id',  widget.timeSlot.id ?? 0);
+        }
+
+        // Update attendance status
+        await Supabase.instance.client
+            .from('Attendees')
+            .update({'is_present': attendee.isPresent})
+            .eq('id', attendee.id);
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Attendance saved successfully')),
+      );
+
+      // Refresh the attendees list
+      await _fetchAttendees();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving attendance: $e')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  double _calculateHours(TimeSlot timeSlot) {
+    final start = timeSlot.time;
+    final end = timeSlot.endTime;
+    final difference = end.hour * 60 + end.minute - (start.hour * 60 + start.minute);
+    return difference / 60.0;
+  }
+
+  Future<void> _scanBarcode() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BarcodeScannerPage(attendees: _allAttendees),
+      ),
+    );
+
+    if (result != null) {
+      final attendeeIndex = _allAttendees.indexWhere((attendee) => attendee.userId == result);
+      if (attendeeIndex != -1) {
+        setState(() {
+          _allAttendees[attendeeIndex].isPresent = true;
+          _presentAttendees.add(_allAttendees[attendeeIndex]);
+          _absentAttendees.removeWhere((attendee) => attendee.userId == result);
+        });
+        _showToastNotification('Scanned in: ${_allAttendees[attendeeIndex].name}');
+      }
+    }
+  }
+
+  void _showToastNotification(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
-
-    Future<void> _scanBarcode() async {
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => BarcodeScannerPage(attendees: _attendees),
-        ),
-      );
-
-      if (result != null) {
-        final attendeeIndex = _attendees.indexWhere((attendee) => attendee.userId == result);
-        if (attendeeIndex != -1 && mounted) {
-          setState(() {
-            _attendees[attendeeIndex].isPresent = true;
-          });
-          await _saveAttendance();
-          _showToastNotification('Scanned in: ${_attendees[attendeeIndex].name}');
-        }
-      }
-    }
-
-    void _showToastNotification(String message) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(message),
-      duration: const Duration(seconds: 2),
-    ),
-  );
-}
-
 
   void _showSwapDialog(Attendee currentAttendee) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         String searchQuery = '';
-        List<UserProfile> filteredUsers = List.from(_allUsers);
+        List<Attendee> filteredAttendees = List.from(_allAttendees);
 
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
@@ -4281,8 +4297,8 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage> {
                     onChanged: (value) {
                       setState(() {
                         searchQuery = value;
-                        filteredUsers = _allUsers
-                            .where((user) => user.name.toLowerCase().contains(searchQuery.toLowerCase()))
+                        filteredAttendees = _allAttendees
+                            .where((attendee) => attendee.name.toLowerCase().contains(searchQuery.toLowerCase()))
                             .toList();
                       });
                     },
@@ -4296,20 +4312,13 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage> {
                     height: 300,
                     width: 300,
                     child: ListView.builder(
-                      itemCount: filteredUsers.length,
+                      itemCount: filteredAttendees.length,
                       itemBuilder: (context, index) {
-                        final user = filteredUsers[index];
+                        final attendee = filteredAttendees[index];
                         return ListTile(
-                          title: Text(user.name),
+                          title: Text(attendee.name),
                           onTap: () {
-                            setState(() {
-                              int index = _attendees.indexOf(currentAttendee);
-                              _attendees[index] = Attendee(
-                                name: user.name,
-                                isPresent: false,
-                                userId: user.id,
-                              );
-                            });
+                            _swapAttendee(currentAttendee, attendee);
                             Navigator.of(context).pop();
                           },
                         );
@@ -4318,132 +4327,160 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage> {
                   ),
                 ],
               ),
-             actions: [
-              TextButton(
-                child: const Text('Cancel'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-            ],
-          );
-        },
-      );
-    },
-  ).then((_) {
-    setState(() {});
-  });
-}
-
- Future<void> _saveAttendance() async {
-  final attendees = _attendees
-      .map((attendee) => {
-            'name': attendee.userId,
-            'isPresent': attendee.isPresent,
-          })
-      .toList();
-
-  final serviceHoursToAdd = <Map<String, dynamic>>[];
-  final serviceHoursToRemove = <Map<String, dynamic>>[];
-
-  for (final attendee in _attendees) {
-    final existingServiceHour = await Supabase.instance.client
-        .from('Service hours')
-        .select()
-        .eq('event_name', widget.event.name)
-        .eq('timeslot', '${widget.timeSlot.time.hour}:${widget.timeSlot.time.minute}')
-        .eq('user_id', attendee.userId);
-
-    if (attendee.isPresent) {
-      if (existingServiceHour.isEmpty) {
-        final duration = _calculateDuration(widget.timeSlot.time, widget.timeSlot.endTime);
-        serviceHoursToAdd.add({
-          'event_name': widget.event.name,
-          'event_description': widget.event.description,
-          'date': widget.event.date.toIso8601String(),
-          'timeslot': '${widget.timeSlot.time.hour}:${widget.timeSlot.time.minute}',
-          'user_id': attendee.userId,
-          'hours': duration,
-          'type': widget.event.type,
-        });
-      }
-    } else {
-      if (existingServiceHour.isNotEmpty) {
-        serviceHoursToRemove.add({
-          'event_name': widget.event.name,
-          'timeslot': '${widget.timeSlot.time.hour}:${widget.timeSlot.time.minute}',
-          'user_id': attendee.userId,
-        });
-      }
-    }
+              actions: [
+                TextButton(
+                  child: const Text('Cancel'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
-  if (serviceHoursToAdd.isNotEmpty) {
-    await Supabase.instance.client.from('Service hours').insert(serviceHoursToAdd);
-  }
-
-  if (serviceHoursToRemove.isNotEmpty) {
-    for (final serviceHour in serviceHoursToRemove) {
-      await Supabase.instance.client
-          .from('Service hours')
-          .delete()
-          .eq('event_name', serviceHour['event_name'])
-          .eq('timeslot', serviceHour['timeslot'])
-          .eq('user_id', serviceHour['user_id']);
-    }
-  }
-
-  await Supabase.instance.client.from('Events').update({
-    'timeSlots': widget.event.timeSlots
-        .map((slot) => {
-              'time': '${slot.time.hour}:${slot.time.minute}',
-              'endTime': '${slot.endTime.hour}:${slot.endTime.minute}',
-              'numberOfPeople': slot.numberOfPeople,
-              'attendees': slot == widget.timeSlot
-                  ? attendees
-                  : slot.attendees
-                      .map((attendee) => {
-                            'name': attendee.userId,
-                            'isPresent': attendee.isPresent,
-                          })
-                      .toList(),
-            })
-        .toList(),
-  }).eq('id', widget.event.id);
-
-  // Fetch the latest event data from Supabase
-    final eventData = await Supabase.instance.client
-      .from('Events')
-      .select()
-      .eq('id', widget.event.id)
-      .single();
-  
-  final updatedEvent = Event.fromJson(eventData);
-  final updatedTimeSlotIndex = updatedEvent.timeSlots.indexWhere((slot) => slot.time == widget.timeSlot.time);
-
-  if (updatedTimeSlotIndex != -1 && mounted) {
-    final updatedTimeSlot = updatedEvent.timeSlots[updatedTimeSlotIndex];
-    final updatedAttendees = updatedTimeSlot.attendees.map((attendee) => Attendee(
-      name: attendee.name,
-      isPresent: attendee.isPresent,
-      userId: attendee.userId,
-    )).toList();
-
+  void _swapAttendee(Attendee currentAttendee, Attendee newAttendee) {
     setState(() {
-      _attendees = updatedAttendees;
+      currentAttendee.isPresent = false;
+      newAttendee.isPresent = true;
+      _presentAttendees.remove(currentAttendee);
+      _absentAttendees.add(currentAttendee);
+      _presentAttendees.add(newAttendee);
+      _absentAttendees.remove(newAttendee);
     });
   }
-}
 
-  double _calculateDuration(TimeOfDay startTime, TimeOfDay endTime) {
-    final startMinutes = startTime.hour * 60 + startTime.minute;
-    final endMinutes = endTime.hour * 60 + endTime.minute;
-    final duration = (endMinutes - startMinutes) / 60;
-    return duration;
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Attendance: ${widget.event.name}'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            onPressed: _scanBarcode,
+          ),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Mark Present'),
+            Tab(text: 'Mark Absent'),
+          ],
+        ),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: TextField(
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                    decoration: const InputDecoration(
+                      labelText: 'Search Attendees',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildAttendeeList(_getFilteredAttendees(_absentAttendees), true),
+                      _buildAttendeeList(_getFilteredAttendees(_presentAttendees), false),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _isSaving ? null : _saveAttendance,
+        icon: _isSaving ? const CircularProgressIndicator(color: Colors.white) : const Icon(Icons.save),
+        label: Text(_isSaving ? 'Saving...' : 'Save Attendance'),
+      ),
+    );
+  }
+
+   Widget _buildAttendeeList(List<Attendee> attendees, bool markPresent) {
+    return ListView.builder(
+      itemCount: attendees.length,
+      itemBuilder: (context, index) {
+        final attendee = attendees[index];
+        return CheckboxListTile(
+          title: Text(attendee.name),
+          value: markPresent ? attendee.isPresent : !attendee.isPresent,
+          onChanged: (bool? value) {
+            setState(() {
+              attendee.isPresent = markPresent ? value! : !value!;
+            });
+          },
+          secondary: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.swap_horiz),
+                onPressed: () => _showSwapDialog(attendee),
+              ),
+              if (widget.event.requiresForms)
+                IconButton(
+                  icon: Icon(attendee.formsCompleted ? Icons.inventory : Icons.pending_actions),
+                  onPressed: () {
+                    _toggleFormCompletionStatus(attendee);
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _toggleFormCompletionStatus(Attendee attendee) async {
+    try {
+      await Supabase.instance.client
+          .from('Attendees')
+          .update({'forms_completed': !attendee.formsCompleted})
+          .eq('id', attendee.id);
+
+      setState(() {
+        attendee.formsCompleted = !attendee.formsCompleted;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Form status updated for ${attendee.name}')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating form status: $e')),
+      );
+    }
   }
 }
 
+Future<void> addAttendeeToEvent(Event event, TimeSlot timeSlot, String userId) async {
+  await Supabase.instance.client
+      .from('Attendees')
+      .insert({
+        'timeslot_id': timeSlot?.id ?? 0,
+        'user_id': userId,
+        'is_present': false,
+      });
+}
 
+Future<void> updateAttendanceStatus(Attendee attendee) async {
+  await Supabase.instance.client
+      .from('Attendees')
+      .update({'is_present': attendee.isPresent})
+      .eq('id', attendee.id);
+}
 
 class BulkCustomEventFormPage extends StatefulWidget {
   final List<UserProfile> users;
@@ -4762,6 +4799,7 @@ class AdminTotalHoursPage extends StatefulWidget {
   @override
   _AdminTotalHoursPageState createState() => _AdminTotalHoursPageState();
 }
+
 class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
   double _totalHours = 0;
   double _totalServiceHours = 0;
@@ -5108,6 +5146,7 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
     );
   }
 }
+
 class UserProfile {
   final String name;
   final String id;
@@ -5169,15 +5208,61 @@ class CompletedUserHour {
 }
 
 class Attendee {
+  final int id;
+  final int timeSlotId;
+  final String userId;
   final String name;
   bool isPresent;
-  final String userId;
+  bool formsCompleted;
 
   Attendee({
-    required this.name,
-    required this.isPresent,
+    required this.id,
+    required this.timeSlotId,
     required this.userId,
+    required this.name,
+    this.isPresent = false,
+    this.formsCompleted = false,
   });
+
+  factory Attendee.fromJson(Map<String, dynamic> json) {
+    return Attendee(
+      id: json['id'],
+      timeSlotId: json['timeslot_id'],
+      userId: json['user_id'],
+      name: json['name'] ?? 'Unknown',
+      isPresent: json['is_present'] ?? false,
+      formsCompleted: json['forms_completed'] ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'timeslot_id': timeSlotId,
+      'user_id': userId,
+      'name': name,
+      'is_present': isPresent,
+      'forms_completed': formsCompleted,
+    };
+  }
+
+  Attendee copyWith({
+    int? id,
+    int? timeSlotId,
+    String? userId,
+    String? name,
+    bool? isPresent,
+    bool? formsCompleted,
+  }) {
+    return Attendee(
+      id: id ?? this.id,
+      timeSlotId: timeSlotId ?? this.timeSlotId,
+      userId: userId ?? this.userId,
+      name: name ?? this.name,
+      isPresent: isPresent ?? this.isPresent,
+      formsCompleted: formsCompleted ?? this.formsCompleted,
+    );
+  }
 }
 
 class BarcodeScannerPage extends StatefulWidget {
