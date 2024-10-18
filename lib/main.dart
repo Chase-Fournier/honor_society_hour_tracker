@@ -2829,6 +2829,7 @@ void _showEditEventDialog(Event event) {
                       validator: (value) => value!.isEmpty ? 'Please enter a description' : null,
                       onSaved: (value) => _eventDescription = value!,
                     ),
+                    SizedBox(height: 10,),
                     ElevatedButton(
                       child: Text('Date: ${_eventDate.toString().substring(0, 10)}'),
                       onPressed: () async {
@@ -2907,7 +2908,7 @@ void _showEditEventDialog(Event event) {
                 onPressed: () => Navigator.of(context).pop(),
               ),
               ElevatedButton(
-                child: const Text('Update Event'),
+                child: const Text('Update'),
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
                     _formKey.currentState!.save();
@@ -3024,8 +3025,8 @@ Future<void> _updateEvent(int eventId, String name, String description, DateTime
         await Supabase.instance.client
             .from('Time slots')
             .update({
-              'start_time': '${timeSlot.time.hour}:${timeSlot.time.minute}',
-              'end_time': '${timeSlot.endTime.hour}:${timeSlot.endTime.minute}',
+               'start_time': DateTime(DateTime.now().year, date.month, date.day, timeSlot.time.hour, timeSlot.time.minute).toIso8601String(),
+              'end_time': DateTime(DateTime.now().year, date.month, date.day, timeSlot.endTime.hour, timeSlot.endTime.minute).toIso8601String(),
               'number_of_people': timeSlot.numberOfPeople,
               'notes': timeSlot.notes,
             })
@@ -3039,8 +3040,8 @@ Future<void> _updateEvent(int eventId, String name, String description, DateTime
             .from('Time slots')
             .insert({
               'event_id': eventId,
-              'start_time': '${timeSlot.time.hour}:${timeSlot.time.minute}',
-              'end_time': '${timeSlot.endTime.hour}:${timeSlot.endTime.minute}',
+               'start_time': DateTime(DateTime.now().year, date.month, date.day, timeSlot.time.hour, timeSlot.time.minute).toIso8601String(),
+            'end_time': DateTime(DateTime.now().year, date.month, date.day, timeSlot.endTime.hour, timeSlot.endTime.minute).toIso8601String(),
               'number_of_people': timeSlot.numberOfPeople,
               'notes': timeSlot.notes,
               'created_at': DateTime.now().toIso8601String(),
@@ -3218,8 +3219,8 @@ Future<void> _updateTimeSlot(Event event, TimeSlot timeSlot, TimeOfDay startTime
       await Supabase.instance.client
           .from('Time slots')
           .update({
-            'start_time': '${startTime.hour}:${startTime.minute}',
-            'end_time': '${endTime.hour}:${endTime.minute}',
+             'start_time': DateTime(DateTime.now().year, event.date.month, event.date.day, startTime.hour, startTime.minute).toIso8601String(),
+            'end_time': DateTime(DateTime.now().year, event.date.month, event.date.day, endTime.hour, endTime.minute).toIso8601String(),
             'number_of_people': capacity,
             'notes': notes,
           })
@@ -3294,7 +3295,7 @@ Future<void> _addEvent(String name, String description, DateTime date, String ty
       final newTimeSlotId = timeSlotResponse['id'];
 
       // If the event is mandatory, add all users as attendees
-      if (isMandatory) {
+      if (isMandatory || type == "Meeting") {
         final usersResponse = await Supabase.instance.client
             .from('profiles')
             .select('user_id');
@@ -4280,77 +4281,167 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage> with SingleTi
   }
 
   void _showSwapDialog(Attendee currentAttendee) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        String searchQuery = '';
-        List<Attendee> filteredAttendees = List.from(_allAttendees);
+  List<UserProfile> allUsers = [];
+  List<UserProfile> filteredUsers = [];
+  String searchQuery = '';
 
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
-            return AlertDialog(
-              title: const Text('Swap Attendee'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    onChanged: (value) {
-                      setState(() {
-                        searchQuery = value;
-                        filteredAttendees = _allAttendees
-                            .where((attendee) => attendee.name.toLowerCase().contains(searchQuery.toLowerCase()))
-                            .toList();
-                      });
-                    },
-                    decoration: const InputDecoration(
-                      labelText: 'Search',
-                      prefixIcon: Icon(Icons.search),
-                    ),
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (BuildContext context, StateSetter setDialogState) {
+          return AlertDialog(
+            title: const Text('Swap Attendee'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  onChanged: (value) {
+                    setDialogState(() {
+                      searchQuery = value;
+                      filteredUsers = allUsers
+                          .where((user) => user.name.toLowerCase().contains(searchQuery.toLowerCase()))
+                          .toList();
+                    });
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Search',
+                    prefixIcon: Icon(Icons.search),
                   ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 300,
-                    width: 300,
-                    child: ListView.builder(
-                      itemCount: filteredAttendees.length,
-                      itemBuilder: (context, index) {
-                        final attendee = filteredAttendees[index];
-                        return ListTile(
-                          title: Text(attendee.name),
-                          onTap: () {
-                            _swapAttendee(currentAttendee, attendee);
-                            Navigator.of(context).pop();
+                ),
+                const SizedBox(height: 10),
+                FutureBuilder<List<UserProfile>>(
+                  future: _fetchAllUsers(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting && allUsers.isEmpty) {
+                      return const CircularProgressIndicator();
+                    } else if (snapshot.hasError) {
+                      return Text('Error: ${snapshot.error}');
+                    } else {
+                      if (snapshot.hasData && allUsers.isEmpty) {
+                        allUsers = snapshot.data!;
+                        filteredUsers = allUsers;
+                      }
+                      return SizedBox(
+                        height: 300,
+                        width: 300,
+                        child: ListView.builder(
+                          itemCount: filteredUsers.length,
+                          itemBuilder: (context, index) {
+                            final user = filteredUsers[index];
+                            return ListTile(
+                              title: Text(user.name),
+                              subtitle: Text(user.id == currentAttendee.userId ? 'Current Attendee' : ''),
+                              onTap: () {
+                                if (user.id != currentAttendee.userId) {
+                                  _swapAttendee(currentAttendee, user);
+                                  Navigator.of(context).pop();
+                                }
+                              },
+                            );
                           },
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  child: const Text('Cancel'),
-                  onPressed: () {
-                    Navigator.of(context).pop();
+                        ),
+                      );
+                    }
                   },
                 ),
               ],
-            );
-          },
-        );
-      },
+            ),
+            actions: [
+              TextButton(
+                child: const Text('Cancel'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
+Future<List<UserProfile>> _fetchAllUsers() async {
+  final response = await Supabase.instance.client
+      .from('profiles')
+      .select('user_id, name')
+      .order('name');
+
+  return (response as List).map((user) => UserProfile(
+    id: user['user_id'],
+    name: user['name'],
+    completedHours: [], // You might want to fetch this information separately if needed
+  )).toList();
+}
+
+Future<void> _swapAttendee(Attendee currentAttendee, UserProfile newUser) async {
+  try {
+    // Remove the current attendee
+    await Supabase.instance.client
+        .from('Attendees')
+        .delete()
+        .eq('id', currentAttendee.id);
+
+    // Add the new attendee
+    final response = await Supabase.instance.client
+        .from('Attendees')
+        .insert({
+          'timeslot_id': currentAttendee.timeSlotId,
+          'user_id': newUser.id,
+          'is_present': false,
+          'forms_completed': false,
+        })
+        .select()
+        .single();
+
+    // Create a new Attendee object with the response data
+    final newAttendee = Attendee(
+      id: response['id'],
+      timeSlotId: response['timeslot_id'],
+      userId: response['user_id'],
+      name: newUser.name,
+      isPresent: response['is_present'],
+      formsCompleted: response['forms_completed'],
+    );
+
+    // Update the UI
+    setState(() {
+      final timeSlotIndex = widget.event.timeSlots.indexWhere((ts) => ts.id == currentAttendee.timeSlotId);
+      if (timeSlotIndex != -1) {
+        final attendeeIndex = widget.event.timeSlots[timeSlotIndex].attendees.indexWhere((a) => a.id == currentAttendee.id);
+        if (attendeeIndex != -1) {
+          widget.event.timeSlots[timeSlotIndex].attendees[attendeeIndex] = newAttendee;
+        }
+      }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Attendee swapped successfully')),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error swapping attendee: $e')),
     );
   }
+  refreshAttendeeList();
+}
 
-  void _swapAttendee(Attendee currentAttendee, Attendee newAttendee) {
+void refreshAttendeeList() {
     setState(() {
-      currentAttendee.isPresent = false;
-      newAttendee.isPresent = true;
-      _presentAttendees.remove(currentAttendee);
-      _absentAttendees.add(currentAttendee);
-      _presentAttendees.add(newAttendee);
-      _absentAttendees.remove(newAttendee);
+      _allAttendees = widget.event.timeSlots.expand((timeSlot) => timeSlot.attendees).toList();
+      _presentAttendees = _allAttendees.where((attendee) => attendee.isPresent).toList();
+      _absentAttendees = _allAttendees.where((attendee) => !attendee.isPresent).toList();
     });
+  }
+
+
+  @override
+  void didUpdateWidget(AttendanceCheckPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.event != widget.event) {
+      refreshAttendeeList();
+    }
   }
 
   @override
@@ -4401,10 +4492,9 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage> with SingleTi
                 ),
               ],
             ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: _isSaving ? null : _saveAttendance,
-        icon: _isSaving ? const CircularProgressIndicator(color: Colors.white) : const Icon(Icons.save),
-        label: Text(_isSaving ? 'Saving...' : 'Save Attendance'),
+        child: _isSaving ? const CircularProgressIndicator(color: Colors.white) : const Icon(Icons.save),
       ),
     );
   }
