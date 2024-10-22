@@ -3822,7 +3822,7 @@ class _AdminListPageState extends State<AdminListPage> {
               child: Center(
                 child: Text(selectedTime != null
                     ? selectedTime.format(context)
-                    : 'Select Time'),
+                    : 'Time'),
               ),
               onPressed: () async {
                 final TimeOfDay? pickedTime = await showTimePicker(
@@ -4647,7 +4647,7 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                           ),
                           child: Text(selectedTime != null
                               ? selectedTime!.format(context)
-                              : 'Select Time'),
+                              : 'Time'),
                         ),
                       ),
                       const SizedBox(width: 16.0),
