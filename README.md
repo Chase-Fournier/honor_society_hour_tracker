@@ -23,7 +23,7 @@ The NHS Hour Tracking App is a Flutter application designed to help track and ma
 
 1. Clone the repository:
    ```
-   git clone https://github.com/your-username/nhs-hour-tracking-app.git
+   git clone https://github.com/forgedwar5/nhs-hour-tracking-app.git
    ```
 
 2. Navigate to the project directory:
@@ -88,6 +88,6 @@ The NHS Hour Tracking App is open-source software licensed under the [MIT Licens
 
 ## Contact
 
-If you have any questions, suggestions, or feedback regarding the NHS Hour Tracking App, please contact the project maintainer at your-email@example.com.
+If you have any questions, suggestions, or feedback regarding the NHS Hour Tracking App, please contact the project maintainer at forgedwar5@gmail.com.
 
 Happy tracking!

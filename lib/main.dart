@@ -1339,19 +1339,23 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Theme.of(context)
-            .bannerTheme
-            .backgroundColor, // Make background transparent
+        elevation: 15,
+        shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
           'Home',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 24.0,
-            color: Theme.of(context).colorScheme.onSurface,
+            color: Theme.of(context).colorScheme.onPrimary
           ),
         ),
         centerTitle: true,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(13),
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -1542,34 +1546,33 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _addEventToCalendar(Event event, TimeSlot timeSlot) {
-    final calendarEventp = add2cal.addEvent(
-      title: event.name,
-      description: event.description,
-      startDate: DateTime(
-        event.date.year,
-        event.date.month,
-        event.date.day,
-        timeSlot.time.hour,
-        timeSlot.time.minute,
-      ),
-      endDate: DateTime(
-        event.date.year,
-        event.date.month,
-        event.date.day,
-        timeSlot.endTime.hour,
-        timeSlot.endTime.minute,
-      ),
-      iosParams: const add2cal.IOSParams(
-        reminder: Duration(minutes: 10),
-      ),
-      androidParams: const add2cal.AndroidParams(
-        emailInvites: [],
-      ),
-    );
+  final calendarEventp = addEvent(
+    title: event.name,
+    description: event.description,
+    startDate: DateTime(
+      event.date.year,
+      event.date.month,
+      event.date.day,
+      timeSlot.time.hour,
+      timeSlot.time.minute,
+    ),
+    endDate: DateTime(
+      event.date.year,
+      event.date.month,
+      event.date.day,
+      timeSlot.endTime.hour,
+      timeSlot.endTime.minute,
+    ),
+    iosParams: const IOSParams(
+      reminder: Duration(minutes: 10),
+    ),
+    androidParams: const AndroidParams(
+      emailInvites: [],
+    ),
+  );
 
-    add2cal.Add2Calendar.addEvent2Cal(calendarEventp);
-  }
-
+  Add2Calendar.addEvent2Cal(calendarEventp);
+}
   void _openWebsite() async {
     final Uri url = Uri.parse(
         'https://docs.google.com/forms/d/1ZcXKKctcGjxJYi5KXuqmZ8u1BQP-825KSFJmP-rcKtA/viewform?edit_requested=true');
@@ -2004,19 +2007,23 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Theme.of(context)
-            .bannerTheme
-            .backgroundColor, // Make background transparent
+        elevation: 15,
+        shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
           'Completed Hours',
           style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimary,
             fontWeight: FontWeight.bold,
             fontSize: 24.0,
-            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         centerTitle: true,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -2254,19 +2261,23 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Theme.of(context)
-            .bannerTheme
-            .backgroundColor, // Make background transparent
+        elevation: 15,
+        shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
           'Profile',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 24.0,
-            color: Theme.of(context).colorScheme.onSurface,
+            color: Theme.of(context).colorScheme.onPrimary
           ),
         ),
         centerTitle: true,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -2504,19 +2515,23 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
         _events.where((event) => event.collectionId == null).toList();
     return Scaffold(
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Theme.of(context)
-            .bannerTheme
-            .backgroundColor, // Make background transparent
+        elevation: 10,
+        shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
           'Events',
           style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimary,
             fontWeight: FontWeight.bold,
             fontSize: 24.0,
-            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         centerTitle: true,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
       ),
       body: ListView.builder(
         itemCount: _collections.length + uncategorizedEvents.length,
@@ -4287,19 +4302,23 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Theme.of(context)
-            .bannerTheme
-            .backgroundColor, // Make background transparent
+        elevation: 15,
+        shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
           'Attendance',
           style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimary,
             fontWeight: FontWeight.bold,
             fontSize: 24.0,
-            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         centerTitle: true,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -4611,19 +4630,23 @@ class _AdminListPageState extends State<AdminListPage> {
     final filteredUsers = _getFilteredUsers();
     return Scaffold(
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Theme.of(context)
-            .bannerTheme
-            .backgroundColor, // Make background transparent
+        elevation: 15,
+        shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
-          'Lists',
+          'List',
           style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimary,
             fontWeight: FontWeight.bold,
             fontSize: 24.0,
-            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         centerTitle: true,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
       ),
       body: Column(
         children: [
@@ -5784,6 +5807,7 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
     double tutoringHours = 0;
     double meetingHours = 0;
 
+    print(response);
     for (final entry in data) {
       final hours = entry['hours'];
       final eventType = entry['type'] as String?;
@@ -5811,19 +5835,23 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Theme.of(context)
-            .bannerTheme
-            .backgroundColor, // Make background transparent
+        elevation: 15,
+        shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
           'Total NHS Hours',
           style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimary,
             fontWeight: FontWeight.bold,
             fontSize: 24.0,
-            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         centerTitle: true,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
       ),
       body: Center(
         child: Column(
@@ -6059,6 +6087,8 @@ class BarcodeScannerPage extends StatefulWidget {
 }
 
 class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
+
+  
   final MobileScannerController _controller = MobileScannerController();
 
   @override
@@ -6089,12 +6119,11 @@ class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
     final barcode = capture.barcodes.first;
     final userId = barcode.rawValue;
 
-    final attendeeIndex =
-        widget.attendees.indexWhere((attendee) => attendee.userId == userId);
-    if (attendeeIndex != -1) {
-      Navigator.pop(context, userId);
+      final attendeeIndex = widget.attendees.indexWhere((attendee) => attendee.userId == userId);
+      if (attendeeIndex != -1) {
+        Navigator.pop(context, userId);
+      }
     }
-  }
 }
 
 class PillShapedTitle extends StatelessWidget {
