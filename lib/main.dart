@@ -1546,7 +1546,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _addEventToCalendar(Event event, TimeSlot timeSlot) {
-  final calendarEventp = addEvent(
+  final calendarEventp = add2cal.addEvent(
     title: event.name,
     description: event.description,
     startDate: DateTime(
@@ -1563,15 +1563,15 @@ class _HomePageState extends State<HomePage> {
       timeSlot.endTime.hour,
       timeSlot.endTime.minute,
     ),
-    iosParams: const IOSParams(
+    iosParams: const add2cal.IOSParams(
       reminder: Duration(minutes: 10),
     ),
-    androidParams: const AndroidParams(
+    androidParams: const add2cal.AndroidParams(
       emailInvites: [],
     ),
   );
 
-  Add2Calendar.addEvent2Cal(calendarEventp);
+  add2cal.Add2Calendar.addEvent2Cal(calendarEventp);
 }
   void _openWebsite() async {
     final Uri url = Uri.parse(
