@@ -17,6 +17,7 @@ import 'package:barcode/barcode.dart' as barcodeGen;
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:intl/intl.dart';
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -813,6 +814,7 @@ class _HomePageState extends State<HomePage> {
                       orElse: () =>
                           Attendee(id: 0, timeSlotId: 0, userId: '', name: ''))
                   .formsCompleted;
+              final bool hasAvailableSpots = timeSlot.numberOfPeople > 0;
 
               return ListTile(
                 title: Text(
@@ -827,12 +829,13 @@ class _HomePageState extends State<HomePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Number of People: ${timeSlot.numberOfPeople}',
-                      style: TextStyle(
-                        fontSize: 12.0,
-                        color: Colors.grey[600],
-                      ),
+                    'Available Spots: ${timeSlot.numberOfPeople}',
+                    style: TextStyle(
+                      fontSize: 12.0,
+                      color: hasAvailableSpots ? Colors.grey[600] : Theme.of(context).colorScheme.error,
+                      fontWeight: hasAvailableSpots ? FontWeight.normal : FontWeight.bold,
                     ),
+                  ),
                     if (timeSlot.notes.isNotEmpty)
                       Text(
                         'Notes: ${timeSlot.notes}',
@@ -885,16 +888,18 @@ class _HomePageState extends State<HomePage> {
                     : isMandatory || isMeeting
                         ? const Text('Automatically Signed Up')
                         : ElevatedButton(
-                            onPressed: () {
-                              _showSignUpForm(event, timeSlot);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
+                            onPressed: hasAvailableSpots
+                              ? () {
+                                  _showSignUpForm(event, timeSlot);
+                                }
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
                             ),
-                            child: const Text('  Sign Up  '),
                           ),
+                          child: Text(hasAvailableSpots ? '  Sign Up  ' : 'Full'),
+                        ),
               );
             }).toList(),
           ),
@@ -1339,23 +1344,19 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        elevation: 15,
-        shadowColor: Theme.of(context).colorScheme.shadow,
+        elevation: 0,
+        backgroundColor: Theme.of(context)
+            .bannerTheme
+            .backgroundColor,
         title: Text(
           'Home',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 24.0,
-            color: Theme.of(context).colorScheme.onPrimary
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         centerTitle: true,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(13),
-          ),
-        ),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -1418,6 +1419,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showSignUpForm(Event event, TimeSlot timeSlot) {
+    
+
     showDialog(
       context: context,
       builder: (context) {
@@ -1518,27 +1521,51 @@ class _HomePageState extends State<HomePage> {
           .eq('user_id', userId)
           .maybeSingle();
 
+          final timeSlotResponse = await Supabase.instance.client
+          .from('Time slots')
+          .select()
+          .eq('id', timeSlot.id ?? 0)
+          .single();
+
+      final currentCapacity = timeSlotResponse['number_of_people'] as int;
+
+      if (currentCapacity <= 0) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Sorry, this time slot is now full'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        _fetchEvents();
+        return;
+      }
+
+
+
+
       if (existingAttendee == null) {
         // Add the user to the Attendees table
-        await Supabase.instance.client.from('Attendees').insert({
-          'timeslot_id': timeSlot?.id ?? 0,
-          'user_id': userId,
-          'is_present': false,
-        });
-
-        // Update the number of people in the time slot
-        await Supabase.instance.client
-            .from('Time slots')
-            .update({'number_of_people': timeSlot.numberOfPeople - 1}).eq(
-                'id', timeSlot?.id ?? 0);
-
-        await _logActivity(
-            event.name,
-            '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
-            _calculateDuration(timeSlot.time, timeSlot.endTime),
-            'signup',
-            userId,
-          );
+          await Supabase.instance.client.from('Attendees').insert({
+            'timeslot_id': timeSlot.id ?? 0,
+            'user_id': userId,
+            'is_present': false,
+          });
+          
+          // Update the number of people in the time slot
+          await Supabase.instance.client
+              .from('Time slots')
+              .update({'number_of_people': timeSlot.numberOfPeople - 1}).eq(
+                  'id', timeSlot?.id ?? 0);
+          
+          await _logActivity(
+              event.name,
+              '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
+              _calculateDuration(timeSlot.time, timeSlot.endTime),
+              'signup',
+              userId,
+            );
 
         _fetchEvents();
       }
@@ -2007,23 +2034,19 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        elevation: 15,
-        shadowColor: Theme.of(context).colorScheme.shadow,
+        elevation: 0,
+        backgroundColor: Theme.of(context)
+            .bannerTheme
+            .backgroundColor, // Make background transparent
         title: Text(
           'Completed Hours',
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onPrimary,
             fontWeight: FontWeight.bold,
             fontSize: 24.0,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         centerTitle: true,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(20),
-          ),
-        ),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -2261,23 +2284,19 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        elevation: 15,
-        shadowColor: Theme.of(context).colorScheme.shadow,
+        elevation: 0,
+        backgroundColor: Theme.of(context)
+            .bannerTheme
+            .backgroundColor, // Make background transparent
         title: Text(
           'Profile',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 24.0,
-            color: Theme.of(context).colorScheme.onPrimary
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         centerTitle: true,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(20),
-          ),
-        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -2515,23 +2534,19 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
         _events.where((event) => event.collectionId == null).toList();
     return Scaffold(
       appBar: AppBar(
-        elevation: 10,
-        shadowColor: Theme.of(context).colorScheme.shadow,
+        elevation: 0,
+        backgroundColor: Theme.of(context)
+            .bannerTheme
+            .backgroundColor, // Make background transparent
         title: Text(
           'Events',
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onPrimary,
             fontWeight: FontWeight.bold,
             fontSize: 24.0,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         centerTitle: true,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(20),
-          ),
-        ),
       ),
       body: ListView.builder(
         itemCount: _collections.length + uncategorizedEvents.length,
@@ -4302,23 +4317,19 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        elevation: 15,
-        shadowColor: Theme.of(context).colorScheme.shadow,
+        elevation: 0,
+        backgroundColor: Theme.of(context)
+            .bannerTheme
+            .backgroundColor, // Make background transparent
         title: Text(
           'Attendance',
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onPrimary,
             fontWeight: FontWeight.bold,
             fontSize: 24.0,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         centerTitle: true,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(20),
-          ),
-        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -4630,23 +4641,19 @@ class _AdminListPageState extends State<AdminListPage> {
     final filteredUsers = _getFilteredUsers();
     return Scaffold(
       appBar: AppBar(
-        elevation: 15,
-        shadowColor: Theme.of(context).colorScheme.shadow,
+        elevation: 0,
+        backgroundColor: Theme.of(context)
+            .bannerTheme
+            .backgroundColor, // Make background transparent
         title: Text(
           'List',
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onPrimary,
             fontWeight: FontWeight.bold,
             fontSize: 24.0,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         centerTitle: true,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(20),
-          ),
-        ),
       ),
       body: Column(
         children: [
@@ -5835,23 +5842,19 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        elevation: 15,
-        shadowColor: Theme.of(context).colorScheme.shadow,
+        elevation: 0,
+        backgroundColor: Theme.of(context)
+            .bannerTheme
+            .backgroundColor, // Make background transparent
         title: Text(
-          'Total NHS Hours',
+          'Total Hours',
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onPrimary,
             fontWeight: FontWeight.bold,
             fontSize: 24.0,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         centerTitle: true,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(20),
-          ),
-        ),
       ),
       body: Center(
         child: Column(
@@ -6369,7 +6372,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
         ),
         title: RichText(
           text: TextSpan(
-            style: TextStyle(fontSize: 15),
+            style: TextStyle(fontSize: 15, color: Colors.black),
             children: [
               TextSpan(
                 text: log.userName,
