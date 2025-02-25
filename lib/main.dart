@@ -92,7 +92,6 @@ class MyApp extends StatelessWidget {
                     initialRoute: '/',
                     routes: {
                       '/': (context) => const LoginPage(),
-                      '/main': (context) => MainScreen(),
                       '/admin/events': (context) => AdminEventsPage(),
                       '/admin/attendance': (context) => AdminAttendancePage(),
                     },
@@ -123,9 +122,14 @@ class MyApp extends StatelessWidget {
 }
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  final HonorSociety society;
+  
+  const MainScreen({
+    super.key, 
+    required this.society
+  });
 
-  @override
+   @override
   _MainScreenState createState() => _MainScreenState();
 }
 
@@ -152,16 +156,16 @@ class _MainScreenState extends State<MainScreen> {
 
     if (userId != null) {
       final response = await Supabase.instance.client
-          .from('profiles')
-          .select('admin')
-          .eq('user_id', userId);
+          .from('user_society_memberships')
+          .select('is_admin')
+          .eq('user_id', userId)
+          .eq('society_id', widget.society.id)
+          .single();
 
-      if (response.isNotEmpty) {
-        if (mounted) {
-          setState(() {
-            _isAdmin = response[0]['admin'] ?? false;
-          });
-        }
+      if (mounted) {
+        setState(() {
+          _isAdmin = response['is_admin'] ?? false;
+        });
       }
     }
   }
@@ -287,8 +291,8 @@ class _MainScreenState extends State<MainScreen> {
                 _pageController.jumpToPage(index);
               },
               items: navItems,
-            ),
-    );
+     ),
+);
   }
 }
 
@@ -334,7 +338,7 @@ class _LoginPageState extends State<LoginPage> {
                     // Navigate to the main screen on successful sign-in
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(builder: (context) => MainScreen()),
+                      MaterialPageRoute(builder: (context) => SocietySelectionPage()),
                     );
                   }
                 },
@@ -346,7 +350,7 @@ class _LoginPageState extends State<LoginPage> {
                   // Navigate to the home page on successful social sign-in
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => MainScreen()),
+                    MaterialPageRoute(builder: (context) => SocietySelectionPage()),
                   );
                 },
                 onError: (error) {
@@ -2289,8 +2293,6 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       // Process the data to calculate total hours per user
       Map<String, UserRanking> userHours = {};
 
-      print(userHours);
-
       for (var record in response) {
         final userId = record['user_id'] as String;
         final hours = (record['hours'] as num).toDouble();
@@ -3107,6 +3109,16 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+         leading: IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const SocietySelectionPage()),
+                (route) => false,
+              );
+            },
+          ),
         elevation: 0,
         backgroundColor: Theme.of(context)
             .bannerTheme
@@ -3462,46 +3474,117 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   }
 
   Widget _buildCollectionCard(Collection collection, int index) {
-    final isHovered = _hoveredCollectionIndex == index;
+  final isHovered = _hoveredCollectionIndex == index;
 
-    return DragTarget<Event>(
-      onWillAccept: (data) => true,
-      onAccept: (data) {
-        if (data is Event) {
-          _onEventDropped(data, collection.id);
-        }
-      },
-      onLeave: (data) {
-        setState(() {
-          _hoveredCollectionIndex = null;
-        });
-      },
-      builder: (context, candidateData, rejectedData) {
-        return Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          elevation: 2,
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: isHovered ? Colors.grey[200] : null,
-          child: ExpansionTile(
-            leading: const Icon(Icons.folder),
-            title: Text(
-              collection.name,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16.0,
+  return DragTarget<Event>(
+    onWillAccept: (data) => true,
+    onAccept: (data) {
+      if (data is Event) {
+        _onEventDropped(data, collection.id);
+      }
+    },
+    onLeave: (data) {
+      setState(() {
+        _hoveredCollectionIndex = null;
+      });
+    },
+    builder: (context, candidateData, rejectedData) {
+      return Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        elevation: 2,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        color: isHovered ? Colors.grey[200] : null,
+        child: ExpansionTile(
+          leading: const Icon(Icons.folder),
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  collection.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16.0,
+                  ),
+                ),
               ),
-            ),
-            children: _events
-                .where((event) => event.collectionId == collection.id)
-                .map((event) => _buildEventCard(event))
-                .toList(),
+              IconButton(
+                icon: const Icon(Icons.delete),
+                onPressed: () => _showDeleteCollectionDialog(collection),
+                color: Theme.of(context).colorScheme.error,
+              ),
+            ],
           ),
-        );
-      },
+          children: _events
+              .where((event) => event.collectionId == collection.id)
+              .map((event) => _buildEventCard(event))
+              .toList(),
+        ),
+      );
+    },
+  );
+}
+
+void _showDeleteCollectionDialog(Collection collection) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Delete Collection'),
+      content: Text(
+        'Are you sure you want to delete "${collection.name}"? Events in this collection will be uncategorized but not deleted.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            _deleteCollection(collection);
+            Navigator.pop(context);
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+}
+
+Future<void> _deleteCollection(Collection collection) async {
+  try {
+    // First update all events in this collection to remove the collection_id
+    await supabase
+        .from('Events')
+        .update({'collection_id': null})
+        .eq('collection_id', collection.id);
+
+    // Then delete the collection
+    await supabase
+        .from('Collections')
+        .delete()
+        .eq('id', collection.id);
+
+    // Update local state
+    setState(() {
+      _collections.removeWhere((c) => c.id == collection.id);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Collection deleted successfully')),
+    );
+
+    // Refresh events to update their display
+    _fetchEvents();
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error deleting collection: $e')),
     );
   }
+}
 
   void _showCollectionEvents(Collection collection) {
     showDialog(
@@ -3792,8 +3875,6 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                   ),
                 ),
                 children: event.timeSlots.map((timeSlot) {
-                  print(timeSlot.numberOfPeople);
-                  print(event);
                   return ListTile(
                     title: Text(
                       'Time: ${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
@@ -7695,6 +7776,89 @@ class AffectedUser {
   });
 }
 
+class HonorSociety {
+  final int id;
+  final String name;
+  final String description;
+  final String? imageUrl;
+  final List<HourRequirement> hourRequirements;
+  final int meetingRequirement; // Keep meetings as special case
+  final DateTime createdAt;
+
+  HonorSociety({
+    required this.id,
+    required this.name,
+    required this.description,
+    this.imageUrl,
+    required this.hourRequirements,
+    required this.meetingRequirement,
+    required this.createdAt,
+  });
+
+  factory HonorSociety.fromJson(Map<String, dynamic> json) {
+    return HonorSociety(
+      id: json['id'],
+      name: json['name'],
+      description: json['description'],
+      imageUrl: json['image_url'],
+      hourRequirements: (json['hour_requirements'] as List)
+          .map((req) => HourRequirement.fromJson(req))
+          .toList(),
+      meetingRequirement: json['meeting_requirement'],
+      createdAt: DateTime.parse(json['created_at']),
+    );
+  }
+}
+
+class HourRequirement {
+  final int id;
+  final String type;
+  final double hoursNeeded;
+  final String description;
+  final bool isActive;
+
+  HourRequirement({
+    required this.id,
+    required this.type,
+    required this.hoursNeeded,
+    required this.description,
+    this.isActive = true,
+  });
+
+  factory HourRequirement.fromJson(Map<String, dynamic> json) {
+    return HourRequirement(
+      id: json['id'],
+      type: json['type'],
+      hoursNeeded: json['hours_needed'].toDouble(),
+      description: json['description'],
+      isActive: json['is_active'] ?? true,
+    );
+  }
+}
+
+class UserSocietyMembership {
+  final String userId;
+  final int societyId;
+  final bool isAdmin;
+  final DateTime joinedAt;
+
+  UserSocietyMembership({
+    required this.userId,
+    required this.societyId,
+    required this.isAdmin,
+    required this.joinedAt,
+  });
+
+  factory UserSocietyMembership.fromJson(Map<String, dynamic> json) {
+    return UserSocietyMembership(
+      userId: json['user_id'],
+      societyId: json['society_id'],
+      isAdmin: json['is_admin'],
+      joinedAt: DateTime.parse(json['joined_at']),
+    );
+  }
+}
+
 class AdminTotalHoursPage extends StatefulWidget {
   const AdminTotalHoursPage({super.key});
 
@@ -7934,6 +8098,7 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
     }
   }
 
+  @override
    Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isWideScreen = screenWidth > 900;
@@ -7970,10 +8135,11 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
             ),
             
             // Quick Actions Panel
-            _buildQuickActionsPanel(isWideScreen),
+            
           ],
         ),
       ),
+      bottomNavigationBar: _buildQuickActionsPanel(isWideScreen),
     );
   }
 
@@ -8272,13 +8438,13 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
             children: [
               Expanded(
                 child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
+                  scrollDirection: Axis.vertical,
+                  child: Column(
                     children: [
                       _buildActionButton('Add Notes', Icons.note_add, _showAddNotesDialog),
-                      const SizedBox(width: 8),
+                      const SizedBox(height: 8),
                       _buildActionButton('View Notes', Icons.notes, _showMeetingNotesDialog),
-                      const SizedBox(width: 8),
+                      const SizedBox(height: 8),
                       _buildActionButton(
                         'Activity Log',
                         Icons.history,
@@ -8314,8 +8480,21 @@ Widget _buildActionButton(String label, IconData icon, VoidCallback onPressed) {
       ),
       elevation: isWideScreen ? 2 : 0,
     ),
-    child: Row(
+    child: isWideScreen ? Row(
       mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: isWideScreen ? 16 : 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    ) : Row(
+      mainAxisSize: MainAxisSize.max,
       children: [
         Icon(icon),
         const SizedBox(width: 8),
@@ -8332,7 +8511,7 @@ Widget _buildActionButton(String label, IconData icon, VoidCallback onPressed) {
 }
 }
 
- Widget _buildCategoryCard(String title, double hours, IconData icon, Color color) {
+Widget _buildCategoryCard(String title, double hours, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -8369,7 +8548,7 @@ Widget _buildActionButton(String label, IconData icon, VoidCallback onPressed) {
     );
   }
 
-  Widget _buildActionButton(String label, IconData icon, VoidCallback onPressed) {
+Widget _buildActionButton(String label, IconData icon, VoidCallback onPressed) {
     return ElevatedButton(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
@@ -8700,49 +8879,78 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
       body: Column(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Center(
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.calendar_today),
-                      onPressed: () async {
-                        final DateTime? picked = await showDatePicker(
-                          context: context,
-                          initialDate: _selectedDate,
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime(2025),
-                        );
-                        if (picked != null && picked != _selectedDate) {
+  padding: const EdgeInsets.symmetric(vertical: 16),
+  child: Center(
+    child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Previous Day Button
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left),
+                        onPressed: () {
                           setState(() {
-                            _selectedDate = picked;
+                            _selectedDate = _selectedDate.subtract(const Duration(days: 1));
                           });
                           _fetchLogs();
-                        }
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      DateFormat('MMMM d, y').format(_selectedDate),
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        },
                       ),
-                    ),
-                  ],
+                      IconButton(
+                        icon: const Icon(Icons.calendar_today),
+                        onPressed: () async {
+                          final DateTime? picked = await showDatePicker(
+                            context: context,
+                            initialDate: _selectedDate,
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2025),
+                          );
+                          if (picked != null && picked != _selectedDate) {
+                            setState(() {
+                              _selectedDate = picked;
+                            });
+                            _fetchLogs();
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        DateFormat('MMMM d, y').format(_selectedDate),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                      // Next Day Button
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right),
+                        onPressed: _selectedDate.year == DateTime.now().year &&
+                                _selectedDate.month == DateTime.now().month &&
+                                _selectedDate.day == DateTime.now().day
+                            ? null
+                            : () {
+                                setState(() {
+                                  _selectedDate = _selectedDate.add(const Duration(days: 1));
+                                });
+                                _fetchLogs();
+                              },
+                        // Gray out the icon when on current day
+                        color: _selectedDate.year == DateTime.now().year &&
+                                _selectedDate.month == DateTime.now().month &&
+                                _selectedDate.day == DateTime.now().day
+                            ? Colors.grey
+                            : Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -8938,4 +9146,567 @@ Future<void> _logActivity(String eventName, String timeslot, double hours,
   }
 }
 
+class HourRequirementsPage extends StatefulWidget {
+  final HonorSociety society;
 
+  const HourRequirementsPage({super.key, required this.society});
+
+  @override
+  _HourRequirementsPageState createState() => _HourRequirementsPageState();
+}
+
+class _HourRequirementsPageState extends State<HourRequirementsPage> {
+  List<HourRequirement> _requirements = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _requirements = List.from(widget.society.hourRequirements);
+  }
+
+  // Add this method to _HourRequirementsPageState
+void _showEditRequirementDialog(HourRequirement requirement) {
+  String type = requirement.type;
+  String description = requirement.description;
+  double hours = requirement.hoursNeeded;
+  bool isActive = requirement.isActive;
+
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Edit Hour Requirement'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            decoration: const InputDecoration(labelText: 'Type Name'),
+            controller: TextEditingController(text: type),
+            onChanged: (value) => type = value,
+          ),
+          TextField(
+            decoration: const InputDecoration(labelText: 'Description'),
+            controller: TextEditingController(text: description),
+            onChanged: (value) => description = value,
+          ),
+          TextField(
+            decoration: const InputDecoration(labelText: 'Hours Required'),
+            controller: TextEditingController(text: hours.toString()),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (value) => hours = double.tryParse(value) ?? hours,
+          ),
+          SwitchListTile(
+            title: const Text('Active'),
+            value: isActive,
+            onChanged: (value) => isActive = value,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () {
+            _showDeleteConfirmation(requirement);
+          },
+          style: TextButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.error,
+          ),
+          child: const Text('Delete'),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            if (type.isNotEmpty && hours > 0) {
+              await supabase
+                  .from('hour_requirements')
+                  .update({
+                    'type': type,
+                    'description': description,
+                    'hours_needed': hours,
+                    'is_active': isActive,
+                  })
+                  .eq('id', requirement.id);
+
+              setState(() {
+                final index = _requirements.indexWhere((r) => r.id == requirement.id);
+                if (index != -1) {
+                  _requirements[index] = HourRequirement(
+                    id: requirement.id,
+                    type: type,
+                    description: description,
+                    hoursNeeded: hours,
+                    isActive: isActive,
+                  );
+                }
+              });
+              Navigator.pop(context);
+            }
+          },
+          child: const Text('Save'),
+        ),
+      ],
+    ),
+  );
+}
+
+void _showDeleteConfirmation(HourRequirement requirement) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Delete Requirement'),
+      content: Text(
+        'Are you sure you want to delete the ${requirement.type} requirement? '
+        'This will affect all historical records using this type.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            await supabase
+                .from('hour_requirements')
+                .delete()
+                .eq('id', requirement.id);
+
+            setState(() {
+              _requirements.removeWhere((r) => r.id == requirement.id);
+            });
+            Navigator.pop(context); // Close delete confirmation
+            Navigator.pop(context); // Close edit dialog
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+}
+
+  void _showAddRequirementDialog() {
+    String type = '';
+    String description = '';
+    double hours = 0;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Hour Requirement'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              decoration: const InputDecoration(labelText: 'Type Name'),
+              onChanged: (value) => type = value,
+            ),
+            TextField(
+              decoration: const InputDecoration(labelText: 'Description'),
+              onChanged: (value) => description = value,
+            ),
+            TextField(
+              decoration: const InputDecoration(labelText: 'Hours Required'),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (value) => hours = double.tryParse(value) ?? 0,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (type.isNotEmpty && hours > 0) {
+                final response = await supabase
+                    .from('hour_requirements')
+                    .insert({
+                      'society_id': widget.society.id,
+                      'type': type,
+                      'description': description,
+                      'hours_needed': hours,
+                    })
+                    .select()
+                    .single();
+
+                setState(() {
+                  _requirements.add(HourRequirement.fromJson(response));
+                });
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Hour Requirements'),
+      ),
+      body: ListView.builder(
+        itemCount: _requirements.length,
+        itemBuilder: (context, index) {
+          final requirement = _requirements[index];
+          return ListTile(
+            title: Text(requirement.type),
+            subtitle: Text(requirement.description),
+            trailing: Text('${requirement.hoursNeeded} hours'),
+            onTap: () => _showEditRequirementDialog(requirement),
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddRequirementDialog,
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+class SocietyJoinRequestPage extends StatefulWidget {
+  const SocietyJoinRequestPage({super.key});
+
+  @override
+  _SocietyJoinRequestPageState createState() => _SocietyJoinRequestPageState();
+}
+
+class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
+  List<HonorSociety> _availableSocieties = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAvailableSocieties();
+  }
+
+  Future<void> _fetchAvailableSocieties() async {
+  setState(() => _isLoading = true);
+
+  try {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    // Get societies user is already a member of
+    final memberships = await supabase
+        .from('user_society_memberships')
+        .select('society_id')
+        .eq('user_id', userId);
+
+    final memberSocietyIds = memberships.map((m) => m['society_id']).toList();
+
+    // Fetch societies user is not a member of, including their requirements
+    final societies = await supabase
+        .from('honor_societies')
+        .select('''
+          id,
+          name,
+          description,
+          image_url,
+          meeting_requirement,
+          created_at,
+          hour_requirements(
+            id,
+            type,
+            description,
+            hours_needed,
+            is_active
+          )
+        ''')
+        .not('id', 'in', memberSocietyIds.isEmpty ? [''] : memberSocietyIds);
+
+    setState(() {
+      _availableSocieties = societies.map<HonorSociety>((societyData) {
+        final hourRequirements = (societyData['hour_requirements'] as List)
+            .map((req) => HourRequirement.fromJson(req))
+            .toList();
+
+        return HonorSociety(
+          id: societyData['id'],
+          name: societyData['name'],
+          description: societyData['description'],
+          imageUrl: societyData['image_url'],
+          hourRequirements: hourRequirements,
+          meetingRequirement: societyData['meeting_requirement'],
+          createdAt: DateTime.parse(societyData['created_at']),
+        );
+      }).toList();
+    });
+  } catch (e) {
+    print('Error loading societies: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading societies: $e')),
+      );
+    }
+  } finally {
+    setState(() => _isLoading = false);
+  }
+}
+
+  Future<void> _requestJoin(HonorSociety society) async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      await supabase.from('society_join_requests').insert({
+        'user_id': userId,
+        'society_id': society.id,
+        'status': 'pending',
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Join request sent successfully!'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error sending request: $e')),
+        );
+      }
+    }
+  }
+
+  
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Join an Honor Society'),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _availableSocieties.isEmpty
+              ? const Center(
+                  child: Text('No available societies to join'),
+                )
+              : ListView.builder(
+                  itemCount: _availableSocieties.length,
+                  itemBuilder: (context, index) {
+                    final society = _availableSocieties[index];
+                    return Card(
+                      margin: const EdgeInsets.all(8),
+                      child: ListTile(
+                        leading: society.imageUrl != null
+                            ? CircleAvatar(
+                                backgroundImage: NetworkImage(society.imageUrl!),
+                              )
+                            : CircleAvatar(
+                                child: Text(society.name[0]),
+                              ),
+                        title: Text(society.name),
+                        subtitle: Text(society.description),
+                        trailing: ElevatedButton(
+                          onPressed: () => _requestJoin(society),
+                          child: const Text('Request Join'),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+class SocietySelectionPage extends StatefulWidget {
+  const SocietySelectionPage({super.key});
+
+  @override
+  _SocietySelectionPageState createState() => _SocietySelectionPageState();
+}
+
+class _SocietySelectionPageState extends State<SocietySelectionPage> {
+  List<HonorSociety> _societies = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserSocieties();
+  }
+
+  Future<void> _fetchUserSocieties() async {
+  setState(() => _isLoading = true);
+
+  try {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    // Fetch societies with their hour requirements in a single query
+    final societies = await supabase
+        .from('user_society_memberships')
+        .select('''
+          honor_societies!inner(
+            id,
+            name,
+            description,
+            image_url,
+            meeting_requirement,
+            created_at,
+            hour_requirements(
+              id,
+              type,
+              description,
+              hours_needed,
+              is_active
+            )
+          )
+        ''')
+        .eq('user_id', userId);
+
+    if (mounted) {
+      setState(() {
+        _societies = societies.map<HonorSociety>((membership) {
+          final societyData = membership['honor_societies'];
+          final hourRequirements = (societyData['hour_requirements'] as List)
+              .map((req) => HourRequirement.fromJson(req))
+              .toList();
+
+          return HonorSociety(
+            id: societyData['id'],
+            name: societyData['name'],
+            description: societyData['description'],
+            imageUrl: societyData['image_url'],
+            hourRequirements: hourRequirements,
+            meetingRequirement: societyData['meeting_requirement'],
+            createdAt: DateTime.parse(societyData['created_at']),
+          );
+        }).toList();
+      });
+    }
+  } catch (e) {
+    print('Error loading societies: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading societies: $e')),
+      );
+    }
+  } finally {
+    setState(() => _isLoading = false);
+  }
+}
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Select Honor Society'),
+        automaticallyImplyLeading: false,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _societies.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'You are not a member of any honor societies',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => SocietyJoinRequestPage()),
+                            );
+                        },
+                        child: const Text('Request to Join'),
+                      ),
+                    ],
+                  ),
+                )
+              : GridView.builder(
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 300,
+                    childAspectRatio: 0.8,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                  ),
+                  itemCount: _societies.length,
+                  itemBuilder: (context, index) {
+                    final society = _societies[index];
+                    return _buildSocietyCard(society);
+                  },
+                ),
+    );
+  }
+
+  Widget _buildSocietyCard(HonorSociety society) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          // Store selected society in state management
+          // and navigate to main screen
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MainScreen(society: society),
+            ),
+          );
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: society.imageUrl != null
+                  ? Image.network(
+                      society.imageUrl!,
+                      fit: BoxFit.cover,
+                    )
+                  : Container(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      child: Center(
+                        child: Icon(
+                          Icons.school,
+                          size: 48,
+                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    society.name,
+                    style: Theme.of(context).textTheme.titleLarge,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    society.description,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
