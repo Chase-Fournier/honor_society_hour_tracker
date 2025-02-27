@@ -7576,6 +7576,28 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
   String type = 'Service';
   List<String> selectedUserIds = [];
   String searchQuery = '';
+  bool _isLoading = false;
+
+  // Get available requirement types from society
+  List<String> get _availableTypes {
+    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    if (society == null) return ['Service', 'Tutoring', 'Meeting'];
+    
+    final types = ['Meeting']; // Always include Meeting
+    
+    // Add all active requirements
+    for (final req in society.hourRequirements) {
+      if (req.isActive && !types.contains(req.type)) {
+        types.add(req.type);
+      }
+    }
+
+    if (types.length == 1){
+      types.add('Service');
+    }
+    
+    return types;
+  }
 
   List<UserProfile> get filteredUsers {
     return widget.users.where((user) {
@@ -7587,6 +7609,8 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
 
   @override
   Widget build(BuildContext context) {
+    final types = _availableTypes;
+    print(_availableTypes);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Bulk Custom Event'),
@@ -7626,23 +7650,13 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                           value: type,
                           onChanged: (value) {
                             setState(() {
-                              type = value ?? "Service";
+                              type = value ?? "Meeting";
                             });
                           },
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'Service',
-                              child: Text('Service'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Tutoring',
-                              child: Text('Tutoring'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Meeting',
-                              child: Text('Meeting'),
-                            ),
-                          ],
+                          items: types.map((type) => DropdownMenuItem(
+                            value: type,
+                            child: Text(type),
+                          )).toList(),
                           decoration: InputDecoration(
                             labelText: 'Event Type',
                             border: OutlineInputBorder(
@@ -7685,8 +7699,8 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                               borderRadius: BorderRadius.circular(15),
                             ),
                           ),
-                          keyboardType: const TextInputType.numberWithOptions(signed: true,
-                              decimal: true),
+                          keyboardType: const TextInputType.numberWithOptions(
+                              signed: true, decimal: true),
                           onChanged: (value) {
                             setState(() {
                               hours = double.tryParse(value) ?? 0.0;
@@ -7802,95 +7816,102 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
           ),
           const SizedBox(width: 16.0),
           FloatingActionButton(
-            onPressed: () {
-              if (selectedTime != null) {
-                String timeSlot =
-                    '${selectedTime!.hour}:${selectedTime!.minute}';
-                _saveBulkCustomEvent(
-                  selectedUserIds,
-                  eventName,
-                  timeSlot,
-                  hours,
-                  type,
-                );
-              }
-            },
-            child: Icon(
-              Icons.save,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+            onPressed: _isLoading ? null : _saveBulkCustomEvent,
+            child: _isLoading
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Icon(
+                    Icons.save,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
           ),
         ],
       ),
     );
   }
 
-  /// Creates multiple custom events for selected users.
-  ///
-  /// Parameters:
-  /// - userIds: List<String> - Target users
-  /// - eventName: String - Event name
-  /// - timeSlot: String - Time slot
-  /// - hours: double - Hours to credit
-  /// - type: String - Event type
-  ///
-  /// Returns:
-  /// - Future<void>
-  Future<void> _saveBulkCustomEvent(
-    List<String> userIds,
-    String eventName,
-    String timeSlot,
-    double hours,
-    String type,
-  ) async {
+  Future<void> _saveBulkCustomEvent() async {
+    if (eventName.isEmpty || selectedTime == null || hours <= 0 || selectedUserIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields and select at least one user')),
+      );
+      return;
+    }
+    
+    setState(() => _isLoading = true);
+
     try {
-      final List<Map<String, dynamic>> bulkEvents = userIds.map((userId) {
+      // Get society
+      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      if (society == null) {
+        throw Exception('No society selected');
+      }
+      
+      final timeSlot = '${selectedTime!.hour}:${selectedTime!.minute}';
+      
+      final List<Map<String, dynamic>> bulkEvents = selectedUserIds.map((userId) {
         return {
           'user_id': userId,
           'event_name': eventName,
           'timeslot': timeSlot,
           'hours': hours.toDouble(),
           'type': type,
+          'society_id': society.id, // Important: Include society ID
+          'date': DateTime.now().toIso8601String(), // Include date for better tracking
         };
       }).toList();
 
-      await Supabase.instance.client.from('Service hours').insert(bulkEvents);
+      // Insert all records in a single operation
+      await supabase.from('Service hours').insert(bulkEvents);
+      
+      // Log activity for each user
+      for (final userId in selectedUserIds) {
+        await _logActivity(
+          eventName,
+          timeSlot,
+          hours,
+          'manual_addition',
+          userId,
+          societyId: society.id,
+        );
+      }
 
-      // Show a success message using toastification
-      toastification.show(
-        context: context,
-        type: ToastificationType.success,
-        style: ToastificationStyle.simple,
-        title: const Text("Bulk custom event saved successfully"),
-        description: const Text(""),
-        alignment: Alignment.center,
-        autoCloseDuration: const Duration(seconds: 3),
-        borderRadius: BorderRadius.circular(12.0),
-        boxShadow: lowModeShadow,
-        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-        foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
-      );
+      // Show success message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Added ${hours.toStringAsFixed(1)} hours for ${selectedUserIds.length} users',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
 
-      // Return true to indicate successful saving
+      // Return success
       Navigator.of(context).pop(true);
-    } catch (error) {
-      // Show an error message using toastification
-      toastification.show(
-        context: context,
-        type: ToastificationType.error,
-        style: ToastificationStyle.simple,
-        title: const Text("Failed to save bulk custom event"),
-        description: const Text(""),
-        alignment: Alignment.center,
-        autoCloseDuration: const Duration(seconds: 3),
-        borderRadius: BorderRadius.circular(12.0),
-        boxShadow: lowModeShadow,
-        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-        foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
-      );
+    } catch (e) {
+      // Show error message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving bulk events: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 }
+
 
 class BulkEditEventsPage extends StatefulWidget {
   const BulkEditEventsPage({super.key});
@@ -7921,10 +7942,21 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
     setState(() => _isLoading = true);
 
     try {
-      // Fetch all service hours in a single query with user profiles
+      // Get current society
+      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      if (society == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+      
+      // Get all events for this society with related profile info in a single query
       final response = await supabase
           .from('Service hours')
-          .select('*, profiles:user_id(name)')
+          .select('''
+            *,
+            profiles:user_id(name)
+          ''')
+          .eq('society_id', society.id)
           .order('event_name');
 
       // Process and group the events
@@ -7969,8 +8001,6 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
         _eventGroups = eventGroups;
         _isLoading = false;
       });
-
-      print('Fetched ${eventGroups.length} event groups'); // Debug print
     } catch (e) {
       print('Error fetching custom events: $e');
       setState(() => _isLoading = false);
@@ -7987,7 +8017,7 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
     ).toList();
   }
 
-Future<void> _updateSelectedEvents() async {
+  Future<void> _updateSelectedEvents() async {
     if (_selectedEvents.isEmpty) return;
 
     try {
@@ -8002,9 +8032,19 @@ Future<void> _updateSelectedEvents() async {
         },
       );
 
+      // Get the current society
+      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      if (society == null) {
+        Navigator.of(context).pop(); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No society selected')),
+        );
+        return;
+      }
+      
       // Format time for database
       String? formattedTime;
-      if (_newStartTime != null) {
+      if (_newStartTime.isNotEmpty) {
         // Format time as HH:MM:00 for Supabase time column
         formattedTime = '$_newStartTime:00';
       }
@@ -8025,40 +8065,48 @@ Future<void> _updateSelectedEvents() async {
         if (_newHours > 0) {
           updateData['hours'] = _newHours;
         }
+        
         updateData['type'] = _newType;
 
-        // Update all records for this event
+        // Update all records for this event in this society
         await supabase
           .from('Service hours')
           .update(updateData)
-          .match({
-            'event_name': eventName
-          });
+          .eq('event_name', eventName)
+          .eq('society_id', society.id); // Important: Scope to current society
       }
 
       // Hide loading indicator
-      Navigator.pop(context);
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
 
       // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Successfully updated ${_selectedEvents.length} events',
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Successfully updated ${_selectedEvents.length} events',
+            ),
+            backgroundColor: Colors.green,
           ),
-          backgroundColor: Colors.green,
-        ),
-      );
+        );
+      }
 
       // Log the bulk update activity
-      final timeSlotDisplay = _newStartTime != null ? _newStartTime : 'Various Times';
-
-      await _logActivity(
-        _newEventName.isEmpty ? 'Multiple Events' : _newEventName,
-        timeSlotDisplay,
-        _newHours == 0 ? 0 : _newHours,
-        'bulk_update',
-        supabase.auth.currentUser?.id ?? '',
-      );
+      final timeSlotDisplay = _newStartTime.isNotEmpty ? _newStartTime : 'Various Times';
+      final userId = supabase.auth.currentUser?.id;
+      
+      if (userId != null && society != null) {
+        await _logActivity(
+          _newEventName.isEmpty ? 'Multiple Events' : _newEventName,
+          timeSlotDisplay,
+          _newHours == 0 ? 0 : _newHours,
+          'bulk_update',
+          userId,
+          societyId: society.id,
+        );
+      }
 
       // Clear selection and refresh the events list
       setState(() {
@@ -8072,12 +8120,14 @@ Future<void> _updateSelectedEvents() async {
       }
 
       // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error updating events: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating events: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -8085,11 +8135,20 @@ Future<void> _updateSelectedEvents() async {
     if (_selectedEvents.isEmpty) return;
 
     try {
-      // Delete all selected events in a single query
+      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      if (society == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No society selected')),
+        );
+        return;
+      }
+      
+      // Delete all selected events in a single query, scoped to current society
       await supabase
           .from('Service hours')
           .delete()
-          .inFilter('event_name', _selectedEvents.toList());
+          .inFilter('event_name', _selectedEvents.toList())
+          .eq('society_id', society.id);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Events deleted successfully')),
@@ -8103,6 +8162,9 @@ Future<void> _updateSelectedEvents() async {
       );
     }
   }
+
+
+
   void _showUpdateDialog() {
     TimeOfDay? selectedTime;
     String tempEventName = '';
