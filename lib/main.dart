@@ -2160,12 +2160,24 @@ class _HomePageState extends State<HomePage> {
 
 Future<void> exportToExcel(BuildContext context, List<UserProfile> users) async {
   try {
+    // Get current society to properly filter data and get requirements
+    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    if (society == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot export: No society selected')),
+      );
+      return;
+    }
+
+    // Set up Excel document
     var excel = Excel.createExcel();
     Sheet sheetObject = excel['Members'];
-
     int maxEvents = 0;
 
+    // Get all user IDs for batched queries
     final userIds = users.map((u) => u.id).toList();
+
+    // Get email addresses
     final emailsResponse = await Supabase.instance.client
         .from('profiles')
         .select('user_id, email')
@@ -2176,23 +2188,35 @@ Future<void> exportToExcel(BuildContext context, List<UserProfile> users) async 
         item['user_id'] as String: item['email'] as String
     };
 
+    // Get service hours for current society only
     final hoursResponse = await Supabase.instance.client
         .from('Service hours')
         .select('user_id, event_name, hours, type, date, timeslot')
+        .eq('society_id', society.id) // Filter by current society
         .inFilter('user_id', userIds)
         .order('date');
 
-    Map<String, UserServiceData> userServiceData = {};
+    // Build a list of society's hour requirement types
+    List<String> requirementTypes = ['Meeting']; // Always include Meeting
+    for (final req in society.hourRequirements) {
+      if (req.isActive && !requirementTypes.contains(req.type)) {
+        requirementTypes.add(req.type);
+      }
+    }
 
+    // Process hours data for each user
+    Map<String, dynamic> userServiceData = {};
     for (final entry in hoursResponse) {
       try {
         final userId = entry['user_id']?.toString() ?? '';
         if (userId.isEmpty) continue;
 
         final hours = (entry['hours'] as num?)?.toDouble() ?? 0.0;
-        final type = entry['type']?.toString() ?? 'Service';
+        final type = entry['type']?.toString() ?? 'Unknown Type';
+        final normalizedType = _normalizeType(type); // Normalize for consistent comparison
         final eventName = entry['event_name']?.toString() ?? 'Unnamed Event';
 
+        // Parse date safely
         DateTime date;
         try {
           date = entry['date'] != null
@@ -2205,47 +2229,86 @@ Future<void> exportToExcel(BuildContext context, List<UserProfile> users) async 
         final timeSlot = entry['timeslot']?.toString() ?? 'No time specified';
 
         if (userId.isNotEmpty) {
-          userServiceData.putIfAbsent(userId, () => UserServiceData());
-          final userData = userServiceData[userId]!;
-
-          // Update totals based on type
-          if (type == 'Service') {
-            userData.serviceHours += hours;
-          } else if (type == 'Tutoring') {
-            userData.tutoringHours += hours;
-          } else if (type == 'Meeting') {
-            userData.meetingsAttended++;
+          // Initialize user data structure if not already done
+          if (!userServiceData.containsKey(userId)) {
+            userServiceData[userId] = {
+              'eventsList': <String>[],
+              'hoursByType': {
+                for (var type in requirementTypes) _normalizeType(type): 0.0
+              },
+              'meetingsAttended': 0,
+              'totalHours': 0.0,
+            };
           }
+
+          final userData = userServiceData[userId];
+
+          // Update hour totals based on type
+          // Use normalized comparison to match requirement types
+          bool typeMatched = false;
+          for (var reqType in requirementTypes) {
+            if (_normalizeType(reqType) == normalizedType) {
+              if (reqType == 'Meeting') {
+                userData['meetingsAttended'] += 1; // Count meetings
+              } else {
+                userData['hoursByType'][_normalizeType(reqType)] += hours;
+              }
+              typeMatched = true;
+              break;
+            }
+          }
+
+          // If no match found, try to add to a fallback category
+          if (!typeMatched) {
+            if (userData['hoursByType'].containsKey('Service')) {
+              userData['hoursByType']['Service'] += hours;
+            } else if (userData['hoursByType'].isNotEmpty) {
+              // Add to the first available requirement type as fallback
+              final firstType = userData['hoursByType'].keys.first;
+              userData['hoursByType'][firstType] += hours;
+            }
+          }
+
+          // Update total hours
+          userData['totalHours'] = (userData['totalHours'] as double) + hours;
 
           // Format and add event detail to ordered list
           final formattedDate = '${date.month}/${date.day}/${date.year}';
           final eventDetail =
-              '$eventName ($formattedDate - $timeSlot): $hours hours';
-          userData.eventsList.add(eventDetail);
+              '$eventName ($formattedDate - $timeSlot): $hours hours ($type)';
+          userData['eventsList'].add(eventDetail);
 
           // Update max events count
-          maxEvents = userData.eventsList.length > maxEvents
-              ? userData.eventsList.length
+          maxEvents = userData['eventsList'].length > maxEvents
+              ? userData['eventsList'].length
               : maxEvents;
         }
       } catch (e) {
         print('Error processing entry: $e');
         continue;
       }
-   }
+    }
 
+    // Prepare dynamic headers based on society's requirements
     final baseHeaders = [
       'Name',
       'Email',
       'Dues Paid',
+      'Total Hours',
       'Meetings Attended',
-      'Service Hours',
-      'Tutoring Hours'
     ];
-    final eventHeaders = List.generate(maxEvents, (i) => 'Event ${i + 1}');
-    final allHeaders = [...baseHeaders, ...eventHeaders];
 
-    // Write headers
+    // Add headers for each requirement type
+    final requirementHeaders = requirementTypes
+        .where((type) => type != 'Meeting') // Meeting already covered
+        .map((type) => '$type Hours')
+        .toList();
+
+    // Event headers
+    final eventHeaders = List.generate(maxEvents, (i) => 'Event ${i + 1}');
+    final allHeaders = [...baseHeaders, ...requirementHeaders, ...eventHeaders];
+
+    // Write headers to Excel
     for (var i = 0; i < allHeaders.length; i++) {
       sheetObject.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
         ..value = TextCellValue(allHeaders[i])
@@ -2258,39 +2321,45 @@ Future<void> exportToExcel(BuildContext context, List<UserProfile> users) async 
     // Write data for each user
     int rowIndex = 1;
     for (var user in users) {
-      final userData = userServiceData[user.id] ?? UserServiceData();
+      final userData = userServiceData[user.id] ?? {
+        'hoursByType': {for (var type in requirementTypes) _normalizeType(type): 0.0},
+        'meetingsAttended': 0,
+        'totalHours': 0.0,
+        'eventsList': <String>[],
+      };
 
-      // Write base data
-      sheetObject
-          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex))
+      // Column index tracker
+      int colIndex = 0;
+
+      // Base data
+      sheetObject.cell(CellIndex.indexByColumnRow(columnIndex: colIndex++, rowIndex: rowIndex))
           .value = TextCellValue(user.name);
 
-      sheetObject
-          .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex))
+      sheetObject.cell(CellIndex.indexByColumnRow(columnIndex: colIndex++, rowIndex: rowIndex))
           .value = TextCellValue(emailMap[user.id] ?? '');
 
-      sheetObject
-          .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex))
+      sheetObject.cell(CellIndex.indexByColumnRow(columnIndex: colIndex++, rowIndex: rowIndex))
           .value = TextCellValue(user.hasPaidDues ? 'Yes' : 'No');
 
-      sheetObject
-          .cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex))
-          .value = IntCellValue(userData.meetingsAttended);
+      sheetObject.cell(CellIndex.indexByColumnRow(columnIndex: colIndex++, rowIndex: rowIndex))
+          .value = DoubleCellValue(userData['totalHours']);
 
-      sheetObject
-          .cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex))
-          .value = DoubleCellValue(userData.serviceHours);
+      sheetObject.cell(CellIndex.indexByColumnRow(columnIndex: colIndex++, rowIndex: rowIndex))
+          .value = IntCellValue(userData['meetingsAttended']);
 
-      sheetObject
-          .cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex))
-          .value = DoubleCellValue(userData.tutoringHours);
+      // Dynamic requirement type hours
+      for (var type in requirementTypes) {
+        if (type == 'Meeting') continue; // Skip Meeting (already added)
+        
+        final hours = userData['hoursByType'][_normalizeType(type)] ?? 0.0;
+        sheetObject.cell(CellIndex.indexByColumnRow(columnIndex: colIndex++, rowIndex: rowIndex))
+            .value = DoubleCellValue(hours);
+      }
 
-      // Write events in sequential columns
-      for (var i = 0; i < userData.eventsList.length; i++) {
-        sheetObject
-            .cell(CellIndex.indexByColumnRow(
-                columnIndex: i + 6, rowIndex: rowIndex))
-            .value = TextCellValue(userData.eventsList[i]);
+      // Event details in sequential columns
+      for (var i = 0; i < (userData['eventsList'] as List).length; i++) {
+        sheetObject.cell(CellIndex.indexByColumnRow(columnIndex: colIndex + i, rowIndex: rowIndex))
+            .value = TextCellValue(userData['eventsList'][i]);
       }
 
       rowIndex++;
@@ -2307,14 +2376,13 @@ Future<void> exportToExcel(BuildContext context, List<UserProfile> users) async 
       if (kIsWeb) {
         // Web handling is automatic through excel package
       } else {
-        if(Platform.isAndroid){
-        final file = File('storage/emulated/0/Download/NHS_Members_Report.xlsx');
-        await file.writeAsBytes(fileBytes);
-        }
-        else if (Platform.isIOS) {
-        final Directory Dir = await getApplicationDocumentsDirectory();
-        final file = File('${Dir.path}}/NHS_Members_Report.xlsx');
-        await file.writeAsBytes(fileBytes);
+        if (Platform.isAndroid) {
+          final file = File('storage/emulated/0/Download/NHS_Members_Report.xlsx');
+          await file.writeAsBytes(fileBytes);
+        } else if (Platform.isIOS) {
+          final Directory dir = await getApplicationDocumentsDirectory();
+          final file = File('${dir.path}/NHS_Members_Report.xlsx');
+          await file.writeAsBytes(fileBytes);
         }
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Report saved successfully!')),
@@ -2326,6 +2394,15 @@ Future<void> exportToExcel(BuildContext context, List<UserProfile> users) async 
       SnackBar(content: Text('Error generating report: $e')),
     );
   }
+}
+
+// Helper function to normalize type strings for consistent matching
+String _normalizeType(String type) {
+  return type.trim().split(' ').map((word) => 
+    word.isNotEmpty ? 
+      word[0].toUpperCase() + (word.length > 1 ? word.substring(1).toLowerCase() : '') : 
+      ''
+  ).join(' ');
 }
 
 /// Helper class to store processed user data
@@ -6066,10 +6143,21 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
         _isLoading = true;
       });
 
-      // 1. Fetch all events in single query
+      // Get current society
+      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      if (society == null) {
+        setState(() {
+          _events = [];
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // 1. Fetch all events for this society in single query
       final eventResponse = await Supabase.instance.client
           .from('Events')
           .select()
+          .eq('society_id', society.id)
           .order('date');
       
       // Create events map for quick lookups
@@ -6151,14 +6239,27 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
   }
 
   Future<void> _fetchCollections() async {
-    final collectionsResponse =
-        await Supabase.instance.client.from('Collections').select('*');
+    try {
+      // Get current society
+      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      if (society == null) {
+        setState(() => _collections = []);
+        return;
+      }
+      
+      final collectionsResponse = await Supabase.instance.client
+          .from('Collections')
+          .select('*')
+          .eq('society_id', society.id);
 
-    setState(() {
-      _collections = collectionsResponse
-          .map<Collection>((json) => Collection.fromJson(json))
-          .toList();
-    });
+      setState(() {
+        _collections = collectionsResponse
+            .map<Collection>((json) => Collection.fromJson(json))
+            .toList();
+      });
+    } catch (e) {
+      print('Error fetching collections: $e');
+    }
   }
 
   @override
@@ -6183,14 +6284,37 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _fetchData,
-              child: ListView.separated(
-                itemCount: _events.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 8),
-                itemBuilder: (context, index) {
-                  final event = _events[index];
-                  return _buildEventCard(event);
-                },
-              ),
+              child: _events.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.event_busy,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'No events found',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Add events to take attendance',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.separated(
+                  itemCount: _events.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final event = _events[index];
+                    return _buildEventCard(event);
+                  },
+                ),
             ),
     );
   }
@@ -6213,7 +6337,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
       child: CustomExpansionTile(
         title: ListTile(
           title: Text(
-            "${event.name} - ${event.date.month}/${event.date.day}/${event.date.year}",
+            "${event.name} - ${DateFormat('MMM d, y').format(event.date)}",
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 18.0,
@@ -6264,14 +6388,6 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
     );
   }
 
-  /// Creates a card widget displaying event details.
-  /// Includes event information, time slots, and action buttons.
-  ///
-  /// Parameters:
-  /// - event: Event - Event to display
-  ///
-  /// Returns:
-  /// - Widget
   String _formatTimeOfDay(TimeOfDay time) {
     final now = DateTime.now();
     final dateTime =
@@ -6300,11 +6416,14 @@ enum SortOrder {
   descending,
 }
 
+// In main.dart - the AdminListPage class modifications
+
 class _AdminListPageState extends State<AdminListPage> {
   final List<UserProfile> _users = [];
   String _searchQuery = '';
   SortField _sortField = SortField.name;
   SortOrder _sortOrder = SortOrder.ascending;
+  String? _selectedHourType; // Changed from fixed types to a dynamic field
 
   @override
   void initState() {
@@ -6312,82 +6431,502 @@ class _AdminListPageState extends State<AdminListPage> {
     _fetchUsers();
   }
 
-  Future<void> _fetchUsers() async {
-  setState(() {
-    _users.clear();
-  });
-
-  try {
-    // Get current society
-    final societyId = Provider.of<SocietyProvider>(context, listen: false).currentSociety?.id;
-    if (societyId == null) {
-      setState((){});
-      return;
-    }
+  // Helper method to get available requirement types from current society
+  List<String> get _availableHourTypes {
+    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    if (society == null) return ['Service', 'Tutoring', 'Meeting']; // Default fallback
     
-    // Get all the data we need in just two queries run in parallel
-    final results = await Future.wait([
-      // 1. Get members with their profiles and dues status in a single query
-      supabase
-        .from('user_society_memberships')
-        .select('''
-          user_id, 
-          has_paid_dues,
-          profiles:user_id(name, email)
-        ''')
-        .eq('society_id', societyId),
-      
-      // 2. Get all service hours for this society at once
-      supabase
-        .from('Service hours')
-        .select('user_id, event_name, hours, type')
-        .eq('society_id', societyId)
-    ]);
+    // Start with Meeting (special case)
+    final types = ['All', 'Meeting'];
     
-    final memberships = results[0] as List;
-    final hoursData = results[1] as List;
-    
-    // Process hours data into a map for quick lookup
-    Map<String, List<CompletedUserHour>> userHoursMap = {};
-    for (final hourData in hoursData) {
-      final userId = hourData['user_id'] as String;
-      final hour = CompletedUserHour.fromJson(hourData);
-      userHoursMap.putIfAbsent(userId, () => []).add(hour);
-    }
-    
-    // Build the user profiles from the combined data
-    final List<UserProfile> users = [];
-    for (final membership in memberships) {
-      final userId = membership['user_id'] as String;
-      final profileData = membership['profiles'];
-      
-      if (profileData != null) {
-        users.add(UserProfile(
-          name: profileData['name'] as String,
-          id: userId,
-          completedHours: userHoursMap[userId] ?? [],
-          hasPaidDues: membership['has_paid_dues'] as bool? ?? false,
-        ));
+    // Add all active requirements from the society
+    for (final req in society.hourRequirements) {
+      if (req.isActive && !types.contains(req.type)) {
+        types.add(req.type);
       }
     }
     
-    // Sort users by name
-    users.sort((a, b) => a.name.compareTo(b.name));
-    
-    if (mounted) {
-      setState(() {
-        _users.addAll(users);
-      });
-    }
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching users: $e')),
-      );
-      setState((){});
+    return types;
+  }
+
+  Future<void> _fetchUsers() async {
+    setState(() {
+      _users.clear();
+    });
+
+    try {
+      // Get current society
+      final societyId = Provider.of<SocietyProvider>(context, listen: false).currentSociety?.id;
+      if (societyId == null) {
+        setState((){});
+        return;
+      }
+      
+      // Get all the data we need in just two queries run in parallel
+      final results = await Future.wait([
+        // 1. Get members with their profiles and dues status in a single query
+        supabase
+          .from('user_society_memberships')
+          .select('''
+            user_id, 
+            has_paid_dues,
+            profiles:user_id(name, email)
+          ''')
+          .eq('society_id', societyId),
+        
+        // 2. Get all service hours for this society at once
+        supabase
+          .from('Service hours')
+          .select('user_id, event_name, hours, type')
+          .eq('society_id', societyId)
+      ]);
+      
+      final memberships = results[0] as List;
+      final hoursData = results[1] as List;
+      
+      // Process hours data into a map for quick lookup
+      Map<String, List<CompletedUserHour>> userHoursMap = {};
+      for (final hourData in hoursData) {
+        final userId = hourData['user_id'] as String;
+        final hour = CompletedUserHour.fromJson(hourData);
+        userHoursMap.putIfAbsent(userId, () => []).add(hour);
+      }
+      
+      // Build the user profiles from the combined data
+      final List<UserProfile> users = [];
+      for (final membership in memberships) {
+        final userId = membership['user_id'] as String;
+        final profileData = membership['profiles'];
+        
+        if (profileData != null) {
+          users.add(UserProfile(
+            name: profileData['name'] as String,
+            id: userId,
+            completedHours: userHoursMap[userId] ?? [],
+            hasPaidDues: membership['has_paid_dues'] as bool? ?? false,
+          ));
+        }
+      }
+      
+      // Sort users by name
+      users.sort((a, b) => a.name.compareTo(b.name));
+      
+      if (mounted) {
+        setState(() {
+          _users.addAll(users);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching users: $e')),
+        );
+        setState((){});
+      }
     }
   }
-}
+
+  List<UserProfile> _getFilteredAndSortedUsers() {
+    List<UserProfile> filteredUsers = _users;
+
+    if (_searchQuery.isNotEmpty) {
+      final lowercaseQuery = _searchQuery.toLowerCase();
+      filteredUsers = filteredUsers.where((user) {
+        final lowercaseName = user.name.toLowerCase();
+        return lowercaseName.contains(lowercaseQuery);
+      }).toList();
+    }
+
+    filteredUsers.sort((a, b) {
+      int comparison;
+      switch (_sortField) {
+        case SortField.name:
+          comparison = a.name.compareTo(b.name);
+          break;
+        case SortField.totalHours:
+          comparison = _getTotalHours(a).compareTo(_getTotalHours(b));
+          break;
+        case SortField.serviceHours:
+          if (_selectedHourType != null && _selectedHourType != 'All') {
+            // Use dynamic type if specified
+            comparison = _getHoursByType(a, _selectedHourType!)
+                .compareTo(_getHoursByType(b, _selectedHourType!));
+          } else {
+            // Default to all service hours
+            comparison = _getHoursByType(a, 'Service')
+                .compareTo(_getHoursByType(b, 'Service'));
+          }
+          break;
+        case SortField.tutoringHours:
+          comparison = _getHoursByType(a, 'Tutoring')
+              .compareTo(_getHoursByType(b, 'Tutoring'));
+          break;
+        case SortField.meetingHours:
+          comparison = _getHoursByType(a, 'Meeting')
+              .compareTo(_getHoursByType(b, 'Meeting'));
+          break;
+      }
+
+      return _sortOrder == SortOrder.ascending ? comparison : -comparison;
+    });
+
+    return filteredUsers;
+  }
+
+  double _getTotalHours(UserProfile user) {
+    return user.completedHours.fold(0.0, (sum, hour) => sum + hour.hours);
+  }
+
+  double _getHoursByType(UserProfile user, String type) {
+    return user.completedHours
+        .where((hour) => _normalizeType(hour.type) == _normalizeType(type))
+        .fold(0.0, (sum, hour) => sum + hour.hours);
+  }
+
+  // Helper method to normalize type strings for consistent matching
+  String _normalizeType(String type) {
+    // Convert to title case for consistent comparison
+    return type.trim().split(' ').map((word) => 
+      word.isNotEmpty ? 
+        word[0].toUpperCase() + (word.length > 1 ? word.substring(1).toLowerCase() : '') : 
+        ''
+    ).join(' ');
+  }
+
+  void _showFilterOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Container(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Center(
+                    child: Text(
+                      'Filter by Hour Type',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: _availableHourTypes.map((type) {
+                        return FilterChip(
+                          selected: _selectedHourType == type,
+                          label: Text(type),
+                          onSelected: (selected) {
+                            setState(() => _selectedHourType = selected ? type : null);
+                            this.setState(() {}); // Update main screen
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildOrderChip(
+                          SortOrder.ascending, '↑ Ascending', setState),
+                      const SizedBox(width: 8),
+                      _buildOrderChip(
+                          SortOrder.descending, '↓ Descending', setState),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildOrderChip(SortOrder order, String label, StateSetter setState) {
+    return FilterChip(
+      selected: _sortOrder == order,
+      label: Text(label),
+      onSelected: (selected) {
+        if (selected) {
+          setState(() => _sortOrder = order);
+          this.setState(() {});
+        }
+      },
+    );
+  }
+
+  Widget _buildUserCard(UserProfile user) {
+    // Get society requirements from provider
+    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    if (society == null) return const SizedBox();
+    
+    // Generate abbreviations for requirement types
+    Map<String, String> typeAbbreviations = {};
+    Set<String> usedFirstLetters = {};
+    
+    // Add Meeting first (special requirement)
+    typeAbbreviations['Meeting'] = 'M';
+    usedFirstLetters.add('M');
+    
+    // Add other requirements with adaptive abbreviations
+    for (final req in society.hourRequirements) {
+      if (req.isActive) {
+        final type = req.type;
+        final firstLetter = type.isEmpty ? 'X' : type[0].toUpperCase();
+        
+        if (!usedFirstLetters.contains(firstLetter)) {
+          // If first letter isn't used yet, use it
+          typeAbbreviations[type] = firstLetter;
+          usedFirstLetters.add(firstLetter);
+        } else {
+          // If first letter is already used, use first two letters
+          final secondLetter = type.length > 1 ? type[1].toLowerCase() : '';
+          typeAbbreviations[type] = '$firstLetter$secondLetter';
+        }
+      }
+    }
+    
+    // Calculate hours for each requirement type
+    Map<String, double> hoursByType = {};
+    double totalHours = 0;
+    
+    // Initialize with 0 for all requirement types
+    typeAbbreviations.keys.forEach((type) {
+      hoursByType[type] = 0;
+    });
+    
+    // Sum hours by type
+    for (final hour in user.completedHours) {
+      final normalizedType = _normalizeType(hour.type);
+      if (hoursByType.containsKey(normalizedType)) {
+        hoursByType[normalizedType] = (hoursByType[normalizedType] ?? 0) + hour.hours;
+        totalHours += hour.hours;
+      } else if (typeAbbreviations.keys.any((k) => _normalizeType(k) == normalizedType)) {
+        // Try to find a matching type with different capitalization
+        final matchingType = typeAbbreviations.keys.firstWhere(
+          (k) => _normalizeType(k) == normalizedType,
+          orElse: () => normalizedType,
+        );
+        hoursByType[matchingType] = (hoursByType[matchingType] ?? 0) + hour.hours;
+        totalHours += hour.hours;
+      }
+    }
+    
+    // Build the hours display text
+    final StringBuffer hoursText = StringBuffer();
+    hoursText.write('${totalHours.toStringAsFixed(1)} hrs (');
+    
+    final List<String> hourParts = [];
+    typeAbbreviations.forEach((type, abbr) {
+      hourParts.add('$abbr: ${hoursByType[type]?.toStringAsFixed(1)}');
+    });
+    
+    hoursText.write(hourParts.join(', '));
+    hoursText.write(')');
+
+    // Filter hours by selected type if needed
+    final List<CompletedUserHour> filteredHours = _selectedHourType != null && _selectedHourType != 'All'
+        ? user.completedHours.where((hour) => 
+            _normalizeType(hour.type) == _normalizeType(_selectedHourType!)).toList()
+        : user.completedHours;
+
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: CustomExpansionTile(
+        title: ListTile(
+          title: Text(
+            user.name,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18.0,
+            ),
+          ),
+          subtitle: Text(
+            hoursText.toString(),
+            style: TextStyle(fontSize: 14),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onDoubleTap: () => _toggleDuesStatus(user),
+                child: Icon(
+                  user.hasPaidDues ? Icons.check_circle : Icons.cancel,
+                  color: user.hasPaidDues ? Colors.green : Theme.of(context).colorScheme.error,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: () {
+                  _openCustomEventForm(context, user.id);
+                },
+              ),
+            ],
+          ),
+        ),
+        children: filteredHours.map((hour) {
+          return ListTile(
+            title: Text(
+              hour.eventName,
+              style: const TextStyle(
+                fontSize: 16.0,
+              ),
+            ),
+            subtitle: Text(
+              '${hour.hours} hours - ${hour.type}',
+              style: TextStyle(
+                fontSize: 14.0,
+                color: Colors.grey[600],
+              ),
+            ),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete),
+              color: Theme.of(context).colorScheme.onSurface,
+              onPressed: () {
+                _deleteServiceHour(hour, user.id);
+              },
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filteredUsers = _getFilteredAndSortedUsers();
+    return Scaffold(
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Theme.of(context)
+            .bannerTheme
+            .backgroundColor,
+        title: Text(
+          'Members',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 24.0,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: _showFilterOptions,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const BulkEditEventsPage()),
+              );
+            },
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.file_download,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+            onPressed: () {
+              exportToExcel(context, filteredUsers);
+            },
+            tooltip: 'Export to Excel',
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Search',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10.0),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16.0),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    _openBulkCustomEventForm(context);
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Bulk'),
+                ),
+              ],
+            ),
+          ),
+          
+          // Display the current filter type if one is selected
+          if (_selectedHourType != null && _selectedHourType != 'All')
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                children: [
+                  Text(
+                    'Filtered by: ',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  Chip(
+                    label: Text(_selectedHourType!),
+                    deleteIcon: const Icon(Icons.clear, size: 18),
+                    onDeleted: () {
+                      setState(() {
+                        _selectedHourType = null;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+            
+          Expanded(
+            child: ListView.separated(
+              itemCount: filteredUsers.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 0),
+              itemBuilder: (context, index) {
+                final user = filteredUsers[index];
+                return _buildUserCard(user);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _toggleDuesStatus(UserProfile user) async {
     try {
@@ -6484,57 +7023,6 @@ class _AdminListPageState extends State<AdminListPage> {
     _fetchUsers(); // Refresh the user list after saving the custom event
   }
 
-
-  List<UserProfile> _getFilteredAndSortedUsers() {
-    List<UserProfile> filteredUsers = _users;
-
-    if (_searchQuery.isNotEmpty) {
-      final lowercaseQuery = _searchQuery.toLowerCase();
-      filteredUsers = filteredUsers.where((user) {
-        final lowercaseName = user.name.toLowerCase();
-        return lowercaseName.contains(lowercaseQuery);
-      }).toList();
-    }
-
-    filteredUsers.sort((a, b) {
-      int comparison;
-      switch (_sortField) {
-        case SortField.name:
-          comparison = a.name.compareTo(b.name);
-          break;
-        case SortField.totalHours:
-          comparison = _getTotalHours(a).compareTo(_getTotalHours(b));
-          break;
-        case SortField.serviceHours:
-          comparison = _getHoursByType(a, 'Service')
-              .compareTo(_getHoursByType(b, 'Service'));
-          break;
-        case SortField.tutoringHours:
-          comparison = _getHoursByType(a, 'Tutoring')
-              .compareTo(_getHoursByType(b, 'Tutoring'));
-          break;
-        case SortField.meetingHours:
-          comparison = _getHoursByType(a, 'Meeting')
-              .compareTo(_getHoursByType(b, 'Meeting'));
-          break;
-      }
-
-      return _sortOrder == SortOrder.ascending ? comparison : -comparison;
-    });
-
-    return filteredUsers;
-  }
-
-  double _getTotalHours(UserProfile user) {
-    return user.completedHours.fold(0.0, (sum, hour) => sum + hour.hours);
-  }
-
-  double _getHoursByType(UserProfile user, String type) {
-    return user.completedHours
-        .where((hour) => hour.type == type)
-        .fold(0.0, (sum, hour) => sum + hour.hours);
-  }
-
   void _showSortOptions() {
     showModalBottomSheet(
       context: context,
@@ -6604,19 +7092,6 @@ class _AdminListPageState extends State<AdminListPage> {
       onSelected: (selected) {
         if (selected) {
           setState(() => _sortField = field);
-          this.setState(() {});
-        }
-      },
-    );
-  }
-
-  Widget _buildOrderChip(SortOrder order, String label, StateSetter setState) {
-    return FilterChip(
-      selected: _sortOrder == order,
-      label: Text(label),
-      onSelected: (selected) {
-        if (selected) {
-          setState(() => _sortOrder = order);
           this.setState(() {});
         }
       },
@@ -6823,172 +7298,7 @@ class _AdminListPageState extends State<AdminListPage> {
     _fetchUsers();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final filteredUsers = _getFilteredAndSortedUsers();
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Theme.of(context)
-            .bannerTheme
-            .backgroundColor,
-        title: Text(
-          'Members',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 24.0,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: _showSortOptions,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const BulkEditEventsPage()),
-              );
-            },
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.file_download,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-            onPressed: () {
-              exportToExcel(context, filteredUsers);
-            },
-            tooltip: 'Export to Excel',
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
-                    },
-                    decoration: InputDecoration(
-                      labelText: 'Search',
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10.0),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16.0),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    _openBulkCustomEventForm(context);
-                  },
-                  icon: const Icon(Icons.add),
-                  label: const Text('Bulk'),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView.separated(
-              itemCount: filteredUsers.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 0),
-              itemBuilder: (context, index) {
-                final user = filteredUsers[index];
-                return _buildUserCard(user);
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildUserCard(UserProfile user) {
-  final serviceHours = _getHoursByType(user, 'Service');
-  final tutoringHours = _getHoursByType(user, 'Tutoring');
-  final meetingHours = _getHoursByType(user, 'Meeting');
-
-  return Card(
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(20),
-    ),
-    elevation: 2,
-    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-    child: CustomExpansionTile(
-      title: ListTile(
-        title: Text(
-          user.name,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18.0,
-          ),
-        ),
-        subtitle: Text(
-          '${_getTotalHours(user).toStringAsFixed(1)} ' +
-          '(S: ${serviceHours.toStringAsFixed(1)}, ' +
-          'T: ${tutoringHours.toStringAsFixed(1)}, ' +
-          'M: ${meetingHours.toStringAsFixed(1)})',
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            GestureDetector(
-              onDoubleTap: () => _toggleDuesStatus(user),
-              child: Icon(
-                user.hasPaidDues ? Icons.check_circle : Icons.cancel,
-                color: user.hasPaidDues ? Colors.green : Theme.of(context).colorScheme.error,
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () {
-                _openCustomEventForm(context, user.id);
-              },
-            ),
-          ],
-        ),
-      ),
-      children: user.completedHours.map((hour) {
-        return ListTile(
-          title: Text(
-            hour.eventName,
-            style: const TextStyle(
-              fontSize: 16.0,
-            ),
-          ),
-          subtitle: Text(
-            '${hour.hours} hours - ${hour.type}',
-            style: TextStyle(
-              fontSize: 14.0,
-              color: Colors.grey[600],
-            ),
-          ),
-          trailing: IconButton(
-            icon: const Icon(Icons.delete),
-            color: Theme.of(context).colorScheme.onSurface,
-            onPressed: () {
-              _deleteServiceHour(hour, user.id);
-            },
-          ),
-        );
-      }).toList(),
-    ),
-  );
-}
- 
   void _openBulkCustomEventForm(BuildContext context) async {
     final result = await Navigator.push(
       context,
@@ -10243,95 +10553,188 @@ class SocietyJoinRequestPage extends StatefulWidget {
   _SocietyJoinRequestPageState createState() => _SocietyJoinRequestPageState();
 }
 
+// In main.dart - SocietyJoinRequestPage class
+
 class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
   List<HonorSociety> _availableSocieties = [];
+  Map<int, String> _requestStatuses = {}; // Track status: 'pending', 'approved', 'rejected'
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _fetchAvailableSocieties();
+    _fetchAllRequestStatuses();
   }
 
   Future<void> _fetchAvailableSocieties() async {
-  setState(() => _isLoading = true);
+    setState(() => _isLoading = true);
 
-  try {
-    final userId = supabase.auth.currentUser?.id;
-    if (userId == null) return;
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
 
-    // Get societies user is already a member of
-    final memberships = await supabase
-        .from('user_society_memberships')
-        .select('society_id')
-        .eq('user_id', userId);
+      // Get societies user is already a member of
+      final memberships = await supabase
+          .from('user_society_memberships')
+          .select('society_id')
+          .eq('user_id', userId);
 
-    final memberSocietyIds = memberships.map((m) => m['society_id']).toList();
+      final memberSocietyIds = memberships.map((m) => m['society_id']).toList();
 
-    // Fetch societies user is not a member of, including their requirements
-    final societies = await supabase
-        .from('honor_societies')
-        .select('''
-          id,
-          name,
-          description,
-          image_url,
-          meeting_requirement,
-          created_at,
-          hour_requirements(
+      // Fetch all societies (not just ones they're not a member of)
+      // We'll filter the display based on membership and request status
+      final societies = await supabase
+          .from('honor_societies')
+          .select('''
             id,
-            type,
+            name,
             description,
-            hours_needed,
-            is_active
-          )
-        ''')
-        .not('id', 'in', memberSocietyIds.isEmpty ? [''] : memberSocietyIds);
+            image_url,
+            meeting_requirement,
+            created_at,
+            hour_requirements(
+              id,
+              type,
+              description,
+              hours_needed,
+              is_active
+            )
+          ''');
 
-    setState(() {
-      _availableSocieties = societies.map<HonorSociety>((societyData) {
-        final hourRequirements = (societyData['hour_requirements'] as List)
-            .map((req) => HourRequirement.fromJson(req))
-            .toList();
+      setState(() {
+        _availableSocieties = societies.map<HonorSociety>((societyData) {
+          final hourRequirements = (societyData['hour_requirements'] as List)
+              .map((req) => HourRequirement.fromJson(req))
+              .toList();
 
-        return HonorSociety(
-          id: societyData['id'],
-          name: societyData['name'],
-          description: societyData['description'],
-          imageUrl: societyData['image_url'],
-          hourRequirements: hourRequirements,
-          meetingRequirement: societyData['meeting_requirement'],
-          createdAt: DateTime.parse(societyData['created_at']),
+          return HonorSociety(
+            id: societyData['id'],
+            name: societyData['name'],
+            description: societyData['description'],
+            imageUrl: societyData['image_url'],
+            hourRequirements: hourRequirements,
+            meetingRequirement: societyData['meeting_requirement'],
+            createdAt: DateTime.parse(societyData['created_at']),
+          );
+        }).toList();
+
+        // Filter out societies the user is already a member of
+        _availableSocieties = _availableSocieties.where((society) => 
+          !memberSocietyIds.contains(society.id)).toList();
+      });
+    } catch (e) {
+      print('Error loading societies: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading societies: $e')),
         );
-      }).toList();
-    });
-  } catch (e) {
-    print('Error loading societies: $e');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading societies: $e')),
-      );
+      }
+    } finally {
+      setState(() => _isLoading = false);
     }
-  } finally {
-    setState(() => _isLoading = false);
   }
-}
+
+  // Fetch all request statuses (pending, approved, rejected)
+  Future<void> _fetchAllRequestStatuses() async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      // Get all requests for the current user with their status
+      final requestsResponse = await supabase
+          .from('society_join_requests')
+          .select('society_id, status')
+          .eq('user_id', userId);
+
+      // Create a map of society_id -> status for quick lookup
+      final Map<int, String> statusMap = {};
+      for (final req in requestsResponse) {
+        statusMap[req['society_id']] = req['status'];
+      }
+
+      setState(() {
+        _requestStatuses = statusMap;
+      });
+    } catch (e) {
+      print('Error fetching request statuses: $e');
+    }
+  }
 
   Future<void> _requestJoin(HonorSociety society) async {
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
 
+      // First check if a request already exists
+      final existingRequest = await supabase
+          .from('society_join_requests')
+          .select()
+          .eq('user_id', userId)
+          .eq('society_id', society.id)
+          .maybeSingle();
+
+      if (existingRequest != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('You already have a request for this society'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Show loading indicator
+      setState(() {
+        _isLoading = true;
+      });
+
+      // Create the join request
       await supabase.from('society_join_requests').insert({
         'user_id': userId,
         'society_id': society.id,
         'status': 'pending',
+        'requested_at': DateTime.now().toIso8601String(),
+      });
+
+      // Update local state
+      setState(() {
+        _requestStatuses[society.id] = 'pending';
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Join request sent successfully!'),
+        // Show success dialog
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Request Sent'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.check_circle_outline,
+                  color: Colors.green,
+                  size: 64,
+                ),
+                const SizedBox(height: 16),
+                Text('Your request to join ${society.name} has been sent successfully.'),
+                const SizedBox(height: 8),
+                const Text(
+                  'An administrator will review your request soon.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('OK'),
+              ),
+            ],
           ),
         );
       }
@@ -10341,10 +10744,59 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
           SnackBar(content: Text('Error sending request: $e')),
         );
       }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
-  
+  // Allow resubmitting after a rejection
+  Future<void> _resubmitRequest(HonorSociety society) async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      // Show loading indicator
+      setState(() {
+        _isLoading = true;
+      });
+
+      // Update the existing request
+      await supabase
+          .from('society_join_requests')
+          .update({
+            'status': 'pending',
+            'requested_at': DateTime.now().toIso8601String(),
+          })
+          .eq('user_id', userId)
+          .eq('society_id', society.id);
+
+      // Update local state
+      setState(() {
+        _requestStatuses[society.id] = 'pending';
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Request resubmitted for ${society.name}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error resubmitting request: $e')),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -10358,29 +10810,78 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
               ? const Center(
                   child: Text('No available societies to join'),
                 )
-              : ListView.builder(
-                  itemCount: _availableSocieties.length,
-                  itemBuilder: (context, index) {
-                    final society = _availableSocieties[index];
-                    return Card(
-                      margin: const EdgeInsets.all(8),
-                      child: ListTile(
-                        leading: society.imageUrl != null
-                            ? CircleAvatar(
-                                backgroundImage: NetworkImage(society.imageUrl!),
-                              )
-                            : CircleAvatar(
-                                child: Text(society.name[0]),
-                              ),
-                        title: Text(society.name),
-                        subtitle: Text(society.description),
-                        trailing: ElevatedButton(
-                          onPressed: () => _requestJoin(society),
-                          child: const Text('Request Join'),
-                        ),
-                      ),
-                    );
+              : RefreshIndicator(
+                  onRefresh: () async {
+                    await Future.wait([
+                      _fetchAvailableSocieties(),
+                      _fetchAllRequestStatuses(),
+                    ]);
                   },
+                  child: ListView.builder(
+                    itemCount: _availableSocieties.length,
+                    itemBuilder: (context, index) {
+                      final society = _availableSocieties[index];
+                      final status = _requestStatuses[society.id];
+                      final hasPendingRequest = status == 'pending';
+                      final hasRejectedRequest = status == 'rejected';
+                      
+                      return Card(
+                        margin: const EdgeInsets.all(8),
+                        child: ListTile(
+                          leading: society.imageUrl != null
+                              ? CircleAvatar(
+                                  backgroundImage: NetworkImage(society.imageUrl!),
+                                )
+                              : CircleAvatar(
+                                  child: Text(society.name[0]),
+                                ),
+                          title: Text(society.name),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(society.description),
+                              if (hasRejectedRequest)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    'Your previous request was rejected',
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          trailing: hasPendingRequest
+                              ? Chip(
+                                  label: const Text('Request Pending'),
+                                  backgroundColor: Colors.amber[100],
+                                  labelStyle: TextStyle(
+                                    color: Colors.amber[800],
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  avatar: Icon(
+                                    Icons.hourglass_top,
+                                    color: Colors.amber[800],
+                                    size: 18,
+                                  ),
+                                )
+                              : hasRejectedRequest
+                                  ? ElevatedButton(
+                                      onPressed: () => _resubmitRequest(society),
+
+                                      child: const Text('Resubmit Request'),
+                                    )
+                                  : ElevatedButton(
+                                      onPressed: () => _requestJoin(society),
+                                      child: const Text('Request Join'),
+                                    ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
     );
   }
@@ -10390,88 +10891,82 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
 class SocietySelectionPage extends StatelessWidget {
   const SocietySelectionPage({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Select Honor Society'),
-        automaticallyImplyLeading: false,
-      ),
-      body: Consumer<SocietyProvider>(
-        builder: (context, societyProvider, _) {
-          if (societyProvider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          
-          final societies = societyProvider.userSocieties;
-          
-          if (societies.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'You are not a member of any honor societies',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SocietyJoinRequestPage(),
-                        ),
-                      );
-                    },
-                    child: const Text('Request to Join'),
-                  ),
-                  
-                  // For testing/demo purposes - remove in production
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      _showCreateSocietyDialog(context);
-                    },
-                    child: const Text('Create New Society'),
-                  ),
-                ],
-              ),
-            );
-          }
-          
-          return GridView.builder(
-            padding: const EdgeInsets.all(16),
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 300,
-              childAspectRatio: 0.8,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
+ // In SocietySelectionPage class (main.dart)
+
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: const Text('Select Honor Society'),
+      automaticallyImplyLeading: false,
+    ),
+    body: Consumer<SocietyProvider>(
+      builder: (context, societyProvider, _) {
+        if (societyProvider.isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        final societies = societyProvider.userSocieties;
+        
+        if (societies.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'You are not a member of any honor societies',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SocietyJoinRequestPage(),
+                      ),
+                    );
+                  },
+                  child: const Text('Request to Join'),
+                ),
+                // Society creation button removed
+              ],
             ),
-            itemCount: societies.length,
-            itemBuilder: (context, index) {
-              final society = societies[index];
-              return _buildSocietyCard(context, society);
-            },
+          );
+        }
+        
+        return GridView.builder(
+          padding: const EdgeInsets.all(16),
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 300,
+            childAspectRatio: 0.8,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+          ),
+          itemCount: societies.length,
+          itemBuilder: (context, index) {
+            final society = societies[index];
+            return _buildSocietyCard(context, society);
+          },
+        );
+      },
+    ),
+    bottomNavigationBar: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: ElevatedButton(
+        onPressed: () {
+          Navigator.push(
+            context, 
+            MaterialPageRoute(
+              builder: (context) => const SocietyJoinRequestPage(),
+            ),
           );
         },
+        child: const Text('Join Another Society'),
       ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ElevatedButton(
-          onPressed: () {
-            Navigator.push(
-              context, 
-              MaterialPageRoute(
-                builder: (context) => const SocietyJoinRequestPage(),
-              ),
-            );
-          },
-          child: const Text('Join Another Society'),
-        ),
-      ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSocietyCard(BuildContext context, HonorSociety society) {
     return Card(

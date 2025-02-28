@@ -35,102 +35,163 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage> with Sing
   }
 
   Future<void> _fetchJoinRequests() async {
-    setState(() => _isLoading = true);
+  setState(() => _isLoading = true);
+  
+  try {
+    // Get current society from provider
+    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     
-    try {
-      // Get current society from provider
-      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    if (society == null) {
+      setState(() {
+        _pendingRequests = [];
+        _processedRequests = [];
+        _isLoading = false;
+      });
+      return;
+    }
+    
+    // First, fetch the join requests
+    final joinRequestsResponse = await supabase
+        .from('society_join_requests')
+        .select()
+        .eq('society_id', society.id)
+        .order('requested_at', ascending: false);
+    
+    // Then, separately fetch user profiles for each request's user
+    final List<JoinRequest> pendingRequests = [];
+    final List<JoinRequest> processedRequests = [];
+    
+    for (final req in joinRequestsResponse) {
+      // Fetch user profile info separately
+      final userProfileResponse = await supabase
+          .from('profiles')
+          .select('name, email')
+          .eq('user_id', req['user_id'])
+          .single();
       
-      if (society == null) {
-        setState(() => _isLoading = false);
-        return;
+      // Fetch processor profile if processed
+      String? processorName;
+      if (req['processed_by'] != null) {
+        try {
+          final processorResponse = await supabase
+              .from('profiles')
+              .select('name')
+              .eq('user_id', req['processed_by'])
+              .single();
+          
+          processorName = processorResponse['name'];
+        } catch (e) {
+          // If processor profile can't be found, just leave it null
+          print('Could not find processor profile: $e');
+        }
       }
       
-      // Fetch pending requests
-      final pendingResponse = await supabase
-          .from('society_join_requests')
-          .select('''
-            id,
-            status,
-            requested_at,
-            processed_at,
-            processed_by,
-            profiles!society_join_requests_user_id_fkey(user_id, name, email),
-            profiles!society_join_requests_processed_by_fkey(name)
-          ''')
-          .eq('society_id', society.id)
-          .eq('status', 'pending')
-          .order('requested_at', ascending: false);
+      final joinRequest = JoinRequest(
+        id: req['id'],
+        status: req['status'],
+        userId: req['user_id'],
+        userName: userProfileResponse['name'] ?? 'Unknown User',
+        userEmail: userProfileResponse['email'] ?? 'No email',
+      );
       
-      // Fetch processed requests
-      final processedResponse = await supabase
-          .from('society_join_requests')
-          .select('''
-            id,
-            status,
-            requested_at,
-            processed_at,
-            processed_by,
-            profiles!society_join_requests_user_id_fkey(user_id, name, email),
-            profiles!society_join_requests_processed_by_fkey(name)
-          ''')
-          .eq('society_id', society.id)
-          .neq('status', 'pending')
-          .order('processed_at', ascending: false);
-      
-      if (mounted) {
-        setState(() {
-          _pendingRequests = pendingResponse.map<JoinRequest>((req) => JoinRequest.fromJson(req)).toList();
-          _processedRequests = processedResponse.map<JoinRequest>((req) => JoinRequest.fromJson(req)).toList();
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error fetching join requests: $e')),
-        );
-        setState(() => _isLoading = false);
+      if (joinRequest.status == 'pending') {
+        pendingRequests.add(joinRequest);
+      } else {
+        processedRequests.add(joinRequest);
       }
     }
-  }
-
-  Future<void> _processRequest(JoinRequest request, bool approve) async {
-    setState(() => _isLoading = true);
     
-    try {
-      // Call the function to process the join request
-      final response = await supabase
-          .rpc('process_join_request', params: {
-            'request_id_param': request.id,
-            'approve': approve,
-          });
-      
-      if (response == true) {
-        // Refresh the requests
-        await _fetchJoinRequests();
-        
-        // If approved, refresh the society provider to reflect new members
-        if (approve) {
-          await Provider.of<SocietyProvider>(context, listen: false).loadUserSocieties();
-        }
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Request ${approve ? 'approved' : 'rejected'} successfully'),
-            backgroundColor: approve ? Colors.green : Colors.red,
-          ),
-        );
-      } else {
-        throw Exception('Failed to process request');
-      }
-    } catch (e) {
+
+    
+    if (mounted) {
+      setState(() {
+        _pendingRequests = pendingRequests;
+        _processedRequests = processedRequests;
+        _isLoading = false;
+      });
+    }
+  } catch (e) {
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error processing request: $e')),
+        SnackBar(content: Text('Error fetching join requests: $e')),
       );
       setState(() => _isLoading = false);
     }
   }
+}
+
+ Future<void> _processRequest(JoinRequest request, bool approve) async {
+  setState(() => _isLoading = true);
+  
+  try {
+    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    if (society == null) {
+      throw Exception('No society selected');
+    }
+    
+    final currentUserId = supabase.auth.currentUser?.id;
+    if (currentUserId == null) {
+      throw Exception('User not logged in');
+    }
+    
+    final now = DateTime.now().toIso8601String();
+    
+    // Begin a Supabase transaction by updating the request status
+    await supabase
+        .from('society_join_requests')
+        .update({
+          'status': approve ? 'approved' : 'rejected',
+        })
+        .eq('id', request.id);
+    
+    // If approved, add the user to the society members
+    if (approve) {
+      await supabase
+          .from('user_society_memberships')
+          .insert({
+            'user_id': request.userId,
+            'society_id': society.id,
+            'is_admin': false, // New members are not admins by default
+          });
+    }
+    
+    // Update local state
+    setState(() {
+      // Remove the request from pending
+      _pendingRequests.removeWhere((r) => r.id == request.id);
+      
+      // Update the request with processed info
+      final processedRequest = JoinRequest(
+        id: request.id,
+        status: approve ? 'approved' : 'rejected',
+        userId: request.userId,
+        userName: request.userName,
+        userEmail: request.userEmail,
+      );
+      
+      // Add to processed list at the beginning
+      _processedRequests.insert(0, processedRequest);
+    });
+    
+    // If approved, refresh the society provider to reflect new members
+    if (approve) {
+      await Provider.of<SocietyProvider>(context, listen: false).loadUserSocieties();
+    }
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Request ${approve ? 'approved' : 'rejected'} successfully'),
+        backgroundColor: approve ? Colors.green : Colors.red,
+      ),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error processing request: $e')),
+    );
+  } finally {
+    setState(() => _isLoading = false);
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -149,8 +210,12 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage> with Sing
             title: Text('${society.name} - Membership Requests'),
             bottom: TabBar(
               controller: _tabController,
-              tabs: const [
-                Tab(text: 'Pending'),
+              tabs: [
+                Tab(
+                  text: _pendingRequests.isEmpty
+                    ? 'Pending'
+                    : 'Pending (${_pendingRequests.length})',
+                ),
                 Tab(text: 'Processed'),
               ],
             ),
@@ -221,10 +286,7 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage> with Sing
                 children: [
                   Text(request.userEmail),
                   const SizedBox(height: 4),
-                  Text(
-                    'Requested: ${_dateFormat.format(request.requestedAt)}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
+                  
                   if (!isPending) ...[
                     Text(
                       'Status: ${request.status.toUpperCase()}',
@@ -234,15 +296,7 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage> with Sing
                         color: request.status == 'approved' ? Colors.green : Colors.red,
                       ),
                     ),
-                    Text(
-                      'Processed: ${_dateFormat.format(request.processedAt!)}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    if (request.processedByName != null)
-                      Text(
-                        'By: ${request.processedByName}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
+                    
                   ],
                 ],
               ),
@@ -271,48 +325,39 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage> with Sing
       ),
     );
   }
+
+  // In JoinRequestsAdmin.dart - replace the _processRequest method
+
+
 }
 
 /// Model class for join requests
 class JoinRequest {
   final int id;
   final String status;
-  final DateTime requestedAt;
-  final DateTime? processedAt;
-  final String? processedBy;
   final String userId;
   final String userName;
   final String userEmail;
-  final String? processedByName;
+
 
   JoinRequest({
     required this.id,
     required this.status,
-    required this.requestedAt,
-    this.processedAt,
-    this.processedBy,
     required this.userId,
     required this.userName,
     required this.userEmail,
-    this.processedByName,
   });
 
   factory JoinRequest.fromJson(Map<String, dynamic> json) {
-    final userProfile = json['profiles!society_join_requests_user_id_fkey'];
-    final processorProfile = json['profiles!society_join_requests_processed_by_fkey'];
-    
-    return JoinRequest(
-      id: json['id'],
-      status: json['status'],
-      requestedAt: DateTime.parse(json['requested_at']),
-      processedAt: json['processed_at'] != null 
-          ? DateTime.parse(json['processed_at']) 
-          : null,
-      processedBy: json['processed_by'],
-      userId: userProfile['user_id'],
-      userName: userProfile['name'],
-      userEmail: userProfile['email'],
-      processedByName: processorProfile?['name'],
-    );
-  }
+  return JoinRequest(
+    id: json['id'],
+    status: json['status'],
+    userId: json['user_id'],
+    userName: json['userName'] ?? 'Unknown User',
+    userEmail: json['userEmail'] ?? 'No email',
+  );
 }
+
+
+}
+

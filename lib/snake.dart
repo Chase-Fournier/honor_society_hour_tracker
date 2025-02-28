@@ -855,7 +855,7 @@ class SnakeGameState extends State<SnakeGame> with SingleTickerProviderStateMixi
     
     // Add some internal walls
     for (int i = 5; i < 15; i++) {
-      obstacles.add(Position(i, gridSize ~/ 2));
+      obstacles.add(Position(i, gridSize ~/ 3));
     }
   }
   
