@@ -73,27 +73,29 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
     }
   }
 
-  Future<SocietyStats> _fetchSocietyStats(int societyId) async {
+Future<SocietyStats> _fetchSocietyStats(int societyId) async {
   try {
-    // Run queries in parallel with fewer, optimized queries
+    // Run queries in parallel with separate, simpler queries
     final results = await Future.wait([
-      // 1. Members & service hours in a single query
+      // 1. Get members
       supabase
           .from('user_society_memberships')
-          .select('''
-            user_id,
-            profiles(name),
-            service_hours:Service\\\ hours(hours, type)
-          ''')
+          .select('user_id, profiles(name)')
           .eq('society_id', societyId),
       
-      // 2. All events in a single query
+      // 2. Get service hours separately
+      supabase
+          .from('Service hours')
+          .select('user_id, hours, type')
+          .eq('society_id', societyId),
+      
+      // 3. All events in a single query
       supabase
           .from('Events')
           .select()
           .eq('society_id', societyId),
       
-      // 3. Join requests in a single query
+      // 4. Join requests in a single query
       supabase
           .from('society_join_requests')
           .select()
@@ -102,8 +104,9 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
     
     // Process results
     final memberships = results[0];
-    final events = results[1];
-    final joinRequests = results[2];
+    final serviceHours = results[1];
+    final events = results[2];
+    final joinRequests = results[3];
     
     // 1. Process members data
     final totalMembers = memberships.length;
@@ -113,24 +116,23 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
     int qualifyingMembers = 0;
     Map<String, Map<String, double>> userHours = {};
     
-    // Organize hours by user and type
-    for (final membership in memberships) {
-      final userId = membership['user_id'];
-      final serviceHours = membership['service_hours'] as List? ?? [];
+    // Create a map of user_id -> hours by type
+    for (final member in memberships) {
+      final userId = member['user_id'];
+      userHours[userId] = {
+        'Service': 0.0,
+        'Tutoring': 0.0,
+        'Meeting': 0.0
+      };
+    }
+    
+    // Process service hour records into the map
+    for (final hourRecord in serviceHours) {
+      final userId = hourRecord['user_id'];
+      final type = hourRecord['type'] as String? ?? 'Service';
+      final hours = (hourRecord['hours'] as num?)?.toDouble() ?? 0.0;
       
-      if (!userHours.containsKey(userId)) {
-        userHours[userId] = {
-          'Service': 0.0,
-          'Tutoring': 0.0,
-          'Meeting': 0.0
-        };
-      }
-      
-      // Sum hours by type
-      for (final record in serviceHours) {
-        final type = record['type'] as String? ?? 'Service';
-        final hours = (record['hours'] as num?)?.toDouble() ?? 0.0;
-        
+      if (userHours.containsKey(userId)) {
         if (userHours[userId]!.containsKey(type)) {
           userHours[userId]![type] = (userHours[userId]![type] ?? 0.0) + hours;
         } else {
@@ -159,7 +161,7 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
       meetingRequirement = society.meetingRequirement;
     }
     
-    // Determine qualifying members based on actual requirements
+    // Determine qualifying members based on requirements
     for (final userId in userHours.keys) {
       final userRecord = userHours[userId]!;
       bool isQualifying = true;
@@ -175,7 +177,7 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
         }
       }
       
-      // Check meeting requirement separately since it's special
+      // Check meeting requirement separately
       if (isQualifying && (userRecord['Meeting'] ?? 0.0) < meetingRequirement) {
         isQualifying = false;
       }
@@ -188,7 +190,7 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
     // 2. Process events data
     final totalEvents = events.length;
     
-    // Filter upcoming events locally
+    // Filter upcoming events
     final now = DateTime.now();
     final upcomingEvents = events.where((event) {
       try {
@@ -640,10 +642,10 @@ Widget _buildClickableStatCard(
 }
 
 void _navigateToTotalHours() {
-  Navigator.push(
-    context,
-    MaterialPageRoute(builder: (context) => const AdminTotalHoursPage()),
-  );
+  /// Navigator.push(
+  ///  context,
+  ///  MaterialPageRoute(builder: (context) => const AdminTotalHoursPage()),
+  ///); 
 }
 
 void _navigateToActivityLog() {

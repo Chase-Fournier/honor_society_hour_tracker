@@ -468,12 +468,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int currentPageIndex = 0;
-  double _serviceHoursCompleted = 0;
-  double _tutoringHoursCompleted = 0;
-  double _meetingHoursCompleted = 0;
-  double _servicePotentialHours = 0;
-  double _tutoringPotentialHours = 0;
-  double _meetingPotentialHours = 0;
   List<Collection> _collections = [];
   List<Event> _events = [];
   String _selectedEventType = 'All';
@@ -1045,17 +1039,40 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             children: event.timeSlots.map((timeSlot) {
-              // Get timeslot-specific status
-              final isSignedUpForTimeSlot = timeSlot.attendees
-                  .any((attendee) => attendee.userId == currentUserId);
-              final hasCompletedRequirements = event.type == 'Service' ? 
-                _serviceHoursCompleted >= 14 :
-                event.type == 'Tutoring' ? 
-                _tutoringHoursCompleted >= 6 :
-                _meetingHoursCompleted >= 5;
-              // Check if signup is delayed
-              final canSignUp = !hasCompletedRequirements || !event.hasDelay || event.canSignUpForTimeSlot(timeSlot);
+  // Get timeslot-specific status
+        final isSignedUpForTimeSlot = timeSlot.attendees
+            .any((attendee) => attendee.userId == currentUserId);
         
+        // Get requirements from current society
+        final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+        bool hasCompletedRequirements = false;
+        
+        if (society != null) {
+          // For Meeting type, use the society's meeting requirement
+          if (event.type == 'Meeting') {
+            final meetingsCompleted = _completedHoursMap['Meeting'] ?? 0.0;
+            hasCompletedRequirements = meetingsCompleted >= society.meetingRequirement;
+          } else {
+            // For other types, find the matching requirement in the society
+            final matchingRequirement = society.hourRequirements.firstWhere(
+              (req) => _normalizeType(req.type) == _normalizeType(event.type),
+              orElse: () => HourRequirement(
+                id: -1,
+                type: event.type,
+                hoursNeeded: 0,
+                description: '',
+                isActive: false,
+              ),
+            );
+            
+            // Check if user has completed the required hours for this type
+            final completedHours = _completedHoursMap[_normalizeType(event.type)] ?? 0.0;
+            hasCompletedRequirements = completedHours >= matchingRequirement.hoursNeeded;
+          }
+        }
+        
+        // Check if signup is delayed
+        final canSignUp = !hasCompletedRequirements || !event.hasDelay || event.canSignUpForTimeSlot(timeSlot);
                   
               // Check if we can show the cancel button
               final isTimeSlotInFuture = DateTime(
@@ -1806,13 +1823,38 @@ class _HomePageState extends State<HomePage> {
 
     if (userId != null) {
       // Check if the user has completed requirements using existing state
-    final hasCompletedRequirements = event.type == 'Service' ? 
-      _serviceHoursCompleted >= 14 :
-      event.type == 'Tutoring' ? 
-      _tutoringHoursCompleted >= 6 :
-      _meetingHoursCompleted >= 5;
-    final canSignUp = !hasCompletedRequirements || !event.hasDelay || event.canSignUpForTimeSlot(timeSlot);
+   // Replace the hardcoded requirement check with this dynamic version:
 
+        // Get society's requirements
+        final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+        bool hasCompletedRequirements = false;
+
+        if (society != null) {
+          // For Meeting type, use the society's meeting requirement
+          if (event.type == 'Meeting') {
+            final meetingsCompleted = _completedHoursMap['Meeting'] ?? 0.0;
+            hasCompletedRequirements = meetingsCompleted >= society.meetingRequirement;
+          } else {
+            // For other types, find the matching requirement in the society
+            final matchingRequirement = society.hourRequirements.firstWhere(
+              (req) => _normalizeType(req.type) == _normalizeType(event.type),
+              orElse: () => HourRequirement(
+                id: -1,
+                type: event.type,
+                hoursNeeded: 0,
+                description: '',
+                isActive: false,
+              ),
+            );
+            
+            // Check if user has completed the required hours for this type
+            final completedHours = _completedHoursMap[_normalizeType(event.type)] ?? 0.0;
+            hasCompletedRequirements = completedHours >= matchingRequirement.hoursNeeded;
+          }
+        }
+
+// Check if signup is delayed
+final canSignUp = !hasCompletedRequirements || !event.hasDelay || event.canSignUpForTimeSlot(timeSlot);
     if (!canSignUp) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -4189,132 +4231,121 @@ Future<List<HourRequirement>> _fetchSocietyHourRequirements(int societyId) async
   }
 }
 
-// Update the _addEvent method to include societyId
-Future<void> _addEvent(
-  String name,
-  String description,
-  DateTime date,
-  String type,
-  bool isMandatory,
-  int? collectionId,
-  List<TimeSlot> timeSlots,
-  bool requiresForms,
-  String formLink,
-  Duration swapRequestDeadline,
-  bool hasDelay,
-  int delayHours,
-  int societyId, // Add new parameter
-) async {
-  try {
-    // Insert the event
-    final eventResponse = await Supabase.instance.client
-        .from('Events')
-        .insert({
-          'name': name,
-          'description': description,
-          'date': date.toIso8601String(),
-          'type': type,
-          'isMandatory': isMandatory,
-          'collection_id': collectionId,
-          'created_at': DateTime.now().toIso8601String(),
-          'requires_forms': requiresForms,
-          'form_link': requiresForms ? formLink : null,
-          'swap_request_deadline_hours': swapRequestDeadline.inHours,
-          'has_delay': hasDelay,
-          'delay_hours': delayHours,
-          'society_id': societyId, // Add society_id
-        })
-        .select()
-        .single();
-
-    final newEventId = eventResponse['id'];
-
-    // Insert time slots
-    for (var timeSlot in timeSlots) {
-      final timeSlotResponse = await Supabase.instance.client
-          .from('Time slots')
-          .insert({
-            'event_id': newEventId,
-            'start_time': DateTime(DateTime.now().year, date.month, date.day,
-                    timeSlot.time.hour, timeSlot.time.minute)
-                .toIso8601String(),
-            'end_time': DateTime(DateTime.now().year, date.month, date.day,
-                    timeSlot.endTime.hour, timeSlot.endTime.minute)
-                .toIso8601String(),
-            'number_of_people': timeSlot.numberOfPeople,
-            'notes': timeSlot.notes,
-            'created_at': DateTime.now().toIso8601String(),
-          })
-          .select()
-          .single();
-
-      final newTimeSlotId = timeSlotResponse['id'];
-
-      // If the event is mandatory, add all users of the society as attendees
-      if (isMandatory || type == "Meeting") {
-        final usersResponse = await Supabase.instance.client
-            .from('user_society_memberships')
-            .select('user_id')
-            .eq('society_id', societyId);
-
-        for (var user in usersResponse) {
-          await Supabase.instance.client.from('Attendees').insert({
-            'timeslot_id': newTimeSlotId,
-            'user_id': user['user_id'],
-            'is_present': false,
-          });
-        }
-      }
-    }
-
-    // Refresh the events list
-    await _fetchEvents();
-
-    // Show a success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Event added successfully')),
-    );
-  } catch (e) {
-    // Show an error message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error adding event: $e')),
-    );
-  }
-}
 
 // Update _fetchEvents to filter by society if specified
+// In AdminEventsPage class - replace the current _fetchEvents method
+
 Future<void> _fetchEvents() async {
   setState(() {
     _isLoading = true;
   });
 
   try {
-    // Add society filtering if we have a society context
-    var query = Supabase.instance.client
-        .from('Events')
-        .select();
-        
-    // If we have a society specified, filter by it
-    if (widget.society != null) {
-      query = query.eq('society_id', widget.society!.id);
+    // Get current society
+    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    if (society == null) {
+      setState(() {
+        _events = [];
+        _isLoading = false;
+      });
+      return;
     }
     
-    // Order by date
-    final eventResponse = await query.order('date');
-
-    // Rest of the method continues as before...
-    // ...
+    // 1. Fetch events for this society
+    final eventsResponse = await supabase
+        .from('Events')
+        .select()
+        .eq('society_id', society.id)
+        .order('date');
+    
+    // Create events with empty time slots first
+    List<Event> events = eventsResponse.map<Event>((json) => Event.fromJson(json)).toList();
+    
+    // 2. Fetch time slots for all events in a single query
+    final eventIds = events.map((e) => e.id).toList();
+    if (eventIds.isEmpty) {
+      setState(() {
+        _events = [];
+        _isLoading = false;
+      });
+      return;
+    }
+    
+    final timeSlotsResponse = await supabase
+        .from('Time slots')
+        .select()
+        .inFilter('event_id', eventIds);
+    
+    // Create a map of event_id -> List<TimeSlot>
+    Map<int, List<TimeSlot>> timeSlotsByEvent = {};
+    for (var json in timeSlotsResponse) {
+      final timeSlot = TimeSlot.fromJson(json);
+      final eventId = timeSlot.eventId;
+      
+      if (!timeSlotsByEvent.containsKey(eventId)) {
+        timeSlotsByEvent[eventId] = [];
+      }
+      timeSlotsByEvent[eventId]!.add(timeSlot);
+    }
+    
+    // 3. Fetch attendees for all time slots
+    final timeSlotIds = timeSlotsResponse.map<int>((json) => json['id']).toList();
+    
+    if (timeSlotIds.isNotEmpty) {
+      final attendeesResponse = await supabase
+          .from('Attendees')
+          .select('*, profiles:user_id(name)')
+          .inFilter('timeslot_id', timeSlotIds);
+      
+      // Create a map of timeslot_id -> List<Attendee>
+      Map<int, List<Attendee>> attendeesByTimeSlot = {};
+      for (var json in attendeesResponse) {
+        final attendee = Attendee(
+          id: json['id'],
+          timeSlotId: json['timeslot_id'],
+          userId: json['user_id'],
+          name: json['profiles']['name'],
+          isPresent: json['is_present'] ?? false,
+          formsCompleted: json['forms_completed'] ?? false,
+        );
+        
+        final timeSlotId = attendee.timeSlotId;
+        if (!attendeesByTimeSlot.containsKey(timeSlotId)) {
+          attendeesByTimeSlot[timeSlotId] = [];
+        }
+        attendeesByTimeSlot[timeSlotId]!.add(attendee);
+      }
+      
+      // Now assign attendees to time slots
+      for (var timeSlotList in timeSlotsByEvent.values) {
+        for (var timeSlot in timeSlotList) {
+          if (attendeesByTimeSlot.containsKey(timeSlot.id)) {
+            timeSlot.attendees = attendeesByTimeSlot[timeSlot.id]!;
+          }
+        }
+      }
+    }
+    
+    // Finally, assign time slots to events
+    for (var event in events) {
+      if (timeSlotsByEvent.containsKey(event.id)) {
+        event.timeSlots = timeSlotsByEvent[event.id]!;
+      }
+    }
+    
+    // Update state with the fully assembled events
+    setState(() {
+      _events = events;
+      _isLoading = false;
+    });
   } catch (e) {
     print('Error fetching events: $e');
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error loading events: $e')),
       );
+      setState(() => _isLoading = false);
     }
-  } finally {
-    setState(() {
-      _isLoading = false;
-    });
   }
 }
 
@@ -4431,7 +4462,6 @@ Future<void> _fetchCollections() async {
               IconButton(
                 icon: const Icon(Icons.delete),
                 onPressed: () => _showDeleteCollectionDialog(collection),
-                color: Theme.of(context).colorScheme.error,
               ),
             ],
           ),
@@ -5078,153 +5108,159 @@ Future<void> _deleteCollection(Collection collection) async {
     );
   }
 
-  void _showEditEventDialog(Event event) {
-    final _formKey = GlobalKey<FormState>();
-    String _eventName = event.name;
-    String _eventDescription = event.description;
-    DateTime _eventDate = event.date;
-    List<TimeSlot> _timeSlots = List.from(event.timeSlots);
-    bool _isMandatory = event.isMandatory;
-    String? _selectedEventType = event.type;
-    int? _selectedCollectionId = event.collectionId;
-    bool _requiresForms = event.requiresForms;
-    String _formLink = event.formLink ?? '';
-    int swapRequestDeadline = event.swapRequestDeadline.inHours;
-    bool _hasDelay = event.hasDelay;
-    int _delayHours = event.delayHours;
+  // In AdminEventsPage class - replace the _showEditEventDialog method
 
+void _showEditEventDialog(Event event) {
+  final _formKey = GlobalKey<FormState>();
+  String _eventName = event.name;
+  String _eventDescription = event.description;
+  DateTime _eventDate = event.date;
+  List<TimeSlot> _timeSlots = List.from(event.timeSlots);
+  bool _isMandatory = event.isMandatory;
+  String? _selectedEventType = event.type;
+  int? _selectedCollectionId = event.collectionId;
+  bool _requiresForms = event.requiresForms;
+  String _formLink = event.formLink ?? '';
+  int swapRequestDeadline = event.swapRequestDeadline.inHours;
+  bool _hasDelay = event.hasDelay;
+  int _delayHours = event.delayHours;
 
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
-            return AlertDialog(
-              title: const Text('Edit Event'),
-              content: SingleChildScrollView(
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
+  // Get available event types from society
+  List<String> availableTypes = _getAvailableEventTypes();
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (BuildContext context, StateSetter setState) {
+          return AlertDialog(
+            title: const Text('Edit Event'),
+            content: SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      initialValue: _eventName,
+                      decoration:
+                          const InputDecoration(labelText: 'Event Name'),
+                      validator: (value) => value!.isEmpty
+                          ? 'Please enter an event name'
+                          : null,
+                      onSaved: (value) => _eventName = value!,
+                    ),
+                    TextFormField(
+                      initialValue: _eventDescription,
+                      decoration: const InputDecoration(
+                          labelText: 'Event Description'),
+                      validator: (value) => value!.isEmpty
+                          ? 'Please enter a description'
+                          : null,
+                      onSaved: (value) => _eventDescription = value!,
+                    ),
+                    SizedBox(
+                      height: 10,
+                    ),
+                    ElevatedButton(
+                      child: Text(
+                          'Date: ${_eventDate.toString().substring(0, 10)}'),
+                      onPressed: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: _eventDate,
+                          firstDate: DateTime.now(),
+                          lastDate:
+                              DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (picked != null) {
+                          setState(() => _eventDate = picked);
+                        }
+                      },
+                    ),
+                    DropdownButtonFormField<String>(
+                      value: availableTypes.contains(_selectedEventType) 
+                          ? _selectedEventType 
+                          : availableTypes.first,
+                      items: availableTypes
+                          .map((type) => DropdownMenuItem(
+                              value: type, child: Text(type)))
+                          .toList(),
+                      onChanged: (value) =>
+                          setState(() => _selectedEventType = value),
+                      decoration:
+                          const InputDecoration(labelText: 'Event Type'),
+                      validator: (value) => value == null
+                          ? 'Please select an event type'
+                          : null,
+                    ),
+                    TextFormField(
+                      initialValue: swapRequestDeadline.toString(),
+                      decoration: const InputDecoration(
+                        labelText: 'Cancel Deadline (hours before Event)',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter the deadline';
+                        }
+                        final hours = int.tryParse(value);
+                        if (hours == null || hours < 0) {
+                          return 'Please enter a valid number of hours';
+                        }
+                        return null;
+                      },
+                      onSaved: (value) {
+                        swapRequestDeadline = int.parse(value!);
+                      },
+                    ),
+                    DropdownButtonFormField<int>(
+                      value: _selectedCollectionId,
+                      items: [
+                        const DropdownMenuItem(
+                            value: null, child: Text('No Collection')),
+                        ..._collections.map((collection) => DropdownMenuItem(
+                              value: collection.id,
+                              child: Text(collection.name),
+                            )),
+                      ],
+                      onChanged: (value) =>
+                          setState(() => _selectedCollectionId = value),
+                      decoration:
+                          const InputDecoration(labelText: 'Collection'),
+                    ),
+                    CheckboxListTile(
+                      title: const Text('Mandatory'),
+                      value: _isMandatory,
+                      onChanged: (bool? value) {
+                        setState(() => _isMandatory = value!);
+                      },
+                    ),
+                    CheckboxListTile(
+                      title: const Text('Requires Forms'),
+                      value: _requiresForms,
+                      onChanged: (bool? value) {
+                        setState(() => _requiresForms = value!);
+                      },
+                    ),
+                    if (_requiresForms)
                       TextFormField(
-                        initialValue: _eventName,
+                        initialValue: _formLink,
                         decoration:
-                            const InputDecoration(labelText: 'Event Name'),
+                            const InputDecoration(labelText: 'Form Link'),
                         validator: (value) => value!.isEmpty
-                            ? 'Please enter an event name'
+                            ? 'Please enter a form link'
                             : null,
-                        onSaved: (value) => _eventName = value!,
+                        onSaved: (value) => _formLink = value!,
                       ),
-                      TextFormField(
-                        initialValue: _eventDescription,
-                        decoration: const InputDecoration(
-                            labelText: 'Event Description'),
-                        validator: (value) => value!.isEmpty
-                            ? 'Please enter a description'
-                            : null,
-                        onSaved: (value) => _eventDescription = value!,
-                      ),
-                      SizedBox(
-                        height: 10,
-                      ),
-                      ElevatedButton(
-                        child: Text(
-                            'Date: ${_eventDate.toString().substring(0, 10)}'),
-                        onPressed: () async {
-                          final DateTime? picked = await showDatePicker(
-                            context: context,
-                            initialDate: _eventDate,
-                            firstDate: DateTime.now(),
-                            lastDate:
-                                DateTime.now().add(const Duration(days: 365)),
-                          );
-                          if (picked != null) {
-                            setState(() => _eventDate = picked);
-                          }
-                        },
-                      ),
-                      DropdownButtonFormField<String>(
-                        value: _selectedEventType,
-                        items: ['Service', 'Tutoring', 'Meeting']
-                            .map((type) => DropdownMenuItem(
-                                value: type, child: Text(type)))
-                            .toList(),
-                        onChanged: (value) =>
-                            setState(() => _selectedEventType = value),
-                        decoration:
-                            const InputDecoration(labelText: 'Event Type'),
-                        validator: (value) => value == null
-                            ? 'Please select an event type'
-                            : null,
-                      ),
-                      TextFormField(
-                        initialValue: swapRequestDeadline.toString(),
-                        decoration: const InputDecoration(
-                          labelText: 'Cancel Deadline (hours before Event)',
-                        ),
-                        keyboardType: const TextInputType.numberWithOptions(),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter the deadline';
-                          }
-                          final hours = int.tryParse(value);
-                          if (hours == null || hours < 0) {
-                            return 'Please enter a valid number of hours';
-                          }
-                          return null;
-                        },
-                        onSaved: (value) {
-                          swapRequestDeadline = int.parse(value!);
-                        },
-                      ),
-                      DropdownButtonFormField<int>(
-                        value: _selectedCollectionId,
-                        items: [
-                          const DropdownMenuItem(
-                              value: null, child: Text('No Collection')),
-                          ..._collections.map((collection) => DropdownMenuItem(
-                                value: collection.id,
-                                child: Text(collection.name),
-                              )),
-                        ],
-                        onChanged: (value) =>
-                            setState(() => _selectedCollectionId = value),
-                        decoration:
-                            const InputDecoration(labelText: 'Collection'),
-                      ),
-                      CheckboxListTile(
-                        title: const Text('Mandatory'),
-                        value: _isMandatory,
-                        onChanged: (bool? value) {
-                          setState(() => _isMandatory = value!);
-                        },
-                      ),
-                      CheckboxListTile(
-                        title: const Text('Requires Forms'),
-                        value: _requiresForms,
-                        onChanged: (bool? value) {
-                          setState(() => _requiresForms = value!);
-                        },
-                      ),
-                      if (_requiresForms)
-                        TextFormField(
-                          initialValue: _formLink,
-                          decoration:
-                              const InputDecoration(labelText: 'Form Link'),
-                          validator: (value) => value!.isEmpty
-                              ? 'Please enter a form link'
-                              : null,
-                          onSaved: (value) => _formLink = value!,
-                        ),
-                        CheckboxListTile(
+                    CheckboxListTile(
                       title: const Text('Signup Delay'),
                       value: _hasDelay,
                       onChanged: (bool? value) {
                         setState(() => _hasDelay = value!);
                       },
                     ),
-                      if (_hasDelay)
+                    if (_hasDelay)
                       TextFormField(
                         decoration: const InputDecoration(
                           labelText: 'Delay Hours Before Event',
@@ -5246,62 +5282,185 @@ Future<void> _deleteCollection(Collection collection) async {
                           _delayHours = int.parse(value!);
                         },
                       ),
-                      ElevatedButton(
-                        child: const Text('Add Time Slot'),
-                        onPressed: () =>
-                            _showAddTimeSlotDialog(setState, _timeSlots),
-                      ),
-                      ..._timeSlots.map((timeSlot) => ListTile(
-                            title: Text(
-                                '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}'),
-                            subtitle:
-                                Text('Capacity: ${timeSlot.numberOfPeople}'),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete),
-                              onPressed: () =>
-                                  setState(() => _timeSlots.remove(timeSlot)),
-                            ),
-                          )),
-                    ],
-                  ),
+                    ElevatedButton(
+                      child: const Text('Add Time Slot'),
+                      onPressed: () =>
+                          _showAddTimeSlotDialog(setState, _timeSlots),
+                    ),
+                    ..._timeSlots.map((timeSlot) => ListTile(
+                          title: Text(
+                              '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}'),
+                          subtitle:
+                              Text('Capacity: ${timeSlot.numberOfPeople}'),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete),
+                            onPressed: () =>
+                                setState(() => _timeSlots.remove(timeSlot)),
+                          ),
+                        )),
+                  ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  child: const Text('Cancel'),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-                ElevatedButton(
-                  child: const Text('Update'),
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      _formKey.currentState!.save();
-                      _updateEvent(
-                          event.id,
-                          _eventName,
-                          _eventDescription,
-                          _eventDate,
-                          _selectedEventType!,
-                          _isMandatory,
-                          _selectedCollectionId,
-                          _timeSlots,
-                          _requiresForms,
-                          _formLink,
-                          Duration(hours: swapRequestDeadline),
-                          _hasDelay,
-                          _delayHours);
-                      Navigator.of(context).pop();
-                    }
-                  },
-                ),
-              ],
-            );
-          },
-        );
-      },
+            ),
+            actions: [
+              TextButton(
+                child: const Text('Cancel'),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              ElevatedButton(
+                child: const Text('Update'),
+                onPressed: () {
+                  if (_formKey.currentState!.validate()) {
+                    _formKey.currentState!.save();
+                    _updateEvent(
+                        event.id,
+                        _eventName,
+                        _eventDescription,
+                        _eventDate,
+                        _selectedEventType!,
+                        _isMandatory,
+                        _selectedCollectionId,
+                        _timeSlots,
+                        _requiresForms,
+                        _formLink,
+                        Duration(hours: swapRequestDeadline),
+                        _hasDelay,
+                        _delayHours);
+                    Navigator.of(context).pop();
+                  }
+                },
+              ),
+            ],
+          );
+        },
+      );
+    }
     );
   }
 
+// In AdminEventsPage class - add this helper method for getting available event types
+List<String> _getAvailableEventTypes() {
+  // Get the current society
+  final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+  if (society == null) {
+    // Default fallback types if no society is available
+    return ['Service', 'Tutoring', 'Meeting'];
+  }
+  
+  // Always include Meeting as a type
+  final types = ['Meeting'];
+  
+  // Add all active requirement types
+  for (final req in society.hourRequirements) {
+    if (req.isActive && !types.contains(req.type)) {
+      types.add(req.type);
+    }
+  }
+  
+  // If somehow we still don't have any types, add default ones
+  if (types.isEmpty) {
+    types.addAll(['Service', 'Tutoring', 'Meeting']);
+  }
+  
+  return types;
+}
+
+
+
+// In AdminEventsPage class - update the _showAddEventDialog method
+
+// Update the _addEvent method to include societyId
+Future<void> _addEvent(
+  String name,
+  String description,
+  DateTime date,
+  String type,
+  bool isMandatory,
+  int? collectionId,
+  List<TimeSlot> timeSlots,
+  bool requiresForms,
+  String formLink,
+  Duration swapRequestDeadline,
+  bool hasDelay,
+  int delayHours,
+  int societyId, // Add new parameter
+) async {
+  try {
+    // Insert the event
+    final eventResponse = await Supabase.instance.client
+        .from('Events')
+        .insert({
+          'name': name,
+          'description': description,
+          'date': date.toIso8601String(),
+          'type': type,
+          'isMandatory': isMandatory,
+          'collection_id': collectionId,
+          'created_at': DateTime.now().toIso8601String(),
+          'requires_forms': requiresForms,
+          'form_link': requiresForms ? formLink : null,
+          'swap_request_deadline_hours': swapRequestDeadline.inHours,
+          'has_delay': hasDelay,
+          'delay_hours': delayHours,
+          'society_id': societyId, // Add society_id
+        })
+        .select()
+        .single();
+
+    final newEventId = eventResponse['id'];
+
+    // Insert time slots
+    for (var timeSlot in timeSlots) {
+      final timeSlotResponse = await Supabase.instance.client
+          .from('Time slots')
+          .insert({
+            'event_id': newEventId,
+            'start_time': DateTime(DateTime.now().year, date.month, date.day,
+                    timeSlot.time.hour, timeSlot.time.minute)
+                .toIso8601String(),
+            'end_time': DateTime(DateTime.now().year, date.month, date.day,
+                    timeSlot.endTime.hour, timeSlot.endTime.minute)
+                .toIso8601String(),
+            'number_of_people': timeSlot.numberOfPeople,
+            'notes': timeSlot.notes,
+            'created_at': DateTime.now().toIso8601String(),
+          })
+          .select()
+          .single();
+
+      final newTimeSlotId = timeSlotResponse['id'];
+
+      // If the event is mandatory, add all users of the society as attendees
+      if (isMandatory || type == "Meeting") {
+        final usersResponse = await Supabase.instance.client
+            .from('user_society_memberships')
+            .select('user_id')
+            .eq('society_id', societyId);
+
+        for (var user in usersResponse) {
+          await Supabase.instance.client.from('Attendees').insert({
+            'timeslot_id': newTimeSlotId,
+            'user_id': user['user_id'],
+            'is_present': false,
+          });
+        }
+      }
+    }
+
+    // Refresh the events list
+    await _fetchEvents();
+
+    // Show a success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Event added successfully')),
+    );
+  } catch (e) {
+    // Show an error message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error adding event: $e')),
+    );
+  }
+}
   void _showAddCollectionDialog() async {
     String collectionName = '';
 
@@ -5342,6 +5501,7 @@ Future<void> _deleteCollection(Collection collection) async {
                 if (collectionName.isNotEmpty) {
                   _addCollection(collectionName);
                   Navigator.of(context).pop();
+                 
                 }
               },
             ),
@@ -7099,116 +7259,136 @@ class _AdminListPageState extends State<AdminListPage> {
   }
 
   void _openCustomEventForm(BuildContext context, String userId,
-      {String eventName = '',
-      TimeOfDay? selectedTime,
-      double hours = 0,
-      String type = 'Service'}) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Add Custom Event'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                initialValue: eventName,
-                decoration: const InputDecoration(labelText: 'Event Name'),
-                onChanged: (value) {
-                  eventName = value;
-                },
-              ),
-              Padding(
-                  padding: const EdgeInsets.only(top: 20.0),
-                  child: ElevatedButton(
-                    child: Center(
-                      child: Text(selectedTime != null
-                          ? selectedTime.format(context)
-                          : 'Select Time'),
-                    ),
-                    onPressed: () async {
-                      final TimeOfDay? pickedTime = await showTimePicker(
-                        context: context,
-                        initialTime: selectedTime ?? TimeOfDay.now(),
-                      );
-                      if (pickedTime != null) {
-                        // Rebuild the dialog with the selected time and preserved form data
-                        Navigator.of(context).pop();
-                        _openCustomEventForm(context, userId,
-                            eventName: eventName,
-                            selectedTime: pickedTime,
-                            hours: hours,
-                            type: type);
-                      }
-                    },
-                  )),
-              TextFormField(
-                initialValue: hours.toString(),
-                decoration: const InputDecoration(labelText: 'Hours'),
-                keyboardType:
-                    const TextInputType.numberWithOptions(signed: true, decimal: true),
-                onChanged: (value) {
-                  hours = double.tryParse(value) ?? 0.0;
-                },
-              ),
-              DropdownButtonFormField<String>(
-                value: type,
-                onChanged: (value) {
-                  type = value ?? "Service";
-                },
-                borderRadius: BorderRadius.circular(30),
-                dropdownColor: Theme.of(context).colorScheme.primaryContainer,
-                items: const [
-                  DropdownMenuItem(
-                    value: 'Service',
-                    child: Text('Service'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'Tutoring',
-                    child: Text('Tutoring'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'Meeting',
-                    child: Text('Meeting'),
-                  ),
-                ],
-                decoration: const InputDecoration(
-                  labelText: 'Event Type',
+    {String eventName = '',
+    TimeOfDay? selectedTime,
+    double hours = 0,
+    String? type}) {
+      
+  // Get available event types from society
+  final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+  List<String> availableTypes = ['Service', 'Tutoring', 'Meeting']; // Default fallback
+  
+  if (society != null) {
+    availableTypes = ['Meeting']; // Always include Meeting
+    
+    // Add all active requirement types
+    for (final req in society.hourRequirements) {
+      if (req.isActive && !availableTypes.contains(req.type)) {
+        availableTypes.add(req.type);
+      }
+    }
+  }
+  
+  // If type is not provided or not in available types, set default
+  type ??= availableTypes.isNotEmpty ? availableTypes.first : 'Service';
+  if (!availableTypes.contains(type)) {
+    type = availableTypes.isNotEmpty ? availableTypes.first : 'Service';
+  }
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Add Custom Event'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  initialValue: eventName,
+                  decoration: const InputDecoration(labelText: 'Event Name'),
+                  onChanged: (value) {
+                    eventName = value;
+                  },
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please select an event type';
+                Padding(
+                    padding: const EdgeInsets.only(top: 20.0),
+                    child: ElevatedButton(
+                      child: Center(
+                        child: Text(selectedTime != null
+                            ? selectedTime.format(context)
+                            : 'Select Time'),
+                      ),
+                      onPressed: () async {
+                        final TimeOfDay? pickedTime = await showTimePicker(
+                          context: context,
+                          initialTime: selectedTime ?? TimeOfDay.now(),
+                        );
+                        if (pickedTime != null) {
+                          // Rebuild the dialog with the selected time and preserved form data
+                          Navigator.of(context).pop();
+                          _openCustomEventForm(context, userId,
+                              eventName: eventName,
+                              selectedTime: pickedTime,
+                              hours: hours,
+                              type: type);
+                        }
+                      },
+                    )),
+                TextFormField(
+                  initialValue: hours.toString(),
+                  decoration: const InputDecoration(labelText: 'Hours'),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(signed: true, decimal: true),
+                  onChanged: (value) {
+                    hours = double.tryParse(value) ?? 0.0;
+                  },
+                ),
+                DropdownButtonFormField<String>(
+                  value: type,
+                  onChanged: (value) {
+                    setState(() {
+                      type = value;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(30),
+                  dropdownColor: Theme.of(context).colorScheme.primaryContainer,
+                  items: availableTypes.map((type) => 
+                    DropdownMenuItem(
+                      value: type,
+                      child: Text(type),
+                    )
+                  ).toList(),
+                  decoration: const InputDecoration(
+                    labelText: 'Event Type',
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please select an event type';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                child: const Text('Cancel'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+              ElevatedButton(
+                child: const Text('Save'),
+                onPressed: () {
+                  if (selectedTime != null && type != null) {
+                    String timeSlot =
+                        '${selectedTime.hour}:${selectedTime.minute}';
+                    _saveCustomEvent(userId, eventName, timeSlot,
+                        hours.toDouble(), type ?? "Meeting"); // Use selected type
+                    Navigator.of(context).pop();
                   }
-                  return null;
                 },
               ),
             ],
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            ElevatedButton(
-              child: const Text('Save'),
-              onPressed: () {
-                if (selectedTime != null) {
-                  String timeSlot =
-                      '${selectedTime.hour}:${selectedTime.minute}';
-                  _saveCustomEvent(userId, eventName, timeSlot,
-                      hours.toDouble(), type); // Pass userId directly
-                  Navigator.of(context).pop();
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
+          );
+        }
+      );
+    },
+  );
+}
+  
   /// Manually adds service hours for a specific user.
   /// Used by administrators to credit hours for external events.
   /// Used by administrators to add Penelty Hours.
@@ -7222,64 +7402,64 @@ class _AdminListPageState extends State<AdminListPage> {
   ///
   /// Returns:
   /// - Future<void>
-  /// Future<void> _saveCustomEvent(
-  ///  String userId,
-  ///  String eventName,
-  ///  String timeSlot,
-  ///  double hours,
-  ///  String type,
-  /// ) async {
-  ///  try {
-  ///    await Supabase.instance.client.from('Service hours').insert({
-  ///      'user_id': userId,
-  ///      'event_name': eventName,
-  ///      'timeslot': timeSlot,
-  ///      'hours': hours.toDouble(),
-  ///      'type': type,
-  ///    });
-  ///
-  ///    await _logActivity(
-  ///      eventName,
-  ///      timeSlot,
-  ///      hours,
-  ///      'manual_addition',
-  ///      userId,
-  ///    );
-  ///
-  ///    // Update local state
-  ///    setState(() {
-  ///      final userIndex = _users.indexWhere((u) => u.id == userId);
-  ///      if (userIndex != -1) {
-  ///        final newHour = CompletedUserHour(
-  ///          eventName: eventName,
-  ///          hours: hours,
-  ///          type: type,
-  ///        );
-  ///
-  ///        final updatedHours =
-  ///           List<CompletedUserHour>.from(_users[userIndex].completedHours)
-  ///              ..add(newHour);
-  ///
-  ///        _users[userIndex] = UserProfile(
-  ///          name: _users[userIndex].name,
-  ///          id: userId,
-  ///          completedHours: updatedHours,
-   ///       );
-  ///      }
-  ///    });
-///
-  ///    ScaffoldMessenger.of(context).showSnackBar(
-  ///      const SnackBar(content: Text('Service hours added successfully')),
-  ///    );
-  ///  } catch (e) {
-  ///    ScaffoldMessenger.of(context).showSnackBar(
-  ///      SnackBar(content: Text('Error adding service hours: $e')),
-  ///    );
-  ///  }
-///
-  ///  _fetchUsers(); // Refresh the user list after saving the custom event
-  ///}
+  /*  Future<void> _saveCustomEvent(
+   String userId,
+   String eventName,
+  String timeSlot,
+    double hours,
+   String type,
+  ) async {
+   try {
+     await Supabase.instance.client.from('Service hours').insert({
+       'user_id': userId,
+        'event_name': eventName,
+     'timeslot': timeSlot,
+      'hours': hours.toDouble(),
+      'type': type,
+    });
 
+    await _logActivity(
+      eventName,
+     timeSlot,
+      hours,
+      'manual_addition',
+      userId,
+    );
+
+    // Update local state
+   setState(() {
+      final userIndex = _users.indexWhere((u) => u.id == userId);
+      if (userIndex != -1) {
+        final newHour = CompletedUserHour(
+          eventName: eventName,
+          hours: hours,
+          type: type,
+        );
+
+        final updatedHours =
+          List<CompletedUserHour>.from(_users[userIndex].completedHours)
+             ..add(newHour);
+
+        _users[userIndex] = UserProfile(
+           name: _users[userIndex].name,
+         id: userId,
+         completedHours: updatedHours,
+       );
+      }
+    });
+
+   ScaffoldMessenger.of(context).showSnackBar(
+     const SnackBar(content: Text('Service hours added successfully')),
+   );
+  } catch (e) {
+   ScaffoldMessenger.of(context).showSnackBar(
+     SnackBar(content: Text('Error adding service hours: $e')),
+   );
+ }
+
+  _fetchUsers(); // Refresh the user list after saving the custom event
+}
+ */
   Future<void> _deleteServiceHour(CompletedUserHour hour, String userId) async {
     await _logActivity(
       hour.eventName,
