@@ -24,8 +24,6 @@ import 'societyadminpage.dart';
 import 'societyprovider.dart';
 import 'societyadmindashboard.dart';
 
-// Update your main() function to include the SocietyProvider
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -51,7 +49,6 @@ void main() async {
   );
 }
 
-// Update MyApp to handle auth state changes and initialize society provider
 class MyApp extends StatefulWidget {
   final ThemeNotifier themeNotifier;
 
@@ -106,17 +103,7 @@ class _MyAppState extends State<MyApp> {
                   return MaterialApp(
                     title: 'NHS Hour Tracking',
                     debugShowCheckedModeBanner: false,
-                    theme: themeProvider.isDarkMode
-                        ? ThemeData.dark().copyWith(
-                            colorScheme: ColorScheme.fromSeed(
-                              seedColor: widget.themeNotifier.themeColor,
-                              brightness: Brightness.dark,
-                            ),
-                          )
-                        : ThemeData(
-                            colorSchemeSeed: widget.themeNotifier.themeColor,
-                            useMaterial3: true,
-                          ),
+                    theme: themeProvider.getThemeData(widget.themeNotifier.themeColor),
                     initialRoute: '/',
                     routes: {
                       '/': (context) => const LoginPage(),
@@ -758,36 +745,6 @@ class _HomePageState extends State<HomePage> {
           ),
     );
   }
-  
-  // Build progress bars for each requirement type
-  List<Widget> _buildProgressBars() {
-    List<Widget> progressBars = [];
-    
-    // First add all the hour requirements
-    _requirementMap.forEach((type, hoursNeeded) {
-      final completedHours = _completedHoursMap[type] ?? 0.0;
-      final potentialHours = _potentialHoursMap[type] ?? 0.0;
-      
-      progressBars.add(
-        _buildDoubleProgressBar(
-          context, 
-          '$type Hours', 
-          completedHours, 
-          potentialHours, 
-          hoursNeeded.floor()
-        )
-      );
-    });
-    
-    // Then add the special meeting requirement
-    final meetingHours = _completedHoursMap['Meeting'] ?? 0.0;
-    progressBars.add(
-      _buildMeetingProgressBar(context, meetingHours, _meetingRequirement)
-    );
-    
-    return progressBars;
-  }
-
 
   /// Retrieves all collections from the database.
   /// Updates the state with fetched collections.
@@ -816,105 +773,345 @@ class _HomePageState extends State<HomePage> {
     return duration;
   }
 
-  /// Creates a double progress bar showing completed and potential hours.
-  ///
-  /// Parameters:
-  /// - context: BuildContext - Current build context
-  /// - title: String - Progress bar title
-  /// - completedHours: double - Actual completed hours
-  /// - potentialHours: double - Possible hours including pending events
-  /// - hoursNeeded: int - Required hours target
-  ///
-  /// Returns:
-  /// - Widget
-  Widget _buildDoubleProgressBar(BuildContext context, String title,
-      double completedHours, double potentialHours, int hoursNeeded) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+ // Updated method to create better looking progress bars with Material You styling
+List<Widget> _buildProgressBars() {
+  List<Widget> progressBars = [];
+  
+  // First add all the hour requirements in more compact cards
+  _requirementMap.forEach((type, hoursNeeded) {
+    final completedHours = _completedHoursMap[type] ?? 0.0;
+    final potentialHours = _potentialHoursMap[type] ?? 0.0;
+    
+    progressBars.add(
+      _buildDoubleProgressBar(
+        context, 
+        type, 
+        completedHours, 
+        potentialHours, 
+        hoursNeeded.floor()
+      )
+    );
+  });
+  
+  // Then add the special meeting requirement
+  final meetingHours = _completedHoursMap['Meeting'] ?? 0.0;
+  progressBars.add(
+    _buildMeetingProgressBar(context, meetingHours, _meetingRequirement)
+  );
+  
+  return progressBars;
+}
+/// Creates a double progress bar showing completed and potential hours.
+Widget _buildDoubleProgressBar(BuildContext context, String title,
+    double completedHours, double potentialHours, int hoursNeeded) {
+  // Calculate percentage for display
+  final percentage = ((completedHours / hoursNeeded) * 100).clamp(0, 100).toInt();
+  final isComplete = completedHours >= hoursNeeded;
+  
+  return Card(
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+    child: Padding(
+      padding: const EdgeInsets.all(12.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Completed: ${completedHours.toStringAsFixed(2)} hours',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          Stack(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              LinearProgressIndicator(
-                value: potentialHours / hoursNeeded,
-                backgroundColor: Colors.grey[300],
-                valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context)
-                    .colorScheme
-                    .onPrimaryContainer
-                    .withOpacity(0.5)),
-                minHeight: 10,
-                borderRadius: const BorderRadius.all(Radius.circular(33)),
+              // Title with icon
+              Row(
+                children: [
+                  Icon(
+                    _getIconForType(title),
+                    size: 18,
+                    color: isComplete 
+                        ? Theme.of(context).colorScheme.primary 
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '$title',
+                    style: TextStyle(
+                      fontSize: 15, 
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
-              LinearProgressIndicator(
-                value: completedHours / hoursNeeded,
-                backgroundColor: Colors.transparent,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                    Theme.of(context).colorScheme.primary),
-                minHeight: 10,
-                borderRadius: const BorderRadius.all(Radius.circular(33)),
+              
+              // Hours text more compact
+              Text(
+                '${completedHours.toStringAsFixed(1)} / $hoursNeeded',
+                style: TextStyle(
+                  fontSize: 14, 
+                  fontWeight: FontWeight.w500,
+                  color: isComplete
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 5),
-          Text(
-            'Potential $title: ${potentialHours.toStringAsFixed(2)} hours',
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          
+          const SizedBox(height: 8),
+          
+          // Progress bars with animation
+          Stack(
+            children: [
+              // Background track
+              Container(
+                height: 10,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(5),
+                ),
+              ),
+              
+              // Potential hours progress
+              TweenAnimationBuilder<double>(
+                duration: const Duration(milliseconds: 750),
+                curve: Curves.easeInOut,
+                tween: Tween<double>(
+                  begin: 0,
+                  end: (potentialHours / hoursNeeded).clamp(0.0, 1.0),
+                ),
+                builder: (context, potentialValue, _) {
+                  return FractionallySizedBox(
+                    widthFactor: potentialValue,
+                    child: Container(
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              
+              // Completed hours progress
+              TweenAnimationBuilder<double>(
+                duration: const Duration(milliseconds: 1000),
+                curve: Curves.easeOutQuart,
+                tween: Tween<double>(
+                  begin: 0,
+                  end: (completedHours / hoursNeeded).clamp(0.0, 1.0),
+                ),
+                builder: (context, completedValue, _) {
+                  return FractionallySizedBox(
+                    widthFactor: completedValue,
+                    child: Container(
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: isComplete
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
+          
+          // Only show this info if there's additional potential hours
+          if (potentialHours > completedHours)
+            Padding(
+              padding: const EdgeInsets.only(top: 6.0),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.upcoming,
+                    size: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    'Potential: ${potentialHours.toStringAsFixed(1)}',
+                    style: TextStyle(
+                      fontSize: 12, 
+                      color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                    ),
+                  ),
+                  if (isComplete)
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Icon(
+                            Icons.check_circle_outline,
+                            size: 12,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Complete',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
+/// Creates a progress bar specifically for meeting attendance with Material You styling
+Widget _buildMeetingProgressBar(
+    BuildContext context, double completedHours, int hoursNeeded) {
+  final meetingsAttended = completedHours.floor();
+  final meetingsLeft = _events.where((event) => event.type == 'Meeting').length;
+  final isComplete = meetingsAttended >= hoursNeeded;
 
-  /// Creates a progress bar specifically for meeting attendance.
-  /// Shows meetings attended and remaining meetings.
-  ///
-  /// Parameters:
-  /// - context: BuildContext - Current build context
-  /// - completedHours: double - Number of meetings attended
-  /// - hoursNeeded: int - Required number of meetings
-  ///
-  /// Returns:
-  /// - Widget
-  Widget _buildMeetingProgressBar(
-      BuildContext context, double completedHours, int hoursNeeded) {
-    final meetingsAttended = completedHours.floor();
-    final meetingsLeft =
-        _events.where((event) => event.type == 'Meeting').length;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+  return Card(
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+    child: Padding(
+      padding: const EdgeInsets.all(12.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Meetings Attended: $meetingsAttended',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Title with icon
+              Row(
+                children: [
+                  Icon(
+                    Icons.groups_rounded,
+                    size: 18,
+                    color: isComplete 
+                        ? Theme.of(context).colorScheme.tertiary
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Meetings',
+                    style: TextStyle(
+                      fontSize: 15, 
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+              
+              // Meetings text
+              Text(
+                '$meetingsAttended / $hoursNeeded',
+                style: TextStyle(
+                  fontSize: 14, 
+                  fontWeight: FontWeight.w500,
+                  color: isComplete
+                      ? Theme.of(context).colorScheme.tertiary
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
-          LinearProgressIndicator(
-            value: completedHours / hoursNeeded,
-            backgroundColor: Colors.grey[300],
-            valueColor: AlwaysStoppedAnimation<Color>(
-                Theme.of(context).colorScheme.primary),
-            minHeight: 10,
-            borderRadius: const BorderRadius.all(Radius.circular(33)),
+          
+          const SizedBox(height: 8),
+          
+          // Progress bar with animation
+          TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 1000),
+            curve: Curves.easeOutQuart,
+            tween: Tween<double>(
+              begin: 0,
+              end: (meetingsAttended / hoursNeeded).clamp(0.0, 1.0),
+            ),
+            builder: (context, value, _) {
+              return Stack(
+                children: [
+                  // Background track
+                  Container(
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
+                  
+                  // Progress
+                  FractionallySizedBox(
+                    widthFactor: value,
+                    child: Container(
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: isComplete
+                            ? Theme.of(context).colorScheme.tertiary
+                            : Theme.of(context).colorScheme.tertiary.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
-          const SizedBox(height: 5),
-          Text(
-            'Meetings Left: $meetingsLeft',
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-          ),
+          
+          if (meetingsLeft > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 6.0),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.event_available,
+                    size: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    'Upcoming: $meetingsLeft',
+                    style: TextStyle(
+                      fontSize: 12, 
+                      color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                    ),
+                  ),
+                  if (isComplete)
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Icon(
+                            Icons.check_circle_outline,
+                            size: 12,
+                            color: Theme.of(context).colorScheme.tertiary,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Complete',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).colorScheme.tertiary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
         ],
       ),
-    );
-  }
-
+    ),
+  );
+}
   /// Returns unique collections from a list of events.
   ///
   /// Parameters:
@@ -946,257 +1143,495 @@ class _HomePageState extends State<HomePage> {
         .reduce((a, b) => a.isBefore(b) ? a : b);
   }
 
-  Widget _buildEventCard(Event event) {
-    final bool isNew = event.createdAt
-        .isAfter(DateTime.now().subtract(const Duration(days: 3)));
-    final bool isMandatory = event.isMandatory;
-    final currentUserId = supabase.auth.currentUser?.id;
+Widget _buildEventCard(Event event) {
+  final bool isNew = event.createdAt
+      .isAfter(DateTime.now().subtract(const Duration(days: 3)));
+  final bool isMandatory = event.isMandatory;
+  final currentUserId = supabase.auth.currentUser?.id;
 
-    // Check forms completion at event level
-    final bool formsCompleted = event.timeSlots.any((timeSlot) =>
-        timeSlot.attendees.any((attendee) =>
-            attendee.userId == currentUserId && attendee.formsCompleted));
+  // Check if forms are required and completed
+  final bool formsCompleted = event.timeSlots.any((timeSlot) =>
+      timeSlot.attendees.any((attendee) =>
+          attendee.userId == currentUserId && attendee.formsCompleted));
 
-    final bool showRequiredFormsStickerprogram =
-        event.requiresForms && !formsCompleted && event.timeSlots.any((timeSlot) =>
-            timeSlot.attendees.any((attendee) => attendee.userId == currentUserId));
+  final bool showRequiredForms = event.requiresForms && !formsCompleted && 
+      event.timeSlots.any((timeSlot) =>
+          timeSlot.attendees.any((attendee) => attendee.userId == currentUserId));
 
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
-      elevation: 2,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Stack(
-        children: [
-          if (showRequiredFormsStickerprogram)
-            Positioned(
-              right: 8,
-              top: 8,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.orange,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'Required Forms',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-              ),
-            )
-          else if (isMandatory)
-            Positioned(
-              right: 8,
-              top: 8,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.amber,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'Mandatory',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-              ),
-            )
-          else if (isNew)
-            Positioned(
-              right: 8,
-              top: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.errorContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'New',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          CustomExpansionTile(
-            title: ListTile(
-              title: Text(
-                "${event.name} - ${event.date.month}/${event.date.day}/${event.date.year}",
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16.0,
-                ),
-              ),
-              subtitle: Text(
-                event.description,
-                style: TextStyle(
-                  fontSize: 14.0,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ),
-            children: event.timeSlots.map((timeSlot) {
-  // Get timeslot-specific status
-        final isSignedUpForTimeSlot = timeSlot.attendees
-            .any((attendee) => attendee.userId == currentUserId);
+  return Card(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    ),
+    elevation: 1,
+    margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+    clipBehavior: Clip.antiAlias,
+    child: Stack(
+      children: [
+        // Event type indicator line
+        Positioned(
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 4, 
+          child: Container(
+            color: _getColorForEventType(event.type, context),
+          ),
+        ),
         
-        // Get requirements from current society
-        final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
-        bool hasCompletedRequirements = false;
-        
-        if (society != null) {
-          // For Meeting type, use the society's meeting requirement
-          if (event.type == 'Meeting') {
-            final meetingsCompleted = _completedHoursMap['Meeting'] ?? 0.0;
-            hasCompletedRequirements = meetingsCompleted >= society.meetingRequirement;
-          } else {
-            // For other types, find the matching requirement in the society
-            final matchingRequirement = society.hourRequirements.firstWhere(
-              (req) => _normalizeType(req.type) == _normalizeType(event.type),
-              orElse: () => HourRequirement(
-                id: -1,
-                type: event.type,
-                hoursNeeded: 0,
-                description: '',
-                isActive: false,
-              ),
-            );
-            
-            // Check if user has completed the required hours for this type
-            final completedHours = _completedHoursMap[_normalizeType(event.type)] ?? 0.0;
-            hasCompletedRequirements = completedHours >= matchingRequirement.hoursNeeded;
-          }
-        }
-        
-        // Check if signup is delayed
-        final canSignUp = !hasCompletedRequirements || !event.hasDelay || event.canSignUpForTimeSlot(timeSlot);
-                  
-              // Check if we can show the cancel button
-              final isTimeSlotInFuture = DateTime(
-                event.date.year,
-                event.date.month,
-                event.date.day,
-                timeSlot.time.hour,
-                timeSlot.time.minute,
-              ).isAfter(DateTime.now());
-
-              // Check if we can show the swap button
-              final canRequestSwap = isSignedUpForTimeSlot &&
-                  DateTime.now().isAfter(event.date.subtract(event.swapRequestDeadline)) &&
-                  DateTime.now().isBefore(DateTime(
-                    event.date.year,
-                    event.date.month,
-                    event.date.day,
-                    timeSlot.time.hour,
-                    timeSlot.time.minute,
-                  ));
-
-              // Get forms status for this timeslot
-              final timeSlotFormsCompleted = isSignedUpForTimeSlot
-                  ? timeSlot.attendees
-                      .firstWhere((attendee) => attendee.userId == currentUserId)
-                      .formsCompleted
-                  : false;
-
-              return ListTile(
-                title: Text(
-                  event.type == 'Meeting'
-                      ? 'Time: ${timeSlot.time.format(context)}'
-                      : 'Time: ${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
-                  style: const TextStyle(
-                    fontSize: 14.0,
-                  ),
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (!(event.type == 'Meeting'))
-                    Text(
-                      'Number of People: ${timeSlot.numberOfPeople}',
-                      style: TextStyle(
-                        fontSize: 12.0,
-                        color: Colors.grey[600],
-                      ),
+        // Main content with padding to account for the type indicator
+        Padding(
+          padding: const EdgeInsets.only(left: 4),
+          child: CustomExpansionTile(
+            title: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 12, 8, 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Event icon
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: _getColorForEventType(event.type, context).withOpacity(0.15),
+                    child: Icon(
+                      _getIconForType(event.type),
+                      color: _getColorForEventType(event.type, context),
+                      size: 16,
                     ),
-                    if (timeSlot.notes.isNotEmpty)
-                      Text(
-                        'Notes: ${timeSlot.notes}',
-                        style: TextStyle(
-                          fontSize: 12.0,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                  ],
-                ),
-                trailing: isSignedUpForTimeSlot
-                    ? Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.calendar_today),
-                            onPressed: () {
-                              _addEventToCalendar(event, timeSlot);
-                            },
-                          ),
-                          if (canRequestSwap && event.type != 'Meeting' && !isMandatory)
-                            IconButton(
-                              icon: const Icon(Icons.swap_horiz),
-                              onPressed: () {
-                                _showSwapRequestDialog(event, timeSlot);
-                              },
-                            ),
-                          if (isTimeSlotInFuture &&
-                              !isMandatory &&
-                              event.type != 'Meeting' &&
-                              !canRequestSwap)
-                            IconButton(
-                              icon: const Icon(Icons.cancel),
-                              onPressed: () {
-                                _removeAttendee(event, timeSlot);
-                              },
-                            ),
-                          if (event.requiresForms)
-                            IconButton(
-                              icon: Icon(timeSlotFormsCompleted
-                                  ? Icons.inventory
-                                  : Icons.pending_actions),
-                              onPressed: () {
-                                _showUploadFormsDialog(
-                                    event, timeSlot, timeSlotFormsCompleted);
-                              },
-                            ),
-                        ],
-                      )
-                    : isMandatory || event.type == 'Meeting'
-                        ? const Text('Automatically Signed Up')
-                        : !canSignUp
-                            ? Tooltip(
-                                message: 'Signup available ${event.delayHours} hours before event',
-                                child: Icon(Icons.timer, color: Colors.orange),
-                              )
-                            : ElevatedButton(
-                            onPressed: () {
-                              _showSignUpForm(event, timeSlot);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
+                  ),
+                  const SizedBox(width: 12),
+                  
+                  // Event details
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Title and badges row
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                event.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16.0,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            child: const Text('  Sign Up  '),
+                            // Use more compact badges
+                            if (showRequiredForms)
+                              _buildBadge(
+                                'Forms', 
+                                Icons.assignment_late, 
+                                Theme.of(context).colorScheme.error
+                              )
+                            else if (isMandatory)
+                              _buildBadge(
+                                'Required', 
+                                Icons.priority_high, 
+                                Theme.of(context).colorScheme.tertiary
+                              )
+                            else if (isNew)
+                              _buildBadge(
+                                'New', 
+                                Icons.fiber_new, 
+                                Theme.of(context).colorScheme.secondary
+                              ),
+                          ],
+                        ),
+                        
+                        // Date and description
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.event_note,
+                              size: 14,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              "${event.date.month}/${event.date.day}/${event.date.year}",
+                              style: TextStyle(
+                                fontSize: 13.0,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: _getColorForEventType(event.type, context).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                event.type,
+                                style: TextStyle(
+                                  fontSize: 12.0,
+                                  fontWeight: FontWeight.w500,
+                                  color: _getColorForEventType(event.type, context),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        
+                        const SizedBox(height: 4),
+                        Text(
+                          event.description,
+                          style: TextStyle(
+                            fontSize: 13.0,
+                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
                           ),
-              );
-            }).toList(),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            children: _buildTimeSlotItems(event, currentUserId),
           ),
-        ],
+        ),
+      ],
+    ),
+  );
+
+  
+}
+
+
+// Add this method to build time slot items
+List<Widget> _buildTimeSlotItems(Event event, String? currentUserId) {
+  final bool isMandatory = event.isMandatory;
+
+  return event.timeSlots.map((timeSlot) {
+    // Get timeslot-specific status
+    final isSignedUp = timeSlot.attendees
+        .any((attendee) => attendee.userId == currentUserId);
+    
+    // Get society requirements and check if user has completed them
+    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    bool hasCompletedRequirements = false;
+    
+    if (society != null) {
+      // For Meeting type, use the society's meeting requirement
+      if (event.type == 'Meeting') {
+        final meetingsCompleted = _completedHoursMap['Meeting'] ?? 0.0;
+        hasCompletedRequirements = meetingsCompleted >= society.meetingRequirement;
+      } else {
+        // For other types, find the matching requirement in the society
+        final matchingRequirement = society.hourRequirements.firstWhere(
+          (req) => _normalizeType(req.type) == _normalizeType(event.type),
+          orElse: () => HourRequirement(
+            id: -1,
+            type: event.type,
+            hoursNeeded: 0,
+            description: '',
+            isActive: false,
+          ),
+        );
+        
+        // Check if user has completed the required hours for this type
+        final completedHours = _completedHoursMap[_normalizeType(event.type)] ?? 0.0;
+        hasCompletedRequirements = completedHours >= matchingRequirement.hoursNeeded;
+      }
+    }
+    
+    // Check if signup is delayed
+    final canSignUp = !hasCompletedRequirements || !event.hasDelay || event.canSignUpForTimeSlot(timeSlot);
+    
+    // Check if we can show the cancel button
+    final isTimeSlotInFuture = DateTime(
+      event.date.year,
+      event.date.month,
+      event.date.day,
+      timeSlot.time.hour,
+      timeSlot.time.minute,
+    ).isAfter(DateTime.now());
+
+    // Check if we can show the swap button
+    final canRequestSwap = isSignedUp &&
+        DateTime.now().isAfter(event.date.subtract(event.swapRequestDeadline)) &&
+        DateTime.now().isBefore(DateTime(
+          event.date.year,
+          event.date.month,
+          event.date.day,
+          timeSlot.time.hour,
+          timeSlot.time.minute,
+        ));
+
+    // Get forms status for this timeslot
+    final timeSlotFormsCompleted = isSignedUp
+        ? timeSlot.attendees
+            .firstWhere((attendee) => attendee.userId == currentUserId)
+            .formsCompleted
+        : false;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Time info row
+            Row(
+              children: [
+                Icon(
+                  Icons.access_time,
+                  size: 14,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  event.type == 'Meeting'
+                      ? timeSlot.time.format(context)
+                      : '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
+                  style: TextStyle(
+                    fontSize: 13.0,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                
+                const Spacer(),
+                
+                // Capacity info
+                if (!(event.type == 'Meeting'))
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.people,
+                          size: 12,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${timeSlot.numberOfPeople} spots',
+                          style: TextStyle(
+                            fontSize: 11.0,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+            
+            // Notes if available
+            if (timeSlot.notes.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                timeSlot.notes,
+                style: TextStyle(
+                  fontSize: 12.0,
+                  fontStyle: FontStyle.italic,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+            
+            // Action buttons
+            const SizedBox(height: 10),
+            isSignedUp
+                ? Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        icon: Icon(Icons.calendar_today, size: 14),
+                        label: Text('Calendar', style: TextStyle(fontSize: 12)),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          minimumSize: Size(0, 28),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () => _addEventToCalendar(event, timeSlot),
+                      ),
+                      
+                      if (canRequestSwap && event.type != 'Meeting' && !isMandatory)
+                        OutlinedButton.icon(
+                          icon: Icon(Icons.swap_horiz, size: 14),
+                          label: Text('Swap', style: TextStyle(fontSize: 12)),
+                          style: OutlinedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: Size(0, 28),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () => _showSwapRequestDialog(event, timeSlot),
+                        ),
+                        
+                      if (isTimeSlotInFuture && !isMandatory && event.type != 'Meeting' && !canRequestSwap)
+                        OutlinedButton.icon(
+                          icon: Icon(Icons.cancel, size: 14),
+                          label: Text('Cancel', style: TextStyle(fontSize: 12)),
+                          style: OutlinedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: Size(0, 28),
+                            foregroundColor: Theme.of(context).colorScheme.error,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () => _removeAttendee(event, timeSlot),
+                        ),
+                        
+                      if (event.requiresForms)
+                        OutlinedButton.icon(
+                          icon: Icon(
+                            timeSlotFormsCompleted ? Icons.inventory : Icons.pending_actions,
+                            size: 14,
+                          ),
+                          label: Text(
+                            timeSlotFormsCompleted ? 'Forms' : 'Need Forms', 
+                            style: TextStyle(fontSize: 12)
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: Size(0, 28),
+                            foregroundColor: timeSlotFormsCompleted
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.error,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () => _showUploadFormsDialog(event, timeSlot, timeSlotFormsCompleted),
+                        ),
+                    ],
+                  )
+                : isMandatory || event.type == 'Meeting'
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Automatically Enrolled',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ),
+                      )
+                    : !canSignUp
+                        ? Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.tertiaryContainer,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Center(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.timer,
+                                    size: 14,
+                                    color: Theme.of(context).colorScheme.onTertiaryContainer,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Available ${event.delayHours}h before event',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: Theme.of(context).colorScheme.onTertiaryContainer,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ElevatedButton.icon(
+                            onPressed: () => _showSignUpForm(event, timeSlot),
+                            icon: const Icon(Icons.add, size: 16),
+                            label: const Text('Sign Up'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                              minimumSize: const Size(double.infinity, 36),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+          ],
+        ),
       ),
     );
-  }
+  }).toList();
+}
+// Helper method to build compact badges
+Widget _buildBadge(String text, IconData icon, Color color) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    decoration: BoxDecoration(
+      color: color.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(4),
+      border: border.Border.all(color: color.withOpacity(0.3), width: 1),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: color),
+        const SizedBox(width: 2),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
-  /// Displays dialog for initiating a swap request.
+// Add this method to build time slot items
+
+// Helper for action buttons
+Widget _buildActionButton(String label, IconData icon, Color color, VoidCallback onPressed) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 4),
+    child: TextButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 14, color: color),
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          color: color,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    ),
+  );
+}
+   /// Displays dialog for initiating a swap request.
   /// Allows user to select another member to swap with.
   ///
   /// Parameters:
@@ -2475,6 +2910,22 @@ Future<String> _getUserName(String? userId) async {
   return 'Unknown User';
 }
 
+
+class UserRanking {
+  final String userId;
+  final String name;
+  double totalHours;
+  int rank;
+
+  UserRanking({
+    required this.userId,
+    required this.name,
+    this.totalHours = 0,
+    required this.rank,
+  });
+}
+
+
 class LeaderboardPage extends StatefulWidget {
   final String currentUserId;
 
@@ -2520,11 +2971,6 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
         final hours = (record['hours'] as num).toDouble();
         final userName = userNames[userId] ?? 'Unknown User';
 
-        if (userName == 'Unknown User'){
-          print(userId);
-        }
-
-        
         if (!userHours.containsKey(userId)) {
           userHours[userId] = UserRanking(
             userId: userId,
@@ -2569,11 +3015,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
+      appBar: AppBar(
         elevation: 0,
-        backgroundColor: Theme.of(context)
-            .bannerTheme
-            .backgroundColor,
+        scrolledUnderElevation: 0,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         title: Text(
           'Leaderboard',
           style: TextStyle(
@@ -2588,45 +3033,65 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _fetchLeaderboardData,
+              color: Theme.of(context).colorScheme.primary,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Column(
                   children: [
+                    // Header section
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Theme.of(context).colorScheme.primaryContainer,
-                            Theme.of(context).colorScheme.surface,
-                          ],
+                        color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(32),
+                          bottomRight: Radius.circular(32),
                         ),
                       ),
                       child: Column(
                         children: [
-                          const Text(
+                          Text(
                             'Top Contributors',
                             style: TextStyle(
-                              fontSize: 24,
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onPrimaryContainer,
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          Text(
+                            'Service Hour Champions',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.8),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
                           if (_rankings.isNotEmpty) _buildTopThree(),
                         ],
                       ),
                     ),
+                    
                     if (_rankings.length > 3) ...[
-                      const Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Text(
-                          'Runner Ups',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.emoji_events_outlined,
+                              color: Theme.of(context).colorScheme.secondary,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Honorable Mentions',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       ListView.builder(
@@ -2638,21 +3103,45 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                         },
                       ),
                     ],
-                    if (_currentUserRanking != null && _currentUserRanking!.rank > 10)
-                      Column(
-                        children: [
-                          const Divider(),
-                          Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(12),
+                    
+                    // Current user section (if not in top 10)
+                    if (_currentUserRanking != null && _currentUserRanking!.rank > 10) ...[
+                      const Divider(height: 40, thickness: 1),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.person,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 20,
                             ),
-                            child: _buildRankingTile(_currentUserRanking!),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            Text(
+                              'Your Position',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    const SizedBox(height: 16),
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(16),
+                          border: border.Border.all(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                            width: 2,
+                          ),
+                        ),
+                        child: _buildRankingTile(_currentUserRanking!),
+                      ),
+                    ],
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),
@@ -2675,6 +3164,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
     );
   }
 
+  // Keep the original podium item design
   Widget _buildPodiumItem(UserRanking ranking, int position, Color color) {
     final double baseHeight = 120.0;
     final double height = position == 1
@@ -2757,8 +3247,9 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
 
   Widget _buildRankingTile(UserRanking ranking) {
     final bool isCurrentUser = ranking.userId == widget.currentUserId;
+    
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       leading: Container(
         width: 40,
         height: 40,
@@ -2808,59 +3299,27 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   }
 }
 
-class UserRanking {
-  final String userId;
-  final String name;
-  double totalHours; // Removed final
-  int rank;
 
-  UserRanking({
-    required this.userId,
-    required this.name,
-    this.totalHours = 0, // Added default value
-    required this.rank,
-  });
+// Helper to get appropriate icons for different hour types
+IconData _getIconForType(String type) {
+  switch (type.toLowerCase()) {
+    case 'service':
+      return Icons.volunteer_activism;
+    case 'tutoring':
+      return Icons.school;
+    case 'leadership':
+      return Icons.emoji_people;
+    default:
+      return Icons.workspaces;
+  }
 }
 
-/// Creates a progress bar widget for displaying hour completion status.
-///
-/// Parameters:
-/// - context: BuildContext
-/// - title: String - Progress bar label
-/// - completedHours: double - Current hours
-/// - hoursNeeded: int - Target hours
-///
-/// Returns:
-/// - Widget
-Widget _buildProgressBar(
-  context,
-  String title,
-  double completedHours,
-  int hoursNeeded,
-) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '$title: ${completedHours.toStringAsFixed(2)} hours',
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 10),
-        LinearProgressIndicator(
-          value: completedHours / hoursNeeded,
-          backgroundColor: Colors.grey[300],
-          valueColor: AlwaysStoppedAnimation<Color>(
-              Theme.of(context).colorScheme.primary),
-          minHeight: 10,
-          borderRadius: const BorderRadius.all(Radius.circular(33)),
-        ),
-      ],
-    ),
-  );
-}
+// Helper method to get color based on event type
+  Color _getColorForEventType(String type, BuildContext context) {
 
+        return Theme.of(context).colorScheme.primary;
+  }
+ 
 
 class CompletedHoursPage extends StatefulWidget {
   const CompletedHoursPage({super.key});
@@ -3075,148 +3534,402 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
-        title: Text(
-          'Completed Hours',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 24.0,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      elevation: 0,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      title: Text(
+        'Completed Hours',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 24.0,
+          color: Theme.of(context).colorScheme.onSurface,
         ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.leaderboard),
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            onPressed: _openLeaderboard,
-          ),
-        ],
       ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
-        : RefreshIndicator(
-            onRefresh: _fetchData,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  Container(
-                    margin: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: ListTile(
-                      leading: const Icon(Icons.notes),
-                      title: const Text('Meeting Notes'),
-                      onTap: _showMeetingNotesDialog,
+      centerTitle: true,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.leaderboard),
+          color: Theme.of(context).colorScheme.primary,
+          tooltip: 'View Leaderboard',
+          onPressed: _openLeaderboard,
+        ),
+      ],
+    ),
+    body: _isLoading 
+      ? Center(
+          child: CircularProgressIndicator(
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        )
+      : RefreshIndicator(
+          color: Theme.of(context).colorScheme.primary,
+          onRefresh: _fetchData,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              children: [
+                // Header with meeting notes button
+                Card(
+                  margin: const EdgeInsets.all(16),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  color: Theme.of(context).colorScheme.secondaryContainer,
+                  child: InkWell(
+                    onTap: _showMeetingNotesDialog,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: Theme.of(context).colorScheme.secondary,
+                            child: Icon(
+                              Icons.notes,
+                              color: Theme.of(context).colorScheme.onSecondary,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Meeting Notes',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).colorScheme.onSecondaryContainer,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'View important information from previous meetings',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSecondaryContainer.withOpacity(0.8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios, size: 16),
+                        ],
+                      ),
                     ),
                   ),
-                  
-                  // Build a progress bar for each requirement type
-                  ..._buildRequirementsList(),
-                ],
-              ),
+                ),
+                
+                // Hour requirements sections
+                ..._buildRequirementsList(),
+              ],
             ),
           ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Open the website when the button is pressed
-          _openWebsite();
-        },
-        child: const Icon(Icons.report_problem),
+        ),
+    floatingActionButton: FloatingActionButton.extended(
+      onPressed: _openWebsite,
+      icon: const Icon(Icons.report_problem),
+      label: const Text('Report Issue'),
+      elevation: 4,
+    ),
+  );
+}
+
+// Build list of requirements with progress and details
+List<Widget> _buildRequirementsList() {
+  List<Widget> widgets = [];
+  
+  // First build standard hour requirements
+  _requirementMap.forEach((type, hoursNeeded) {
+    final completedHours = _completedHoursMap[type] ?? 0.0;
+    
+    widgets.add(
+      _buildProgressBar(context, type, completedHours, hoursNeeded.floor())
+    );
+    
+    widgets.add(
+      _buildCompletedHoursList(type, _hoursByTypeMap[type] ?? [])
+    );
+    
+    widgets.add(const SizedBox(height: 20));
+  });
+  
+  // Then add the special meeting requirement
+  final meetingHours = _completedHoursMap['Meeting'] ?? 0.0;
+  widgets.add(
+    _buildProgressBar(context, 'Meeting', meetingHours, _meetingRequirement, isMeeting: true)
+  );
+  
+  widgets.add(
+    _buildCompletedHoursList('Meeting', _hoursByTypeMap['Meeting'] ?? [])
+  );
+  
+  return widgets;
+}
+
+Widget _buildProgressBar(
+  BuildContext context,
+  String title,
+  double completedHours,
+  int hoursNeeded,
+  {bool isMeeting = false}
+) {
+  // Calculate percentage for display
+  final percentage = ((completedHours / hoursNeeded) * 100).clamp(0, 100).toInt();
+  final isComplete = completedHours >= hoursNeeded;
+  final color = isMeeting 
+      ? Theme.of(context).colorScheme.tertiary 
+      : Theme.of(context).colorScheme.primary;
+  final backgroundColor = isMeeting 
+      ? Theme.of(context).colorScheme.tertiaryContainer 
+      : Theme.of(context).colorScheme.primaryContainer;
+  
+  return Container(
+    margin: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Type with icon
+            Row(
+              children: [
+                Icon(
+                  isMeeting ? Icons.groups_rounded : _getIconForType(title),
+                  color: color,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isMeeting ? 'Meeting Attendance' : '$title Hours',
+                  style: TextStyle(
+                    fontSize: 16, 
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+            
+            // Completion percentage
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: isComplete ? color : Theme.of(context).colorScheme.surfaceVariant,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                isComplete ? 'Complete!' : '$percentage%',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: isComplete 
+                      ? (isMeeting ? Theme.of(context).colorScheme.onTertiary : Theme.of(context).colorScheme.onPrimary)
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 10),
+        
+        // Hours text and progress
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '${completedHours.toStringAsFixed(1)} / $hoursNeeded ${isMeeting ? 'meetings' : 'hours'}',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            Text(
+              isMeeting ? '$completedHours of $hoursNeeded required' : '${(completedHours / hoursNeeded * 100).toStringAsFixed(0)}% complete',
+              style: TextStyle(
+                fontSize: 14,
+                color: color,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 8),
+        
+        // Progress bar with animation
+        TweenAnimationBuilder<double>(
+          duration: const Duration(milliseconds: 1000),
+          curve: Curves.easeOutQuart,
+          tween: Tween<double>(
+            begin: 0,
+            end: (completedHours / hoursNeeded).clamp(0.0, 1.0),
+          ),
+          builder: (context, value, _) {
+            return Stack(
+              children: [
+                // Background track
+                Container(
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: backgroundColor.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                
+                // Progress
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 500),
+                  height: 12,
+                  width: MediaQuery.of(context).size.width * value * 0.89,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildCompletedHoursList(String type, List<CompletedHour> hours) {
+  if (hours.isEmpty) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Container(
+        padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(12),
+          border: border.Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+            width: 1,
+          ),
+        ),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(
+                Icons.event_busy, 
+                size: 32,
+                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'No ${type.toLowerCase()} hours recorded yet',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
   
-  // Build list of requirements with progress and details
-  List<Widget> _buildRequirementsList() {
-    List<Widget> widgets = [];
-    
-    // First build standard hour requirements
-    _requirementMap.forEach((type, hoursNeeded) {
-      final completedHours = _completedHoursMap[type] ?? 0.0;
-      
-      widgets.add(
-        _buildProgressBar(context, '$type Hours', completedHours, hoursNeeded.floor())
-      );
-      
-      widgets.add(
-        _buildCompletedHoursList(_hoursByTypeMap[type] ?? [])
-      );
-      
-      widgets.add(const SizedBox(height: 20));
-    });
-    
-    // Then add the special meeting requirement
-    final meetingHours = _completedHoursMap['Meeting'] ?? 0.0;
-    widgets.add(
-      _buildProgressBar(context, 'Meeting Hours', meetingHours, _meetingRequirement)
-    );
-    
-    widgets.add(
-      _buildCompletedHoursList(_hoursByTypeMap['Meeting'] ?? [])
-    );
-    
-    return widgets;
-  }
-
-  Widget _buildCompletedHoursList(List<CompletedHour> hours) {
-    if (hours.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Center(
-              child: Text(
-                'No completed hours of this type',
-                style: TextStyle(color: Colors.grey[600]),
-              ),
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
+          child: Text(
+            '${hours.length} ${hours.length == 1 ? 'Event' : 'Events'}',
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ),
-      );
-    }
-    
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: hours.length,
-            itemBuilder: (context, index) {
-              final hour = hours[index];
-              if (hour.date.year == 0) {
-                return Card(
-                  child: ListTile(
-                    title: Text(hour.title),
-                    subtitle: Text('${hour.hours.toStringAsFixed(2)} hours'),
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: hours.length,
+          itemBuilder: (context, index) {
+            final hour = hours[index];
+            
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
                   ),
-                );
-              } else {
-                return Card(
-                  child: ListTile(
-                    title: Text(hour.title),
-                    subtitle: Text(
-                      '${hour.date.month}-${hour.date.day}-${hour.date.year} - ${hour.hours.toStringAsFixed(2)} hours'
+                ],
+              ),
+              child: ListTile(
+                dense: false,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                leading: CircleAvatar(
+                  backgroundColor: _getColorForEventType(type, context).withOpacity(0.2),
+                  child: Text(
+                    hour.title.substring(0, 1).toUpperCase(),
+                    style: TextStyle(
+                      color: _getColorForEventType(type, context),
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                );
-              }
-            },
-          ),
-        ],
-      ),
-    );
-  }
+                ),
+                title: Text(
+                  hour.title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      size: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      hour.date.year == 0 
+                          ? 'Date not recorded' 
+                          : '${hour.date.month}-${hour.date.day}-${hour.date.year}',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _getColorForEventType(type, context).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    '${hour.hours.toStringAsFixed(1)}h',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: _getColorForEventType(type, context),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    ),
+  );
+}
+  
 
   void _openWebsite() async {
     final Uri url = Uri.parse(
@@ -3275,22 +3988,29 @@ class ThemeNotifier with ChangeNotifier {
   }
 }
 
+enum ThemeMode { light, dark, midnight }
+
 class ThemeProvider extends ChangeNotifier {
-  bool _isDarkMode = false;
-
-  bool get isDarkMode => _isDarkMode;
-
+  
+  
+  // Current theme mode
+  ThemeMode _themeMode = ThemeMode.light;
+  
+  // Getter for theme mode
+  ThemeMode get themeMode => _themeMode;
+  
+  // Convenience getters
+  bool get isLightMode => _themeMode == ThemeMode.light;
+  bool get isDarkMode => _themeMode == ThemeMode.dark;
+  bool get isMidnightMode => _themeMode == ThemeMode.midnight;
+  
   ThemeProvider() {
     loadThemePreference();
   }
 
-  /// Toggles between light and dark theme modes.
-  /// Updates SharedPreferences and notifies listeners.
-  ///
-  /// Returns:
-  /// - void
-  void toggleTheme() {
-    _isDarkMode = !_isDarkMode;
+  /// Sets theme to specified mode
+  void setThemeMode(ThemeMode mode) {
+    _themeMode = mode;
     saveThemePreference();
     notifyListeners();
   }
@@ -3302,7 +4022,8 @@ class ThemeProvider extends ChangeNotifier {
   /// - Future<void>
   Future<void> loadThemePreference() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    _isDarkMode = prefs.getBool('isDarkMode') ?? false;
+    final themeIndex = prefs.getInt('themeMode') ?? 0;
+    _themeMode = ThemeMode.values[themeIndex];
     notifyListeners();
   }
 
@@ -3312,7 +4033,49 @@ class ThemeProvider extends ChangeNotifier {
   /// - Future<void>
   Future<void> saveThemePreference() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isDarkMode', _isDarkMode);
+    await prefs.setInt('themeMode', _themeMode.index);
+  }
+  
+  // Get theme data based on current mode
+  ThemeData getThemeData(Color themeColor) {
+    switch (_themeMode) {
+      case ThemeMode.light:
+        return ThemeData(
+          colorSchemeSeed: themeColor,
+          useMaterial3: true,
+          brightness: Brightness.light,
+        );
+      case ThemeMode.dark:
+        return ThemeData.dark().copyWith(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: themeColor,
+            brightness: Brightness.dark,
+          ),
+          useMaterial3: true,
+        );
+      case ThemeMode.midnight:
+        // Create a truly dark "midnight" theme with deep blacks
+        return ThemeData.dark().copyWith(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: themeColor,
+            brightness: Brightness.dark,
+            background: const Color(0xFF000000),
+            surface: const Color(0xFF121212),
+            surfaceVariant: const Color(0xFF1C1C1C),
+            surfaceContainerLowest: const Color(0xFF080808),
+            primaryContainer: themeColor.withOpacity(0.1),
+          ),
+          scaffoldBackgroundColor: const Color(0xFF000000),
+          canvasColor: const Color(0xFF121212),
+          useMaterial3: true,
+          cardTheme: const CardTheme(
+            color: Color(0xFF121212),
+          ),
+          dialogTheme: const DialogTheme(
+            backgroundColor: Color(0xFF121212),
+          ),
+        );
+    }
   }
 }
 
@@ -3759,44 +4522,104 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: const Text('Update'),
                   ),
                   const SizedBox(height: 24.0),
-                  ListTile(
-                    leading: const Icon(Icons.color_lens),
-                    title: const Text('Theme Color'),
-                    trailing: CircleAvatar(
-                      backgroundColor: _selectedColor,
-                    ),
-                    onTap: () {
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            title: const Text('Select Theme Color'),
-                            content: SingleChildScrollView(
-                              child: SlidePicker(
-                                pickerColor: _selectedColor,
-                                onColorChanged: _handleColorChange,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Appearance',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                             ),
-                            actions: [
-                              TextButton(
-                                child: const Text('OK'),
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                },
+                            const SizedBox(height: 16),
+                            
+                            // Theme Color Picker
+                            ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: _selectedColor,
+                                radius: 20,
                               ),
-                            ],
-                          );
-                        },
-                      );
-                    },
-                  ),
-                  SwitchListTile(
-                    title: const Text('Dark Mode'),
-                    value: Provider.of<ThemeProvider>(context).isDarkMode,
-                    onChanged: (_) {
-                      Provider.of<ThemeProvider>(context, listen: false)
-                          .toggleTheme();
-                    },
+                              title: const Text('Theme Color'),
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: const Text('Select Theme Color'),
+                                      content: SingleChildScrollView(
+                                        child: SlidePicker(
+                                          pickerColor: _selectedColor,
+                                          onColorChanged: _handleColorChange,
+                                        ),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          child: const Text('OK'),
+                                          onPressed: () {
+                                            Navigator.of(context).pop();
+                                          },
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                            
+                            const Divider(),
+                            
+                            // Theme Mode Selection
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                                  child: Text('Theme Mode'),
+                                ),
+                                RadioListTile<ThemeMode>(
+                                  title: const Text('Light'),
+                                  value: ThemeMode.light,
+                                  groupValue: Provider.of<ThemeProvider>(context).themeMode,
+                                  onChanged: (value) {
+                                    Provider.of<ThemeProvider>(context, listen: false)
+                                      .setThemeMode(ThemeMode.light);
+                                  },
+                                ),
+                                RadioListTile<ThemeMode>(
+                                  title: const Text('Dark'),
+                                  value: ThemeMode.dark,
+                                  groupValue: Provider.of<ThemeProvider>(context).themeMode,
+                                  onChanged: (value) {
+                                    Provider.of<ThemeProvider>(context, listen: false)
+                                      .setThemeMode(ThemeMode.dark);
+                                  },
+                                ),
+                                RadioListTile<ThemeMode>(
+                                  title: const Text('Midnight'),
+                                  value: ThemeMode.midnight,
+                                  groupValue: Provider.of<ThemeProvider>(context).themeMode,
+                                  onChanged: (value) {
+                                    Provider.of<ThemeProvider>(context, listen: false)
+                                      .setThemeMode(ThemeMode.midnight);
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -6422,62 +7245,78 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Theme.of(context)
-            .bannerTheme
-            .backgroundColor,
-        title: Text(
-          'Attendance',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 24.0,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
+ // Update the build method of AdminAttendancePage to include today's events
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      elevation: 0,
+      backgroundColor: Theme.of(context)
+          .bannerTheme
+          .backgroundColor,
+      title: Text(
+        'Attendance',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 24.0,
+          color: Theme.of(context).colorScheme.onSurface,
         ),
-        centerTitle: true,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _fetchData,
-              child: _events.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.event_busy,
-                          size: 64,
-                          color: Colors.grey,
+      centerTitle: true,
+    ),
+    body: _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : RefreshIndicator(
+            onRefresh: _fetchData,
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  // Today's Events Section (Only shows if there are events today)
+                  _buildTodaysEventsSection(),
+                  
+                  // Main events list or empty state
+                  _events.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.event_busy,
+                              size: 64,
+                              color: Colors.grey,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'No events found',
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Add events to take attendance',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ],
                         ),
-                        SizedBox(height: 16),
-                        Text(
-                          'No events found',
-                          style: Theme.of(context).textTheme.titleLarge,
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _events.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            final event = _events[index];
+                            return _buildEventCard(event);
+                          },
                         ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Add events to take attendance',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.separated(
-                  itemCount: _events.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final event = _events[index];
-                    return _buildEventCard(event);
-                  },
-                ),
+                      ),
+                ],
+              ),
             ),
-    );
-  }
+          ),
+  );
+}
 
   /// Creates a card widget displaying event details.
   /// Includes event information, time slots, and action buttons.
@@ -6548,6 +7387,310 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
     );
   }
 
+  // Add this to AdminAttendancePage class as a new method
+Widget _buildTodaysEventsSection() {
+  // Filter today's events
+  final now = DateTime.now();
+  final todaysEvents = _events.where((event) {
+    return event.date.year == now.year && 
+           event.date.month == now.month && 
+           event.date.day == now.day;
+  }).toList();
+  
+  // If no events today, don't show the section
+  if (todaysEvents.isEmpty) {
+    return const SizedBox.shrink();
+  }
+  
+  return Container(
+    margin: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.primaryContainer,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.event_available,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Today's Events",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                  Text(
+                    DateFormat('EEEE, MMMM d').format(now),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Chip(
+                label: Text(
+                  '${todaysEvents.length} ${todaysEvents.length == 1 ? 'event' : 'events'}',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+            ],
+          ),
+        ),
+        
+        // Event list
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: todaysEvents.length,
+          itemBuilder: (context, index) {
+            final event = todaysEvents[index];
+            return _buildTodaysEventItem(event);
+          },
+        ),
+        
+        // Bottom padding
+        const SizedBox(height: 8),
+      ],
+    ),
+  );
+}
+
+Widget _buildTodaysEventItem(Event event) {
+  // Count total attendees and present attendees
+  int totalAttendees = 0;
+  int presentAttendees = 0;
+  
+  for (final timeSlot in event.timeSlots) {
+    totalAttendees += timeSlot.attendees.length;
+    presentAttendees += timeSlot.attendees.where((a) => a.isPresent).length;
+  }
+  
+  // Calculate attendance percentage
+  final attendancePercentage = totalAttendees > 0 
+      ? (presentAttendees / totalAttendees) * 100 
+      : 0.0;
+  
+  // Determine if any time slots are happening now
+  final now = DateTime.now();
+  final currentHour = TimeOfDay.fromDateTime(now);
+  
+  bool isHappeningNow = false;
+  for (final timeSlot in event.timeSlots) {
+    final startMinutes = timeSlot.time.hour * 60 + timeSlot.time.minute;
+    final endMinutes = timeSlot.endTime.hour * 60 + timeSlot.endTime.minute;
+    final currentMinutes = currentHour.hour * 60 + currentHour.minute;
+    
+    if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
+      isHappeningNow = true;
+      break;
+    }
+  }
+  
+  return Container(
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Theme.of(context).colorScheme.shadow.withOpacity(0.05),
+          blurRadius: 4,
+          offset: const Offset(0, 1),
+        ),
+      ],
+    ),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () {
+        // Navigate to event details when tapped
+        if (event.timeSlots.isNotEmpty) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AttendanceCheckPage(
+                event: event,
+                timeSlot: event.timeSlots.first,
+              ),
+            ),
+          );
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Row(
+          children: [
+            // Event info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Event title with optional "happening now" badge
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          event.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (isHappeningNow)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'NOW',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  
+                  // Event type
+                  Text(
+                    event.type,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  
+                  // Time slots
+                  if (event.timeSlots.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      event.timeSlots.length == 1
+                          ? _formatTimeSlot(event.timeSlots.first)
+                          : '${event.timeSlots.length} time slots',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            
+            // Attendance ratio
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Attendance info
+                Row(
+                  children: [
+                    Icon(
+                      Icons.people,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$presentAttendees/$totalAttendees',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: presentAttendees > 0
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                
+                // Progress indicator
+                SizedBox(
+                  width: 60,
+                  height: 8,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: totalAttendees > 0 ? presentAttendees / totalAttendees : 0,
+                      backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        _getProgressColor(attendancePercentage),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                
+                // Percentage text
+                Text(
+                  '${attendancePercentage.round()}%',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: _getProgressColor(attendancePercentage),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+String _formatTimeSlot(TimeSlot timeSlot) {
+  return '${_formatTimeOfDay(timeSlot.time)} - ${_formatTimeOfDay(timeSlot.endTime)}';
+}
+
+Color _getProgressColor(double percentage) {
+  if (percentage >= 75) {
+    return Colors.green;
+  } else if (percentage >= 50) {
+    return Colors.orange;
+  } else {
+    return Colors.red;
+  }
+}
+
   String _formatTimeOfDay(TimeOfDay time) {
     final now = DateTime.now();
     final dateTime =
@@ -6576,14 +7719,12 @@ enum SortOrder {
   descending,
 }
 
-// In main.dart - the AdminListPage class modifications
-
 class _AdminListPageState extends State<AdminListPage> {
   final List<UserProfile> _users = [];
   String _searchQuery = '';
   SortField _sortField = SortField.name;
   SortOrder _sortOrder = SortOrder.ascending;
-  String? _selectedHourType; // Changed from fixed types to a dynamic field
+  String? _selectedHourType;
 
   @override
   void initState() {
@@ -7492,6 +8633,8 @@ class _AdminListPageState extends State<AdminListPage> {
       _fetchUsers();
     }
   }
+
+  
 }
 
 class AttendanceCheckPage extends StatefulWidget {
@@ -8067,15 +9210,16 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
   List<String> selectedUserIds = [];
   String searchQuery = '';
   bool _isLoading = false;
+  final _formKey = GlobalKey<FormState>();
 
   // Get available requirement types from society
   List<String> get _availableTypes {
     final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
-    if (society == null) return ['Service', 'Tutoring', 'Meeting'];
+    if (society == null) return ['Service', 'Tutoring', 'Meeting']; // Default fallback
     
     final types = ['Meeting']; // Always include Meeting
     
-    // Add all active requirements
+    // Add all active requirements from the society
     for (final req in society.hourRequirements) {
       if (req.isActive && !types.contains(req.type)) {
         types.add(req.type);
@@ -8093,247 +9237,36 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
     return widget.users.where((user) {
       final lowercaseName = user.name.toLowerCase();
       final lowercaseQuery = searchQuery.toLowerCase();
-      return lowercaseName.contains(lowercaseQuery);
+      return lowercaseQuery.isEmpty || lowercaseName.contains(lowercaseQuery);
     }).toList();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final types = _availableTypes;
-    print(_availableTypes);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add Bulk Custom Event'),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(15),
-              ),
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextFormField(
-                    decoration: InputDecoration(
-                      labelText: 'Event Name',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                    ),
-                    onChanged: (value) {
-                      setState(() {
-                        eventName = value;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 16.0),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: type,
-                          onChanged: (value) {
-                            setState(() {
-                              type = value ?? "Meeting";
-                            });
-                          },
-                          items: types.map((type) => DropdownMenuItem(
-                            value: type,
-                            child: Text(type),
-                          )).toList(),
-                          decoration: InputDecoration(
-                            labelText: 'Event Type',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16.0),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            final TimeOfDay? pickedTime = await showTimePicker(
-                              context: context,
-                              initialTime: selectedTime ?? TimeOfDay.now(),
-                            );
-                            if (pickedTime != null) {
-                              setState(() {
-                                selectedTime = pickedTime;
-                              });
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                          ),
-                          child: Text(selectedTime != null
-                              ? selectedTime!.format(context)
-                              : 'Time'),
-                        ),
-                      ),
-                      const SizedBox(width: 16.0),
-                      Expanded(
-                        child: TextFormField(
-                          initialValue: hours.toString(),
-                          decoration: InputDecoration(
-                            labelText: 'Hours',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                          ),
-                          keyboardType: const TextInputType.numberWithOptions(
-                              signed: true, decimal: true),
-                          onChanged: (value) {
-                            setState(() {
-                              hours = double.tryParse(value) ?? 0.0;
-                            });
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16.0),
-            TextField(
-              onChanged: (value) {
-                setState(() {
-                  searchQuery = value;
-                });
-              },
-              decoration: InputDecoration(
-                labelText: 'Search Members',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16.0),
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: filteredUsers.length,
-                itemBuilder: (context, index) {
-                  final user = filteredUsers[index];
-                  final isSelected = selectedUserIds.contains(user.id);
-
-                  bool isFirstItem = index == 0;
-                  bool isLastItem = index == filteredUsers.length - 1;
-                  bool isPrevSelected = isFirstItem
-                      ? false
-                      : selectedUserIds.contains(filteredUsers[index - 1].id);
-                  bool isNextSelected = isLastItem
-                      ? false
-                      : selectedUserIds.contains(filteredUsers[index + 1].id);
-
-                  BorderRadius borderRadius = BorderRadius.zero;
-                  if (!isSelected) {
-                  } else if (isSelected && isNextSelected) {
-                    if (isPrevSelected) {
-                      borderRadius =
-                          const BorderRadius.all((Radius.circular(6)));
-                    } else {
-                      borderRadius = const BorderRadius.vertical(
-                          top: Radius.circular(15), bottom: Radius.circular(6));
-                    }
-                  } else if (isSelected && isPrevSelected) {
-                    borderRadius = const BorderRadius.vertical(
-                        bottom: Radius.circular(15), top: Radius.circular(6));
-                  } else {
-                    borderRadius = const BorderRadius.all(Radius.circular(15));
-                  }
-
-                  return Column(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? Theme.of(context).colorScheme.primaryContainer
-                              : null,
-                          borderRadius: borderRadius,
-                        ),
-                        child: CheckboxListTile(
-                          title: Text(user.name),
-                          value: isSelected,
-                          onChanged: (value) {
-                            setState(() {
-                              if (value!) {
-                                selectedUserIds.add(user.id);
-                              } else {
-                                selectedUserIds.remove(user.id);
-                              }
-                            });
-                          },
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 2.0),
-                    ],
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 16.0),
-          ],
-        ),
-      ),
-      floatingActionButton: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            backgroundColor: Theme.of(context).colorScheme.secondary,
-            child: Icon(Icons.cancel_outlined,
-                color: Theme.of(context).colorScheme.surfaceContainerHighest),
-          ),
-          const SizedBox(width: 16.0),
-          FloatingActionButton(
-            onPressed: _isLoading ? null : _saveBulkCustomEvent,
-            child: _isLoading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : Icon(
-                    Icons.save,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _saveBulkCustomEvent() async {
-    if (eventName.isEmpty || selectedTime == null || hours <= 0 || selectedUserIds.isEmpty) {
+  void _validateAndSave() {
+    if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields and select at least one user')),
+        const SnackBar(content: Text('Please correct the errors in the form')),
       );
       return;
     }
     
+    if (selectedTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a time')),
+      );
+      return;
+    }
+    
+    if (selectedUserIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select at least one user')),
+      );
+      return;
+    }
+    
+    _saveBulkCustomEvent();
+  }
+  
+  Future<void> _saveBulkCustomEvent() async {
     setState(() => _isLoading = true);
 
     try {
@@ -8400,8 +9333,392 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
       setState(() => _isLoading = false);
     }
   }
-}
 
+  @override
+  Widget build(BuildContext context) {
+    final types = _availableTypes;
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Add Bulk Custom Event'),
+        elevation: 0,
+      ),
+      body: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            // Event Details Card
+            Card(
+              elevation: 0,
+              margin: const EdgeInsets.all(16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.event_note,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Event Details',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      decoration: const InputDecoration(
+                        labelText: 'Event Name',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.title),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter an event name';
+                        }
+                        return null;
+                      },
+                      onChanged: (value) {
+                        setState(() {
+                          eventName = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        // Event Type Dropdown
+                        Expanded(
+                          flex: 2,
+                          child: DropdownButtonFormField<String>(
+                            value: type,
+                            onChanged: (value) {
+                              setState(() {
+                                type = value ?? "Meeting";
+                              });
+                            },
+                            items: types.map((type) => DropdownMenuItem(
+                              value: type,
+                              child: Text(type),
+                            )).toList(),
+                            decoration: const InputDecoration(
+                              labelText: 'Event Type',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.category),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please select an event type';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Time Selector
+                        Expanded(
+                          flex: 1,
+                          child: InkWell(
+                            onTap: () async {
+                              final TimeOfDay? pickedTime = await showTimePicker(
+                                context: context,
+                                initialTime: selectedTime ?? TimeOfDay.now(),
+                              );
+                              if (pickedTime != null) {
+                                setState(() {
+                                  selectedTime = pickedTime;
+                                });
+                              }
+                            },
+                            child: InputDecorator(
+                              decoration: InputDecoration(
+                                labelText: 'Time',
+                                border: const OutlineInputBorder(),
+                                prefixIcon: const Icon(Icons.access_time),
+                                suffixIcon: selectedTime != null 
+                                    ? IconButton(
+                                        icon: const Icon(Icons.clear),
+                                        onPressed: () {
+                                          setState(() {
+                                            selectedTime = null;
+                                          });
+                                        },
+                                      )
+                                    : null,
+                              ),
+                              child: Text(
+                                selectedTime != null 
+                                    ? selectedTime!.format(context) 
+                                    : 'Select',
+                                style: selectedTime == null 
+                                    ? TextStyle(color: Theme.of(context).hintColor)
+                                    : null,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Hours Input
+                        Expanded(
+                          flex: 1,
+                          child: TextFormField(
+                            decoration: const InputDecoration(
+                              labelText: 'Hours',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.timer),
+                            ),
+                            keyboardType: const TextInputType.numberWithOptions(
+                                signed: false, decimal: true),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Required';
+                              }
+                              final hours = double.tryParse(value);
+                              if (hours == null || hours <= 0) {
+                                return 'Invalid';
+                              }
+                              return null;
+                            },
+                            onChanged: (value) {
+                              setState(() {
+                                hours = double.tryParse(value) ?? 0.0;
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Selection Header with Stats
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      decoration: const InputDecoration(
+                        labelText: 'Search Members',
+                        prefixIcon: Icon(Icons.search),
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          searchQuery = value;
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Selection stats chip
+                  Chip(
+                    label: Text(
+                      '${selectedUserIds.length} selected',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                    avatar: Icon(
+                      Icons.people,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Select All Row
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Row(
+                children: [
+                  Checkbox(
+                    value: selectedUserIds.length == filteredUsers.length && 
+                           filteredUsers.isNotEmpty,
+                    onChanged: (bool? value) {
+                      setState(() {
+                        if (value ?? false) {
+                          selectedUserIds = filteredUsers
+                              .map((user) => user.id)
+                              .toList();
+                        } else {
+                          selectedUserIds.clear();
+                        }
+                      });
+                    },
+                  ),
+                  const Text('Select All'),
+                  const Spacer(),
+                  // Action buttons to select or clear all based on search results
+                  if (searchQuery.isNotEmpty) ...[
+                    TextButton.icon(
+                      icon: const Icon(Icons.check_circle_outline),
+                      label: const Text('Select Filtered'),
+                      onPressed: () {
+                        setState(() {
+                          for (final user in filteredUsers) {
+                            if (!selectedUserIds.contains(user.id)) {
+                              selectedUserIds.add(user.id);
+                            }
+                          }
+                        });
+                      },
+                    ),
+                    TextButton.icon(
+                      icon: const Icon(Icons.cancel_outlined),
+                      label: const Text('Clear Filtered'),
+                      onPressed: () {
+                        setState(() {
+                          selectedUserIds.removeWhere(
+                            (id) => filteredUsers.any((user) => user.id == id)
+                          );
+                        });
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            // Users List
+            Expanded(
+              child: filteredUsers.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.search_off,
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No users match your search',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Scrollbar(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(8),
+                        itemCount: filteredUsers.length,
+                        itemBuilder: (context, index) {
+                          final user = filteredUsers[index];
+                          final isSelected = selectedUserIds.contains(user.id);
+                          
+                          return Card(
+                            elevation: 0,
+                            margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                            color: isSelected 
+                                ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.7)
+                                : Theme.of(context).colorScheme.surface,
+                            child: CheckboxListTile(
+                              title: Text(
+                                user.name,
+                                style: TextStyle(
+                                  fontWeight: isSelected ? FontWeight.bold : null,
+                                ),
+                              ),
+                              value: isSelected,
+                              onChanged: (value) {
+                                setState(() {
+                                  if (value ?? false) {
+                                    selectedUserIds.add(user.id);
+                                  } else {
+                                    selectedUserIds.remove(user.id);
+                                  }
+                                });
+                              },
+                              dense: true,
+                              secondary: Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: CircleAvatar(
+                                  child: Text(user.name.isNotEmpty 
+                                      ? user.name[0].toUpperCase() 
+                                      : '?'),
+                                  backgroundColor: isSelected
+                                      ? Theme.of(context).colorScheme.primary
+                                      : null,
+                                  foregroundColor: isSelected
+                                      ? Theme.of(context).colorScheme.onPrimary
+                                      : null,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+      
+      bottomNavigationBar: BottomAppBar(
+        color: Theme.of(context).colorScheme.surface,
+        elevation: 8,
+        child: Padding(
+          padding: const EdgeInsets.all(4.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text('Cancel'),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _validateAndSave,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Save'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class BulkEditEventsPage extends StatefulWidget {
   const BulkEditEventsPage({super.key});
@@ -11067,86 +12384,109 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
   }
 }
 
-
 class SocietySelectionPage extends StatelessWidget {
   const SocietySelectionPage({super.key});
 
- // In SocietySelectionPage class (main.dart)
-
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      title: const Text('Select Honor Society'),
-      automaticallyImplyLeading: false,
-    ),
-    body: Consumer<SocietyProvider>(
-      builder: (context, societyProvider, _) {
-        if (societyProvider.isLoading) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        
-        final societies = societyProvider.userSocieties;
-        
-        if (societies.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'You are not a member of any honor societies',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SocietyJoinRequestPage(),
-                      ),
-                    );
-                  },
-                  child: const Text('Request to Join'),
-                ),
-                // Society creation button removed
-              ],
-            ),
-          );
-        }
-        
-        return GridView.builder(
-          padding: const EdgeInsets.all(16),
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 300,
-            childAspectRatio: 0.8,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Select Honor Society'),
+        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Log Out',
+            onPressed: () => _confirmLogout(context),
           ),
-          itemCount: societies.length,
-          itemBuilder: (context, index) {
-            final society = societies[index];
-            return _buildSocietyCard(context, society);
-          },
-        );
-      },
-    ),
-    bottomNavigationBar: Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: ElevatedButton(
-        onPressed: () {
-          Navigator.push(
-            context, 
-            MaterialPageRoute(
-              builder: (context) => const SocietyJoinRequestPage(),
+        ],
+      ),
+      body: Consumer<SocietyProvider>(
+        builder: (context, societyProvider, _) {
+          if (societyProvider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          
+          final societies = societyProvider.userSocieties;
+          
+          if (societies.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'You are not a member of any honor societies',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SocietyJoinRequestPage(),
+                        ),
+                      );
+                    },
+                    child: const Text('Request to Join'),
+                  ),
+                ],
+              ),
+            );
+          }
+          
+          return GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 300,
+              childAspectRatio: 0.8,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
             ),
+            itemCount: societies.length,
+            itemBuilder: (context, index) {
+              final society = societies[index];
+              return _buildSocietyCard(context, society);
+            },
           );
         },
-        child: const Text('Join Another Society'),
       ),
-    ),
-  );
-}
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context, 
+                  MaterialPageRoute(
+                    builder: (context) => const SocietyJoinRequestPage(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Join Another Society'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                minimumSize: const Size(double.infinity, 0),
+              ),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: () => _confirmLogout(context),
+              icon: const Icon(Icons.logout),
+              label: const Text('Log Out'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                minimumSize: const Size(double.infinity, 0),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildSocietyCard(BuildContext context, HonorSociety society) {
     return Card(
@@ -11206,159 +12546,102 @@ Widget build(BuildContext context) {
     );
   }
 
- // Replace the _selectSociety method in SocietySelectionPage with this implementation:
-
-// Replace the _selectSociety method in SocietySelectionPage with this implementation:
-
-// First, add this global key to your SocietySelectionPage class:
-// final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
-void _selectSociety(BuildContext context, HonorSociety society) async {
-  final provider = Provider.of<SocietyProvider>(context, listen: false);
-  
-  // Save the navigator state before any async operations
-  final NavigatorState navigator = Navigator.of(context);
-  
-  // Show loading indicator
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (dialogContext) => const Center(
-      child: CircularProgressIndicator(),
-    ),
-  );
-
-  try {
-    // Set the current society
-    await provider.setCurrentSociety(society.id);
+  void _selectSociety(BuildContext context, HonorSociety society) async {
+    final provider = Provider.of<SocietyProvider>(context, listen: false);
     
-    // We can use the saved navigator regardless of if the original context is mounted
-    // First close the dialog
-    navigator.pop();
+    // Save the navigator state before any async operations
+    final NavigatorState navigator = Navigator.of(context);
     
-    // Then navigate to MainScreen
-    navigator.pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const MainScreen()),
-      (route) => false, // This removes all previous routes
-    );
-  } catch (e) {
-    // Make sure to close loading dialog on error
-    try {
-      navigator.pop(); // Close the dialog
-      
-      // Show error message if possible
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error selecting society: $e')),
-      );
-    } catch (dialogError) {
-      // If even this fails, log the error
-      print('Error handling society selection failure: $dialogError');
-      print('Original error: $e');
-    }
-  }
-}
-  
-  void _showCreateSocietyDialog(BuildContext context) {
-    final nameController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final meetingReqController = TextEditingController(text: '5');
-    
+    // Show loading indicator
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Create New Society'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Society Name',
-                  hintText: 'e.g., National Honor Society',
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  hintText: 'Briefly describe this society',
-                ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: meetingReqController,
-                decoration: const InputDecoration(
-                  labelText: 'Meeting Requirement',
-                  hintText: 'Number of required meetings',
-                ),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-              onPressed: () async {
-                if (nameController.text.isNotEmpty &&
-                    descriptionController.text.isNotEmpty) {
-                  final provider = Provider.of<SocietyProvider>(context, listen: false);
-                  
-                  // Close dialog
-                  Navigator.of(context).pop();
-                  
-                  // Show loading indicator
-                  showDialog(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (dialogContext) => const Center(
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                  
-                  // Create society
-                  final success = await provider.createSociety(
-                    nameController.text,
-                    descriptionController.text,
-                    int.tryParse(meetingReqController.text) ?? 5,
-                  );
-                  
-                  // Make sure context is still mounted before navigating
-                  if (context.mounted) {
-                    // Remove loading dialog and proceed with navigation in one step
-                    if (success && provider.userSocieties.isNotEmpty) {
-                      final newSociety = provider.userSocieties.last;
-                      // Set society first
-                      await provider.setCurrentSociety(newSociety.id);
-                      
-                      // Then navigate
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (context) => const MainScreen()),
-                        (route) => false,
-                      );
-                    } else {
-                      // Just remove loading dialog if failed
-                      Navigator.of(context).pop();
-                      // Show error message
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Failed to create society')),
-                      );
-                    }
-                  }
-                }
-              },
-              child: const Text('Create'),
-),
-        ],
+      barrierDismissible: false,
+      builder: (dialogContext) => const Center(
+        child: CircularProgressIndicator(),
       ),
     );
+
+    try {
+      // Set the current society
+      await provider.setCurrentSociety(society.id);
+      
+      // We can use the saved navigator regardless of if the original context is mounted
+      // First close the dialog
+      navigator.pop();
+      
+      // Then navigate to MainScreen
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const MainScreen()),
+        (route) => false, // This removes all previous routes
+      );
+    } catch (e) {
+      // Make sure to close loading dialog on error
+      try {
+        navigator.pop(); // Close the dialog
+        
+        // Show error message if possible
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error selecting society: $e')),
+        );
+      } catch (dialogError) {
+        // If even this fails, log the error
+        print('Error handling society selection failure: $dialogError');
+        print('Original error: $e');
+      }
+    }
+  }
+  
+  void _confirmLogout(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Log Out'),
+          content: const Text('Are you sure you want to log out?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context); // Close dialog
+                
+                // Show loading indicator
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+                
+                // Sign out the user
+                await _signOut(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              child: const Text('Log Out'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _signOut(BuildContext context) async {
+    final navigatorState = Navigator.of(context);
+    
+    // Clear any cached data
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('sessionData');
+    
+    // Sign out from Supabase
+    await supabase.auth.signOut();
+    
+    // Navigate to login page and remove all routes
+    navigatorState.pushNamedAndRemoveUntil('/', (route) => false);
   }
 }
-

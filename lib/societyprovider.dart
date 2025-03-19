@@ -11,26 +11,26 @@ class SocietyProvider extends ChangeNotifier {
   bool _isAdmin = false;
   bool _isLoading = true;
   String? _loadingError;
-  
+
   /// Current selected society
   HonorSociety? get currentSociety => _currentSociety;
-  
+
   /// All societies the user is a member of
   List<HonorSociety> get userSocieties => _userSocieties;
-  
+
   /// Whether the user is an admin of the current society
   bool get isAdmin => _isAdmin;
-  
+
   /// Whether data is currently loading
   bool get isLoading => _isLoading;
-  
+
   /// Error message if loading failed
   String? get loadingError => _loadingError;
-  
+
   /// Debugging indicator for initialization state
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
-  
+
   /// Initialize the provider
   SocietyProvider() {
     // Automatically load societies if user is logged in
@@ -44,13 +44,13 @@ class SocietyProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
-  
+
   /// Load all societies the user is a member of
   Future<void> loadUserSocieties() async {
     _isLoading = true;
     _loadingError = null;
     notifyListeners();
-    
+
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) {
@@ -62,10 +62,10 @@ class SocietyProvider extends ChangeNotifier {
         notifyListeners();
         return;
       }
-      
+
       // Debug print
       print('SocietyProvider: Loading societies for user $userId');
-      
+
       final societies = await Supabase.instance.client
           .from('user_society_memberships')
           .select('''
@@ -85,18 +85,17 @@ class SocietyProvider extends ChangeNotifier {
               )
             ),
             is_admin
-          ''')
-          .eq('user_id', userId);
-      
+          ''').eq('user_id', userId);
+
       print('SocietyProvider: Found ${societies.length} societies');
-      
+
       _userSocieties = [];
       for (var membership in societies) {
         final societyData = membership['honor_societies'];
         final hourRequirements = (societyData['hour_requirements'] as List)
             .map((req) => HourRequirement.fromJson(req))
             .toList();
-        
+
         final society = HonorSociety(
           id: societyData['id'],
           name: societyData['name'],
@@ -106,31 +105,32 @@ class SocietyProvider extends ChangeNotifier {
           meetingRequirement: societyData['meeting_requirement'],
           createdAt: DateTime.parse(societyData['created_at']),
         );
-        
+
         _userSocieties.add(society);
-        
+
         // If this is the first society or we don't have a current society, set it as default
         if (_currentSociety == null) {
           _currentSociety = society;
           _isAdmin = membership['is_admin'] ?? false;
         }
       }
-      
+
       if (_currentSociety == null && _userSocieties.isNotEmpty) {
         // Set the first society as default if we still don't have one
         print('SocietyProvider: Setting first society as default');
         _currentSociety = _userSocieties.first;
-        
+
         // Find admin status for this society
         final currentSocietyMembership = societies.firstWhere(
-          (membership) => membership['honor_societies']['id'] == _currentSociety!.id,
+          (membership) =>
+              membership['honor_societies']['id'] == _currentSociety!.id,
           orElse: () => {'is_admin': false},
         );
         _isAdmin = currentSocietyMembership['is_admin'] ?? false;
       }
-      
+
       print('SocietyProvider: Current society: ${_currentSociety?.name}');
-      
+
       _isLoading = false;
       _isInitialized = true;
       notifyListeners();
@@ -142,31 +142,31 @@ class SocietyProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
-  
+
   /// Set the current society by ID
   Future<void> setCurrentSociety(int societyId) async {
     _isLoading = true;
     _loadingError = null;
     notifyListeners();
-    
+
     try {
       print('SocietyProvider: Setting current society to ID $societyId');
-      
+
       // First check if the society is in our existing list
       final existingSociety = _userSocieties.firstWhere(
         (s) => s.id == societyId,
         orElse: () => HonorSociety(
-          id: -1, 
-          name: '', 
-          description: '', 
-          hourRequirements: [], 
-          meetingRequirement: 0, 
-          createdAt: DateTime.now()
-        ),
+            id: -1,
+            name: '',
+            description: '',
+            hourRequirements: [],
+            meetingRequirement: 0,
+            createdAt: DateTime.now()),
       );
-      
+
       if (existingSociety.id != -1) {
-        print('SocietyProvider: Found society in existing list: ${existingSociety.name}');
+        print(
+            'SocietyProvider: Found society in existing list: ${existingSociety.name}');
         _currentSociety = existingSociety;
         await _checkAdminStatus();
       } else {
@@ -177,11 +177,11 @@ class SocietyProvider extends ChangeNotifier {
           notifyListeners();
           return;
         }
-        
+
         print('SocietyProvider: Fetching society details from database');
         final response = await Supabase.instance.client
-          .from('user_society_memberships')
-          .select('''
+            .from('user_society_memberships')
+            .select('''
             honor_societies!inner(
               id,
               name,
@@ -199,15 +199,15 @@ class SocietyProvider extends ChangeNotifier {
             ),
             is_admin
           ''')
-          .eq('user_id', userId)
-          .eq('society_id', societyId)
-          .single();
-        
+            .eq('user_id', userId)
+            .eq('society_id', societyId)
+            .single();
+
         final societyData = response['honor_societies'];
         final hourRequirements = (societyData['hour_requirements'] as List)
-          .map((req) => HourRequirement.fromJson(req))
-          .toList();
-        
+            .map((req) => HourRequirement.fromJson(req))
+            .toList();
+
         _currentSociety = HonorSociety(
           id: societyData['id'],
           name: societyData['name'],
@@ -217,12 +217,13 @@ class SocietyProvider extends ChangeNotifier {
           meetingRequirement: societyData['meeting_requirement'],
           createdAt: DateTime.parse(societyData['created_at']),
         );
-        
-        print('SocietyProvider: Set current society to: ${_currentSociety?.name}');
-        
+
+        print(
+            'SocietyProvider: Set current society to: ${_currentSociety?.name}');
+
         _isAdmin = response['is_admin'] ?? false;
       }
-      
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -232,20 +233,20 @@ class SocietyProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
-  
+
   /// Refresh the current society data
   Future<void> refreshCurrentSociety() async {
     if (_currentSociety == null) return;
-    
+
     _isLoading = true;
     notifyListeners();
-    
+
     try {
-      print('SocietyProvider: Refreshing current society: ${_currentSociety?.name}');
+      print(
+          'SocietyProvider: Refreshing current society: ${_currentSociety?.name}');
       final societyId = _currentSociety!.id;
-      final response = await Supabase.instance.client
-        .from('honor_societies')
-        .select('''
+      final response =
+          await Supabase.instance.client.from('honor_societies').select('''
           id,
           name,
           description,
@@ -259,14 +260,12 @@ class SocietyProvider extends ChangeNotifier {
             hours_needed,
             is_active
           )
-        ''')
-        .eq('id', societyId)
-        .single();
-      
+        ''').eq('id', societyId).single();
+
       final hourRequirements = (response['hour_requirements'] as List)
-        .map((req) => HourRequirement.fromJson(req))
-        .toList();
-      
+          .map((req) => HourRequirement.fromJson(req))
+          .toList();
+
       _currentSociety = HonorSociety(
         id: response['id'],
         name: response['name'],
@@ -276,15 +275,15 @@ class SocietyProvider extends ChangeNotifier {
         meetingRequirement: response['meeting_requirement'],
         createdAt: DateTime.parse(response['created_at']),
       );
-      
+
       // Update this society in the user's society list
       final index = _userSocieties.indexWhere((s) => s.id == societyId);
       if (index != -1) {
         _userSocieties[index] = _currentSociety!;
       }
-      
+
       print('SocietyProvider: Successfully refreshed society data');
-      
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -293,24 +292,25 @@ class SocietyProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
-  
+
   /// Check if the user is an admin of the current society
   Future<void> _checkAdminStatus() async {
     if (_currentSociety == null) return;
-    
+
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) return;
-      
-      print('SocietyProvider: Checking admin status for society ${_currentSociety?.id}');
-      
+
+      print(
+          'SocietyProvider: Checking admin status for society ${_currentSociety?.id}');
+
       final response = await Supabase.instance.client
-        .from('user_society_memberships')
-        .select('is_admin')
-        .eq('user_id', userId)
-        .eq('society_id', _currentSociety!.id)
-        .single();
-      
+          .from('user_society_memberships')
+          .select('is_admin')
+          .eq('user_id', userId)
+          .eq('society_id', _currentSociety!.id)
+          .single();
+
       _isAdmin = response['is_admin'] ?? false;
       print('SocietyProvider: Admin status is $_isAdmin');
     } catch (e) {
@@ -318,16 +318,15 @@ class SocietyProvider extends ChangeNotifier {
       _isAdmin = false;
     }
   }
-  
+
   /// Request to join a society
   Future<bool> requestJoinSociety(HonorSociety society) async {
     try {
       print('SocietyProvider: Requesting to join society ${society.name}');
-      final result = await Supabase.instance.client
-        .rpc('request_society_membership', params: {
-          'society_id_param': society.id
-        });
-      
+      final result = await Supabase.instance.client.rpc(
+          'request_society_membership',
+          params: {'society_id_param': society.id});
+
       if (result == true) {
         await loadUserSocieties();
         return true;
@@ -338,25 +337,26 @@ class SocietyProvider extends ChangeNotifier {
       return false;
     }
   }
-  
+
   /// Create a new society (for testing)
-  Future<bool> createSociety(String name, String description, int meetingRequirement) async {
+  Future<bool> createSociety(
+      String name, String description, int meetingRequirement) async {
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) return false;
-      
+
       print('SocietyProvider: Creating new society "$name"');
-      
-      final newSocietyId = await Supabase.instance.client
-        .rpc('create_society', params: {
-          'name_param': name,
-          'description_param': description,
-          'meeting_requirement_param': meetingRequirement,
-          'creator_user_id': userId
-        });
-      
+
+      final newSocietyId =
+          await Supabase.instance.client.rpc('create_society', params: {
+        'name_param': name,
+        'description_param': description,
+        'meeting_requirement_param': meetingRequirement,
+        'creator_user_id': userId
+      });
+
       print('SocietyProvider: New society created with ID $newSocietyId');
-      
+
       if (newSocietyId != null) {
         await loadUserSocieties();
         return true;
@@ -367,7 +367,7 @@ class SocietyProvider extends ChangeNotifier {
       return false;
     }
   }
-  
+
   /// Handle user logout - reset state
   void handleLogout() {
     _currentSociety = null;
@@ -379,7 +379,7 @@ class SocietyProvider extends ChangeNotifier {
   }
 
   void cancelLoading() {
-  _isLoading = false;
+    _isLoading = false;
     notifyListeners();
   }
 }
