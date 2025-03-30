@@ -62,13 +62,14 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    
+
     // Listen for auth state changes to reload societies when user signs in/out
     supabase.auth.onAuthStateChange.listen((data) {
       final event = data.event;
       if (event == AuthChangeEvent.signedIn) {
         // User signed in, load their societies
-        Provider.of<SocietyProvider>(context, listen: false).loadUserSocieties();
+        Provider.of<SocietyProvider>(context, listen: false)
+            .loadUserSocieties();
       } else if (event == AuthChangeEvent.signedOut) {
         // User signed out, clear provider data
         // This is handled implicitly in the provider as it depends on currentUser
@@ -103,11 +104,13 @@ class _MyAppState extends State<MyApp> {
                   return MaterialApp(
                     title: 'NHS Hour Tracking',
                     debugShowCheckedModeBanner: false,
-                    theme: themeProvider.getThemeData(widget.themeNotifier.themeColor),
+                    theme: themeProvider
+                        .getThemeData(widget.themeNotifier.themeColor),
                     initialRoute: '/',
                     routes: {
                       '/': (context) => const LoginPage(),
-                      '/society_selection': (context) => const SocietySelectionPage(),
+                      '/society_selection': (context) =>
+                          const SocietySelectionPage(),
                     },
                   );
                 },
@@ -164,18 +167,19 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Consumer<SocietyProvider>(
       builder: (context, societyProvider, _) {
-        if (societyProvider.isLoading || societyProvider.currentSociety == null) {
+        if (societyProvider.isLoading ||
+            societyProvider.currentSociety == null) {
           return const Scaffold(
             body: Center(
               child: CircularProgressIndicator(),
             ),
           );
         }
-        
+
         final isAdmin = societyProvider.isAdmin;
         final society = societyProvider.currentSociety!;
         final bool isWideScreen = MediaQuery.of(context).size.width >= 600;
-        
+
         final List<Widget> pages = [
           if (isAdmin) ...[
             const SocietyAdminDashboard(),
@@ -230,7 +234,7 @@ class _MainScreenState extends State<MainScreen> {
               inactiveColor: Theme.of(context).colorScheme.onSurface,
             ),
             BottomNavyBarItem(
-              title: const Text('Hours'),
+              title: const Text('Details'),
               icon: const Icon(Icons.watch_later),
               activeColor: Theme.of(context).colorScheme.primary,
               inactiveColor: Theme.of(context).colorScheme.onSurface,
@@ -276,7 +280,8 @@ class _MainScreenState extends State<MainScreen> {
           bottomNavigationBar: isWideScreen
               ? null
               : BottomNavyBar(
-                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
+                  backgroundColor:
+                      Theme.of(context).colorScheme.surfaceContainerLowest,
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   selectedIndex: _currentIndex,
                   onItemSelected: (index) {
@@ -294,7 +299,7 @@ class _MainScreenState extends State<MainScreen> {
   void _navigateToSocietyAdmin(BuildContext context) {
     final provider = Provider.of<SocietyProvider>(context, listen: false);
     final society = provider.currentSociety;
-    
+
     if (society != null) {
       Navigator.push(
         context,
@@ -307,14 +312,14 @@ class _MainScreenState extends State<MainScreen> {
       });
     }
   }
-  
+
   void _navigateToSocietySelection(BuildContext context) {
     // Clear any loading state in the provider before navigating
     final provider = Provider.of<SocietyProvider>(context, listen: false);
     if (provider.isLoading) {
       provider.cancelLoading(); // Add this method to SocietyProvider
     }
-    
+
     // Navigate to society selection
     Navigator.pushAndRemoveUntil(
       context,
@@ -368,7 +373,8 @@ class _LoginPageState extends State<LoginPage> {
                     // Navigate to society selection on successful sign-in
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (context) => const SocietySelectionPage()),
+                      MaterialPageRoute(
+                          builder: (context) => const SocietySelectionPage()),
                       (route) => false,
                     );
                   }
@@ -381,7 +387,8 @@ class _LoginPageState extends State<LoginPage> {
                   // Navigate to the home page on successful social sign-in
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => SocietySelectionPage()),
+                    MaterialPageRoute(
+                        builder: (context) => SocietySelectionPage()),
                   );
                 },
                 onError: (error) {
@@ -445,9 +452,8 @@ class WaitingPage extends StatelessWidget {
 
 class HomePage extends StatefulWidget {
   final HonorSociety? society;
-  
+
   const HomePage({super.key, this.society});
-  
 
   @override
   _HomePageState createState() => _HomePageState();
@@ -462,34 +468,35 @@ class _HomePageState extends State<HomePage> {
   late Map<String, double> _completedHoursMap = {};
   late Map<String, double> _potentialHoursMap = {};
   late Map<String, double> _requirementMap = {};
-  int _meetingRequirement = 5;  // Default value
+  int _meetingRequirement = 5; // Default value
   List<String> _availableEventTypes = ['All'];
   bool _isLoading = true;
   final DateFormat formatter = DateFormat('jm');
-  
+
   @override
   void initState() {
     super.initState();
     _fetchData();
     _checkPendingSwapRequests();
   }
-  
+
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
-    
+
     try {
       // Get the current society
-      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
       if (society == null) {
         setState(() => _isLoading = false);
         return;
       }
-      
+
       // Get society requirements
       _meetingRequirement = society.meetingRequirement;
       _requirementMap = {};
       _availableEventTypes = ['All'];
-      
+
       for (final req in society.hourRequirements) {
         if (req.isActive) {
           _requirementMap[req.type] = req.hoursNeeded;
@@ -498,19 +505,19 @@ class _HomePageState extends State<HomePage> {
           }
         }
       }
-      
+
       // Add Meeting type if not already present
       if (!_availableEventTypes.contains('Meeting')) {
         _availableEventTypes.add('Meeting');
       }
-      
+
       // Run fetches in parallel
       await Future.wait([
         _fetchEvents(),
         _fetchCollections(),
         _fetchCompletedHours(),
       ]);
-      
+
       setState(() => _isLoading = false);
     } catch (e) {
       print('Error fetching data: $e');
@@ -519,18 +526,21 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _fetchEvents() async {
-    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     if (society == null) return;
-    
+
     final eventResponse = await Supabase.instance.client
         .from('Events')
         .select()
         .eq('society_id', society.id)
-        .gt('date', DateTime.now().subtract(const Duration(days: 1)).toIso8601String())
+        .gt('date',
+            DateTime.now().subtract(const Duration(days: 1)).toIso8601String())
         .order('date');
 
     final List<dynamic> eventData = eventResponse;
-    final List<Event> events = eventData.map((json) => Event.fromJson(json)).toList();
+    final List<Event> events =
+        eventData.map((json) => Event.fromJson(json)).toList();
 
     // Fetch time slots for each event
     for (var event in events) {
@@ -540,7 +550,8 @@ class _HomePageState extends State<HomePage> {
           .eq('event_id', event.id);
 
       final List<dynamic> timeSlotData = timeSlotResponse;
-      final List<TimeSlot> timeSlots = timeSlotData.map((json) => TimeSlot.fromJson(json)).toList();
+      final List<TimeSlot> timeSlots =
+          timeSlotData.map((json) => TimeSlot.fromJson(json)).toList();
 
       for (var timeSlot in timeSlots) {
         final attendeeResponse = await Supabase.instance.client
@@ -573,7 +584,8 @@ class _HomePageState extends State<HomePage> {
   Future<void> _fetchCompletedHours() async {
     final User? user = supabase.auth.currentUser;
     final userId = user?.id;
-    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
 
     if (userId != null && society != null) {
       // Get user's service hours for this society in a single query
@@ -588,14 +600,14 @@ class _HomePageState extends State<HomePage> {
         Map<String, double> completedHoursMap = {};
         Map<String, double> potentialHoursMap = {};
         Map<String, List<CompletedHour>> hoursByTypeMap = {};
-        
+
         // Initialize maps with all requirement types
         for (final reqType in _requirementMap.keys) {
           completedHoursMap[reqType] = 0;
           potentialHoursMap[reqType] = 0;
           hoursByTypeMap[reqType] = [];
         }
-        
+
         // Always include Meeting type
         if (!completedHoursMap.containsKey('Meeting')) {
           completedHoursMap['Meeting'] = 0;
@@ -609,42 +621,45 @@ class _HomePageState extends State<HomePage> {
           final eventType = entry['type'] as String;
           final eventName = entry['event_name'] as String? ?? 'Unknown Event';
           final dateString = entry['date'] as String?;
-          final DateTime date = dateString != null ? 
-              DateTime.parse(dateString) : DateTime.now();
-          
+          final DateTime date =
+              dateString != null ? DateTime.parse(dateString) : DateTime.now();
+
           // Use normalized type for consistent matching
           final normalizedType = _normalizeType(eventType);
-          
+
           if (completedHoursMap.containsKey(normalizedType)) {
-            completedHoursMap[normalizedType] = completedHoursMap[normalizedType]! + hours;
-            potentialHoursMap[normalizedType] = potentialHoursMap[normalizedType]! + hours;
-            
+            completedHoursMap[normalizedType] =
+                completedHoursMap[normalizedType]! + hours;
+            potentialHoursMap[normalizedType] =
+                potentialHoursMap[normalizedType]! + hours;
+
             // Also store the individual hour entries
-            hoursByTypeMap[normalizedType]!.add(
-              CompletedHour(
-                title: eventName,
-                date: date,
-                hours: hours,
-              )
-            );
+            hoursByTypeMap[normalizedType]!.add(CompletedHour(
+              title: eventName,
+              date: date,
+              hours: hours,
+            ));
           }
         }
 
         // Process potential hours from upcoming events
         for (final event in _events) {
           for (final timeSlot in event.timeSlots) {
-            final isSignedUp = timeSlot.attendees.any((attendee) => attendee.userId == userId);
+            final isSignedUp =
+                timeSlot.attendees.any((attendee) => attendee.userId == userId);
             final isNotPresent = timeSlot.attendees.any(
                 (attendee) => attendee.userId == userId && !attendee.isPresent);
 
             if (isSignedUp && isNotPresent) {
-              final duration = _calculateDuration(timeSlot.time, timeSlot.endTime);
-              
+              final duration =
+                  _calculateDuration(timeSlot.time, timeSlot.endTime);
+
               // Use normalized type for consistent matching
               final normalizedType = _normalizeType(event.type);
-              
+
               if (potentialHoursMap.containsKey(normalizedType)) {
-                potentialHoursMap[normalizedType] = potentialHoursMap[normalizedType]! + duration;
+                potentialHoursMap[normalizedType] =
+                    potentialHoursMap[normalizedType]! + duration;
               }
             }
           }
@@ -664,13 +679,16 @@ class _HomePageState extends State<HomePage> {
   // Helper method to normalize type strings for consistent matching
   String _normalizeType(String type) {
     // Convert to title case for consistent comparison
-    return type.trim().split(' ').map((word) => 
-      word.isNotEmpty ? 
-        word[0].toUpperCase() + (word.length > 1 ? word.substring(1).toLowerCase() : '') : 
-        ''
-    ).join(' ');
+    return type
+        .trim()
+        .split(' ')
+        .map((word) => word.isNotEmpty
+            ? word[0].toUpperCase() +
+                (word.length > 1 ? word.substring(1).toLowerCase() : '')
+            : '')
+        .join(' ');
   }
-  
+
   // Build event type filter chips based on society requirements
   List<Widget> _buildEventTypeChips() {
     return _availableEventTypes.map((type) {
@@ -685,14 +703,15 @@ class _HomePageState extends State<HomePage> {
       );
     }).toList();
   }
-  
+
   // Filter events based on selected type
   List<Event> _getFilteredEvents() {
     if (_selectedEventType == 'All') {
       return _events;
     } else {
       return _events
-          .where((event) => _normalizeType(event.type) == _normalizeType(_selectedEventType))
+          .where((event) =>
+              _normalizeType(event.type) == _normalizeType(_selectedEventType))
           .toList();
     }
   }
@@ -713,36 +732,36 @@ class _HomePageState extends State<HomePage> {
         ),
         centerTitle: true,
       ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
-        : RefreshIndicator(
-            onRefresh: _fetchData,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  // Progress bars for each requirement type
-                  ..._buildProgressBars(),
-                  
-                  const SizedBox(height: 20),
-                  Wrap(
-                    spacing: 8,
-                    children: _buildEventTypeChips(),
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  // Event listings
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _getFilteredEvents().length,
-                    itemBuilder: (context, index) {
-                      return _buildEventCard(_getFilteredEvents()[index]);
-                    },
-                  ),
-                ],
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _fetchData,
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // Progress bars for each requirement type
+                    ..._buildProgressBars(),
+
+                    const SizedBox(height: 20),
+                    Wrap(
+                      spacing: 8,
+                      children: _buildEventTypeChips(),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Event listings
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _getFilteredEvents().length,
+                      itemBuilder: (context, index) {
+                        return _buildEventCard(_getFilteredEvents()[index]);
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
     );
   }
 
@@ -773,345 +792,363 @@ class _HomePageState extends State<HomePage> {
     return duration;
   }
 
- // Updated method to create better looking progress bars with Material You styling
-List<Widget> _buildProgressBars() {
-  List<Widget> progressBars = [];
-  
-  // First add all the hour requirements in more compact cards
-  _requirementMap.forEach((type, hoursNeeded) {
-    final completedHours = _completedHoursMap[type] ?? 0.0;
-    final potentialHours = _potentialHoursMap[type] ?? 0.0;
-    
+  // Updated method to create better looking progress bars with Material You styling
+  List<Widget> _buildProgressBars() {
+    List<Widget> progressBars = [];
+
+    // First add all the hour requirements in more compact cards
+    _requirementMap.forEach((type, hoursNeeded) {
+      final completedHours = _completedHoursMap[type] ?? 0.0;
+      final potentialHours = _potentialHoursMap[type] ?? 0.0;
+
+      progressBars.add(_buildDoubleProgressBar(
+          context, type, completedHours, potentialHours, hoursNeeded.floor()));
+    });
+
+    // Then add the special meeting requirement
+    final meetingHours = _completedHoursMap['Meeting'] ?? 0.0;
     progressBars.add(
-      _buildDoubleProgressBar(
-        context, 
-        type, 
-        completedHours, 
-        potentialHours, 
-        hoursNeeded.floor()
-      )
-    );
-  });
-  
-  // Then add the special meeting requirement
-  final meetingHours = _completedHoursMap['Meeting'] ?? 0.0;
-  progressBars.add(
-    _buildMeetingProgressBar(context, meetingHours, _meetingRequirement)
-  );
-  
-  return progressBars;
-}
-/// Creates a double progress bar showing completed and potential hours.
-Widget _buildDoubleProgressBar(BuildContext context, String title,
-    double completedHours, double potentialHours, int hoursNeeded) {
-  // Calculate percentage for display
-  final percentage = ((completedHours / hoursNeeded) * 100).clamp(0, 100).toInt();
-  final isComplete = completedHours >= hoursNeeded;
-  
-  return Card(
-    elevation: 0,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-    child: Padding(
-      padding: const EdgeInsets.all(12.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Title with icon
-              Row(
-                children: [
-                  Icon(
-                    _getIconForType(title),
-                    size: 18,
-                    color: isComplete 
-                        ? Theme.of(context).colorScheme.primary 
+        _buildMeetingProgressBar(context, meetingHours, _meetingRequirement));
+
+    return progressBars;
+  }
+
+  /// Creates a double progress bar showing completed and potential hours.
+  Widget _buildDoubleProgressBar(BuildContext context, String title,
+      double completedHours, double potentialHours, int hoursNeeded) {
+    // Calculate percentage for display
+    final percentage =
+        ((completedHours / hoursNeeded) * 100).clamp(0, 100).toInt();
+    final isComplete = completedHours >= hoursNeeded;
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Title with icon
+                Row(
+                  children: [
+                    Icon(
+                      _getIconForType(title),
+                      size: 18,
+                      color: isComplete
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '$title',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Hours text more compact
+                Text(
+                  '${completedHours.toStringAsFixed(1)} / $hoursNeeded',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: isComplete
+                        ? Theme.of(context).colorScheme.primary
                         : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '$title',
-                    style: TextStyle(
-                      fontSize: 15, 
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-              
-              // Hours text more compact
-              Text(
-                '${completedHours.toStringAsFixed(1)} / $hoursNeeded',
-                style: TextStyle(
-                  fontSize: 14, 
-                  fontWeight: FontWeight.w500,
-                  color: isComplete
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 8),
-          
-          // Progress bars with animation
-          Stack(
-            children: [
-              // Background track
-              Container(
-                height: 10,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(5),
-                ),
-              ),
-              
-              // Potential hours progress
-              TweenAnimationBuilder<double>(
-                duration: const Duration(milliseconds: 750),
-                curve: Curves.easeInOut,
-                tween: Tween<double>(
-                  begin: 0,
-                  end: (potentialHours / hoursNeeded).clamp(0.0, 1.0),
-                ),
-                builder: (context, potentialValue, _) {
-                  return FractionallySizedBox(
-                    widthFactor: potentialValue,
-                    child: Container(
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                    ),
-                  );
-                },
-              ),
-              
-              // Completed hours progress
-              TweenAnimationBuilder<double>(
-                duration: const Duration(milliseconds: 1000),
-                curve: Curves.easeOutQuart,
-                tween: Tween<double>(
-                  begin: 0,
-                  end: (completedHours / hoursNeeded).clamp(0.0, 1.0),
-                ),
-                builder: (context, completedValue, _) {
-                  return FractionallySizedBox(
-                    widthFactor: completedValue,
-                    child: Container(
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: isComplete
-                            ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context).colorScheme.primary.withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-          
-          // Only show this info if there's additional potential hours
-          if (potentialHours > completedHours)
-            Padding(
-              padding: const EdgeInsets.only(top: 6.0),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.upcoming,
-                    size: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
-                  ),
-                  const SizedBox(width: 3),
-                  Text(
-                    'Potential: ${potentialHours.toStringAsFixed(1)}',
-                    style: TextStyle(
-                      fontSize: 12, 
-                      color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
-                    ),
-                  ),
-                  if (isComplete)
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Icon(
-                            Icons.check_circle_outline,
-                            size: 12,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            'Complete',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
+              ],
             ),
-        ],
-      ),
-    ),
-  );
-}
-/// Creates a progress bar specifically for meeting attendance with Material You styling
-Widget _buildMeetingProgressBar(
-    BuildContext context, double completedHours, int hoursNeeded) {
-  final meetingsAttended = completedHours.floor();
-  final meetingsLeft = _events.where((event) => event.type == 'Meeting').length;
-  final isComplete = meetingsAttended >= hoursNeeded;
 
-  return Card(
-    elevation: 0,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-    child: Padding(
-      padding: const EdgeInsets.all(12.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Title with icon
-              Row(
-                children: [
-                  Icon(
-                    Icons.groups_rounded,
-                    size: 18,
-                    color: isComplete 
+            const SizedBox(height: 8),
+
+            // Progress bars with animation
+            Stack(
+              children: [
+                // Background track
+                Container(
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                ),
+
+                // Potential hours progress
+                TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 750),
+                  curve: Curves.easeInOut,
+                  tween: Tween<double>(
+                    begin: 0,
+                    end: (potentialHours / hoursNeeded).clamp(0.0, 1.0),
+                  ),
+                  builder: (context, potentialValue, _) {
+                    return FractionallySizedBox(
+                      widthFactor: potentialValue,
+                      child: Container(
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                // Completed hours progress
+                TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 1000),
+                  curve: Curves.easeOutQuart,
+                  tween: Tween<double>(
+                    begin: 0,
+                    end: (completedHours / hoursNeeded).clamp(0.0, 1.0),
+                  ),
+                  builder: (context, completedValue, _) {
+                    return FractionallySizedBox(
+                      widthFactor: completedValue,
+                      child: Container(
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: isComplete
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+
+            // Only show this info if there's additional potential hours
+            if (potentialHours > completedHours)
+              Padding(
+                padding: const EdgeInsets.only(top: 6.0),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.upcoming,
+                      size: 12,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurfaceVariant
+                          .withOpacity(0.7),
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      'Potential: ${potentialHours.toStringAsFixed(1)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurfaceVariant
+                            .withOpacity(0.7),
+                      ),
+                    ),
+                    if (isComplete)
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Icon(
+                              Icons.check_circle_outline,
+                              size: 12,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              'Complete',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Creates a progress bar specifically for meeting attendance with Material You styling
+  Widget _buildMeetingProgressBar(
+      BuildContext context, double completedHours, int hoursNeeded) {
+    final meetingsAttended = completedHours.floor();
+    final meetingsLeft =
+        _events.where((event) => event.type == 'Meeting').length;
+    final isComplete = meetingsAttended >= hoursNeeded;
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Title with icon
+                Row(
+                  children: [
+                    Icon(
+                      Icons.groups_rounded,
+                      size: 18,
+                      color: isComplete
+                          ? Theme.of(context).colorScheme.tertiary
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Meetings',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Meetings text
+                Text(
+                  '$meetingsAttended / $hoursNeeded',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: isComplete
                         ? Theme.of(context).colorScheme.tertiary
                         : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Meetings',
-                    style: TextStyle(
-                      fontSize: 15, 
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-              
-              // Meetings text
-              Text(
-                '$meetingsAttended / $hoursNeeded',
-                style: TextStyle(
-                  fontSize: 14, 
-                  fontWeight: FontWeight.w500,
-                  color: isComplete
-                      ? Theme.of(context).colorScheme.tertiary
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 8),
-          
-          // Progress bar with animation
-          TweenAnimationBuilder<double>(
-            duration: const Duration(milliseconds: 1000),
-            curve: Curves.easeOutQuart,
-            tween: Tween<double>(
-              begin: 0,
-              end: (meetingsAttended / hoursNeeded).clamp(0.0, 1.0),
+              ],
             ),
-            builder: (context, value, _) {
-              return Stack(
-                children: [
-                  // Background track
-                  Container(
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                  ),
-                  
-                  // Progress
-                  FractionallySizedBox(
-                    widthFactor: value,
-                    child: Container(
+
+            const SizedBox(height: 8),
+
+            // Progress bar with animation
+            TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 1000),
+              curve: Curves.easeOutQuart,
+              tween: Tween<double>(
+                begin: 0,
+                end: (meetingsAttended / hoursNeeded).clamp(0.0, 1.0),
+              ),
+              builder: (context, value, _) {
+                return Stack(
+                  children: [
+                    // Background track
+                    Container(
                       height: 10,
                       decoration: BoxDecoration(
-                        color: isComplete
-                            ? Theme.of(context).colorScheme.tertiary
-                            : Theme.of(context).colorScheme.tertiary.withOpacity(0.8),
+                        color: Theme.of(context).colorScheme.surface,
                         borderRadius: BorderRadius.circular(5),
                       ),
                     ),
-                  ),
-                ],
-              );
-            },
-          ),
-          
-          if (meetingsLeft > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 6.0),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.event_available,
-                    size: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
-                  ),
-                  const SizedBox(width: 3),
-                  Text(
-                    'Upcoming: $meetingsLeft',
-                    style: TextStyle(
-                      fontSize: 12, 
-                      color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
-                    ),
-                  ),
-                  if (isComplete)
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Icon(
-                            Icons.check_circle_outline,
-                            size: 12,
-                            color: Theme.of(context).colorScheme.tertiary,
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            'Complete',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context).colorScheme.tertiary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
+
+                    // Progress
+                    FractionallySizedBox(
+                      widthFactor: value,
+                      child: Container(
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: isComplete
+                              ? Theme.of(context).colorScheme.tertiary
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .tertiary
+                                  .withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
                       ),
                     ),
-                ],
-              ),
+                  ],
+                );
+              },
             ),
-        ],
+
+            if (meetingsLeft > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 6.0),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.event_available,
+                      size: 12,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurfaceVariant
+                          .withOpacity(0.7),
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      'Upcoming: $meetingsLeft',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurfaceVariant
+                            .withOpacity(0.7),
+                      ),
+                    ),
+                    if (isComplete)
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Icon(
+                              Icons.check_circle_outline,
+                              size: 12,
+                              color: Theme.of(context).colorScheme.tertiary,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              'Complete',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context).colorScheme.tertiary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
+
   /// Returns unique collections from a list of events.
   ///
   /// Parameters:
@@ -1143,495 +1180,532 @@ Widget _buildMeetingProgressBar(
         .reduce((a, b) => a.isBefore(b) ? a : b);
   }
 
-Widget _buildEventCard(Event event) {
-  final bool isNew = event.createdAt
-      .isAfter(DateTime.now().subtract(const Duration(days: 3)));
-  final bool isMandatory = event.isMandatory;
-  final currentUserId = supabase.auth.currentUser?.id;
+  Widget _buildEventCard(Event event) {
+    final bool isNew = event.createdAt
+        .isAfter(DateTime.now().subtract(const Duration(days: 3)));
+    final bool isMandatory = event.isMandatory;
+    final currentUserId = supabase.auth.currentUser?.id;
 
-  // Check if forms are required and completed
-  final bool formsCompleted = event.timeSlots.any((timeSlot) =>
-      timeSlot.attendees.any((attendee) =>
-          attendee.userId == currentUserId && attendee.formsCompleted));
+    // Check if forms are required and completed
+    final bool formsCompleted = event.timeSlots.any((timeSlot) =>
+        timeSlot.attendees.any((attendee) =>
+            attendee.userId == currentUserId && attendee.formsCompleted));
 
-  final bool showRequiredForms = event.requiresForms && !formsCompleted && 
-      event.timeSlots.any((timeSlot) =>
-          timeSlot.attendees.any((attendee) => attendee.userId == currentUserId));
+    final bool showRequiredForms = event.requiresForms &&
+        !formsCompleted &&
+        event.timeSlots.any((timeSlot) => timeSlot.attendees
+            .any((attendee) => attendee.userId == currentUserId));
 
-  return Card(
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12),
-    ),
-    elevation: 1,
-    margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-    clipBehavior: Clip.antiAlias,
-    child: Stack(
-      children: [
-        // Event type indicator line
-        Positioned(
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: 4, 
-          child: Container(
-            color: _getColorForEventType(event.type, context),
-          ),
-        ),
-        
-        // Main content with padding to account for the type indicator
-        Padding(
-          padding: const EdgeInsets.only(left: 4),
-          child: CustomExpansionTile(
-            title: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 12, 8, 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Event icon
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: _getColorForEventType(event.type, context).withOpacity(0.15),
-                    child: Icon(
-                      _getIconForType(event.type),
-                      color: _getColorForEventType(event.type, context),
-                      size: 16,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  
-                  // Event details
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Title and badges row
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                event.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16.0,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            // Use more compact badges
-                            if (showRequiredForms)
-                              _buildBadge(
-                                'Forms', 
-                                Icons.assignment_late, 
-                                Theme.of(context).colorScheme.error
-                              )
-                            else if (isMandatory)
-                              _buildBadge(
-                                'Required', 
-                                Icons.priority_high, 
-                                Theme.of(context).colorScheme.tertiary
-                              )
-                            else if (isNew)
-                              _buildBadge(
-                                'New', 
-                                Icons.fiber_new, 
-                                Theme.of(context).colorScheme.secondary
-                              ),
-                          ],
-                        ),
-                        
-                        // Date and description
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.event_note,
-                              size: 14,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              "${event.date.month}/${event.date.day}/${event.date.year}",
-                              style: TextStyle(
-                                fontSize: 13.0,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: _getColorForEventType(event.type, context).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                event.type,
-                                style: TextStyle(
-                                  fontSize: 12.0,
-                                  fontWeight: FontWeight.w500,
-                                  color: _getColorForEventType(event.type, context),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        
-                        const SizedBox(height: 4),
-                        Text(
-                          event.description,
-                          style: TextStyle(
-                            fontSize: 13.0,
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      elevation: 1,
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          // Event type indicator line
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 4,
+            child: Container(
+              color: _getColorForEventType(event.type, context),
             ),
-            children: _buildTimeSlotItems(event, currentUserId),
           ),
-        ),
-      ],
-    ),
-  );
 
-  
-}
+          // Main content with padding to account for the type indicator
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: CustomExpansionTile(
+              title: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 12, 8, 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Event icon
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor:
+                          _getColorForEventType(event.type, context)
+                              .withOpacity(0.15),
+                      child: Icon(
+                        _getIconForType(event.type),
+                        color: _getColorForEventType(event.type, context),
+                        size: 16,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
 
+                    // Event details
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Title and badges row
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  event.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16.0,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              // Use more compact badges
+                              if (showRequiredForms)
+                                _buildBadge('Forms', Icons.assignment_late,
+                                    Theme.of(context).colorScheme.error)
+                              else if (isMandatory)
+                                _buildBadge('Required', Icons.priority_high,
+                                    Theme.of(context).colorScheme.tertiary)
+                              else if (isNew)
+                                _buildBadge('New', Icons.fiber_new,
+                                    Theme.of(context).colorScheme.secondary),
+                            ],
+                          ),
+
+                          // Date and description
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.event_note,
+                                size: 14,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                "${event.date.month}/${event.date.day}/${event.date.year}",
+                                style: TextStyle(
+                                  fontSize: 13.0,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color:
+                                      _getColorForEventType(event.type, context)
+                                          .withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  event.type,
+                                  style: TextStyle(
+                                    fontSize: 12.0,
+                                    fontWeight: FontWeight.w500,
+                                    color: _getColorForEventType(
+                                        event.type, context),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 4),
+                          Text(
+                            event.description,
+                            style: TextStyle(
+                              fontSize: 13.0,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.8),
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              children: _buildTimeSlotItems(event, currentUserId),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
 // Add this method to build time slot items
-List<Widget> _buildTimeSlotItems(Event event, String? currentUserId) {
-  final bool isMandatory = event.isMandatory;
+  List<Widget> _buildTimeSlotItems(Event event, String? currentUserId) {
+    final bool isMandatory = event.isMandatory;
 
-  return event.timeSlots.map((timeSlot) {
-    // Get timeslot-specific status
-    final isSignedUp = timeSlot.attendees
-        .any((attendee) => attendee.userId == currentUserId);
-    
-    // Get society requirements and check if user has completed them
-    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
-    bool hasCompletedRequirements = false;
-    
-    if (society != null) {
-      // For Meeting type, use the society's meeting requirement
-      if (event.type == 'Meeting') {
-        final meetingsCompleted = _completedHoursMap['Meeting'] ?? 0.0;
-        hasCompletedRequirements = meetingsCompleted >= society.meetingRequirement;
-      } else {
-        // For other types, find the matching requirement in the society
-        final matchingRequirement = society.hourRequirements.firstWhere(
-          (req) => _normalizeType(req.type) == _normalizeType(event.type),
-          orElse: () => HourRequirement(
-            id: -1,
-            type: event.type,
-            hoursNeeded: 0,
-            description: '',
-            isActive: false,
-          ),
-        );
-        
-        // Check if user has completed the required hours for this type
-        final completedHours = _completedHoursMap[_normalizeType(event.type)] ?? 0.0;
-        hasCompletedRequirements = completedHours >= matchingRequirement.hoursNeeded;
+    return event.timeSlots.map((timeSlot) {
+      // Get timeslot-specific status
+      final isSignedUp = timeSlot.attendees
+          .any((attendee) => attendee.userId == currentUserId);
+
+      // Get society requirements and check if user has completed them
+      final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      bool hasCompletedRequirements = false;
+
+      if (society != null) {
+        // For Meeting type, use the society's meeting requirement
+        if (event.type == 'Meeting') {
+          final meetingsCompleted = _completedHoursMap['Meeting'] ?? 0.0;
+          hasCompletedRequirements =
+              meetingsCompleted >= society.meetingRequirement;
+        } else {
+          // For other types, find the matching requirement in the society
+          final matchingRequirement = society.hourRequirements.firstWhere(
+            (req) => _normalizeType(req.type) == _normalizeType(event.type),
+            orElse: () => HourRequirement(
+              id: -1,
+              type: event.type,
+              hoursNeeded: 0,
+              description: '',
+              isActive: false,
+            ),
+          );
+
+          // Check if user has completed the required hours for this type
+          final completedHours =
+              _completedHoursMap[_normalizeType(event.type)] ?? 0.0;
+          hasCompletedRequirements =
+              completedHours >= matchingRequirement.hoursNeeded;
+        }
       }
-    }
-    
-    // Check if signup is delayed
-    final canSignUp = !hasCompletedRequirements || !event.hasDelay || event.canSignUpForTimeSlot(timeSlot);
-    
-    // Check if we can show the cancel button
-    final isTimeSlotInFuture = DateTime(
-      event.date.year,
-      event.date.month,
-      event.date.day,
-      timeSlot.time.hour,
-      timeSlot.time.minute,
-    ).isAfter(DateTime.now());
 
-    // Check if we can show the swap button
-    final canRequestSwap = isSignedUp &&
-        DateTime.now().isAfter(event.date.subtract(event.swapRequestDeadline)) &&
-        DateTime.now().isBefore(DateTime(
-          event.date.year,
-          event.date.month,
-          event.date.day,
-          timeSlot.time.hour,
-          timeSlot.time.minute,
-        ));
+      // Check if signup is delayed
+      final canSignUp = !hasCompletedRequirements ||
+          !event.hasDelay ||
+          event.canSignUpForTimeSlot(timeSlot);
 
-    // Get forms status for this timeslot
-    final timeSlotFormsCompleted = isSignedUp
-        ? timeSlot.attendees
-            .firstWhere((attendee) => attendee.userId == currentUserId)
-            .formsCompleted
-        : false;
+      // Check if we can show the cancel button
+      final isTimeSlotInFuture = DateTime(
+        event.date.year,
+        event.date.month,
+        event.date.day,
+        timeSlot.time.hour,
+        timeSlot.time.minute,
+      ).isAfter(DateTime.now());
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(10.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Time info row
-            Row(
-              children: [
-                Icon(
-                  Icons.access_time,
-                  size: 14,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 6),
+      // Check if we can show the swap button
+      final canRequestSwap = isSignedUp &&
+          DateTime.now()
+              .isAfter(event.date.subtract(event.swapRequestDeadline)) &&
+          DateTime.now().isBefore(DateTime(
+            event.date.year,
+            event.date.month,
+            event.date.day,
+            timeSlot.time.hour,
+            timeSlot.time.minute,
+          ));
+
+      // Get forms status for this timeslot
+      final timeSlotFormsCompleted = isSignedUp
+          ? timeSlot.attendees
+              .firstWhere((attendee) => attendee.userId == currentUserId)
+              .formsCompleted
+          : false;
+
+      return Container(
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(10.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Time info row
+              Row(
+                children: [
+                  Icon(
+                    Icons.access_time,
+                    size: 14,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    event.type == 'Meeting'
+                        ? timeSlot.time.format(context)
+                        : '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
+                    style: TextStyle(
+                      fontSize: 13.0,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+
+                  const Spacer(),
+
+                  // Capacity info
+                  if (!(event.type == 'Meeting'))
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.people,
+                            size: 12,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${timeSlot.numberOfPeople} spots',
+                            style: TextStyle(
+                              fontSize: 11.0,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+
+              // Notes if available
+              if (timeSlot.notes.isNotEmpty) ...[
+                const SizedBox(height: 6),
                 Text(
-                  event.type == 'Meeting'
-                      ? timeSlot.time.format(context)
-                      : '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
+                  timeSlot.notes,
                   style: TextStyle(
-                    fontSize: 13.0,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 12.0,
+                    fontStyle: FontStyle.italic,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
-                
-                const Spacer(),
-                
-                // Capacity info
-                if (!(event.type == 'Meeting'))
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.people,
-                          size: 12,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${timeSlot.numberOfPeople} spots',
-                          style: TextStyle(
-                            fontSize: 11.0,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
               ],
-            ),
-            
-            // Notes if available
-            if (timeSlot.notes.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(
-                timeSlot.notes,
-                style: TextStyle(
-                  fontSize: 12.0,
-                  fontStyle: FontStyle.italic,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-            
-            // Action buttons
-            const SizedBox(height: 10),
-            isSignedUp
-                ? Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 8,
-                    children: [
-                      OutlinedButton.icon(
-                        icon: Icon(Icons.calendar_today, size: 14),
-                        label: Text('Calendar', style: TextStyle(fontSize: 12)),
-                        style: OutlinedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          minimumSize: Size(0, 28),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        onPressed: () => _addEventToCalendar(event, timeSlot),
-                      ),
-                      
-                      if (canRequestSwap && event.type != 'Meeting' && !isMandatory)
+
+              // Action buttons
+              const SizedBox(height: 10),
+              isSignedUp
+                  ? Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 8,
+                      children: [
                         OutlinedButton.icon(
-                          icon: Icon(Icons.swap_horiz, size: 14),
-                          label: Text('Swap', style: TextStyle(fontSize: 12)),
+                          icon: Icon(Icons.calendar_today, size: 14),
+                          label:
+                              Text('Calendar', style: TextStyle(fontSize: 12)),
                           style: OutlinedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             minimumSize: Size(0, 28),
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                          onPressed: () => _showSwapRequestDialog(event, timeSlot),
+                          onPressed: () => _addEventToCalendar(event, timeSlot),
                         ),
-                        
-                      if (isTimeSlotInFuture && !isMandatory && event.type != 'Meeting' && !canRequestSwap)
-                        OutlinedButton.icon(
-                          icon: Icon(Icons.cancel, size: 14),
-                          label: Text('Cancel', style: TextStyle(fontSize: 12)),
-                          style: OutlinedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            minimumSize: Size(0, 28),
-                            foregroundColor: Theme.of(context).colorScheme.error,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          onPressed: () => _removeAttendee(event, timeSlot),
-                        ),
-                        
-                      if (event.requiresForms)
-                        OutlinedButton.icon(
-                          icon: Icon(
-                            timeSlotFormsCompleted ? Icons.inventory : Icons.pending_actions,
-                            size: 14,
-                          ),
-                          label: Text(
-                            timeSlotFormsCompleted ? 'Forms' : 'Need Forms', 
-                            style: TextStyle(fontSize: 12)
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            minimumSize: Size(0, 28),
-                            foregroundColor: timeSlotFormsCompleted
-                                ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context).colorScheme.error,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          onPressed: () => _showUploadFormsDialog(event, timeSlot, timeSlotFormsCompleted),
-                        ),
-                    ],
-                  )
-                : isMandatory || event.type == 'Meeting'
-                    ? Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Center(
-                          child: Text(
-                            'Automatically Enrolled',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        if (canRequestSwap &&
+                            event.type != 'Meeting' &&
+                            !isMandatory)
+                          OutlinedButton.icon(
+                            icon: Icon(Icons.swap_horiz, size: 14),
+                            label: Text('Swap', style: TextStyle(fontSize: 12)),
+                            style: OutlinedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              minimumSize: Size(0, 28),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
+                            onPressed: () =>
+                                _showSwapRequestDialog(event, timeSlot),
                           ),
-                        ),
-                      )
-                    : !canSignUp
-                        ? Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.tertiaryContainer,
-                              borderRadius: BorderRadius.circular(8),
+                        if (isTimeSlotInFuture &&
+                            !isMandatory &&
+                            event.type != 'Meeting' &&
+                            !canRequestSwap)
+                          OutlinedButton.icon(
+                            icon: Icon(Icons.cancel, size: 14),
+                            label:
+                                Text('Cancel', style: TextStyle(fontSize: 12)),
+                            style: OutlinedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              minimumSize: Size(0, 28),
+                              foregroundColor:
+                                  Theme.of(context).colorScheme.error,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
-                            child: Center(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.timer,
-                                    size: 14,
-                                    color: Theme.of(context).colorScheme.onTertiaryContainer,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Available ${event.delayHours}h before event',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                      color: Theme.of(context).colorScheme.onTertiaryContainer,
-                                    ),
-                                  ),
-                                ],
+                            onPressed: () => _removeAttendee(event, timeSlot),
+                          ),
+                        if (event.requiresForms)
+                          OutlinedButton.icon(
+                            icon: Icon(
+                              timeSlotFormsCompleted
+                                  ? Icons.inventory
+                                  : Icons.pending_actions,
+                              size: 14,
+                            ),
+                            label: Text(
+                                timeSlotFormsCompleted ? 'Forms' : 'Need Forms',
+                                style: TextStyle(fontSize: 12)),
+                            style: OutlinedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              minimumSize: Size(0, 28),
+                              foregroundColor: timeSlotFormsCompleted
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).colorScheme.error,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            onPressed: () => _showUploadFormsDialog(
+                                event, timeSlot, timeSlotFormsCompleted),
+                          ),
+                      ],
+                    )
+                  : isMandatory || event.type == 'Meeting'
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color:
+                                Theme.of(context).colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Automatically Enrolled',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onPrimaryContainer,
                               ),
                             ),
-                          )
-                        : ElevatedButton.icon(
-                            onPressed: () => _showSignUpForm(event, timeSlot),
-                            icon: const Icon(Icons.add, size: 16),
-                            label: const Text('Sign Up'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).colorScheme.primary,
-                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                              minimumSize: const Size(double.infinity, 36),
+                          ),
+                        )
+                      : !canSignUp
+                          ? Container(
                               padding: const EdgeInsets.symmetric(vertical: 8),
-                              shape: RoundedRectangleBorder(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .tertiaryContainer,
                                 borderRadius: BorderRadius.circular(8),
                               ),
+                              child: Center(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.timer,
+                                      size: 14,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onTertiaryContainer,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Available ${event.delayHours}h before event',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onTertiaryContainer,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : ElevatedButton.icon(
+                              onPressed: () => _showSignUpForm(event, timeSlot),
+                              icon: const Icon(Icons.add, size: 16),
+                              label: const Text('Sign Up'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor:
+                                    Theme.of(context).colorScheme.primary,
+                                foregroundColor:
+                                    Theme.of(context).colorScheme.onPrimary,
+                                minimumSize: const Size(double.infinity, 36),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
                             ),
-                          ),
-          ],
-        ),
-      ),
-    );
-  }).toList();
-}
-// Helper method to build compact badges
-Widget _buildBadge(String text, IconData icon, Color color) {
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-    decoration: BoxDecoration(
-      color: color.withOpacity(0.1),
-      borderRadius: BorderRadius.circular(4),
-      border: border.Border.all(color: color.withOpacity(0.3), width: 1),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 12, color: color),
-        const SizedBox(width: 2),
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: color,
+            ],
           ),
         ),
-      ],
-    ),
-  );
-}
+      );
+    }).toList();
+  }
+
+// Helper method to build compact badges
+  Widget _buildBadge(String text, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: border.Border.all(color: color.withOpacity(0.3), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 2),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
 // Add this method to build time slot items
 
 // Helper for action buttons
-Widget _buildActionButton(String label, IconData icon, Color color, VoidCallback onPressed) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 4),
-    child: TextButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 14, color: color),
-      label: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          color: color,
-          fontWeight: FontWeight.bold,
+  Widget _buildActionButton(
+      String label, IconData icon, Color color, VoidCallback onPressed) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: TextButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 14, color: color),
+        label: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: color,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
       ),
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        minimumSize: Size.zero,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
-    ),
-  );
-}
-   /// Displays dialog for initiating a swap request.
+    );
+  }
+
+  /// Displays dialog for initiating a swap request.
   /// Allows user to select another member to swap with.
   ///
   /// Parameters:
@@ -2110,7 +2184,7 @@ Widget _buildActionButton(String label, IconData icon, Color color, VoidCallback
       ),
     );
   }
-  
+
   /// Creates a widget displaying collection information and associated events.
   ///
   /// Parameters:
@@ -2258,48 +2332,54 @@ Widget _buildActionButton(String label, IconData icon, Color color, VoidCallback
 
     if (userId != null) {
       // Check if the user has completed requirements using existing state
-   // Replace the hardcoded requirement check with this dynamic version:
+      // Replace the hardcoded requirement check with this dynamic version:
 
-        // Get society's requirements
-        final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
-        bool hasCompletedRequirements = false;
+      // Get society's requirements
+      final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      bool hasCompletedRequirements = false;
 
-        if (society != null) {
-          // For Meeting type, use the society's meeting requirement
-          if (event.type == 'Meeting') {
-            final meetingsCompleted = _completedHoursMap['Meeting'] ?? 0.0;
-            hasCompletedRequirements = meetingsCompleted >= society.meetingRequirement;
-          } else {
-            // For other types, find the matching requirement in the society
-            final matchingRequirement = society.hourRequirements.firstWhere(
-              (req) => _normalizeType(req.type) == _normalizeType(event.type),
-              orElse: () => HourRequirement(
-                id: -1,
-                type: event.type,
-                hoursNeeded: 0,
-                description: '',
-                isActive: false,
-              ),
-            );
-            
-            // Check if user has completed the required hours for this type
-            final completedHours = _completedHoursMap[_normalizeType(event.type)] ?? 0.0;
-            hasCompletedRequirements = completedHours >= matchingRequirement.hoursNeeded;
-          }
+      if (society != null) {
+        // For Meeting type, use the society's meeting requirement
+        if (event.type == 'Meeting') {
+          final meetingsCompleted = _completedHoursMap['Meeting'] ?? 0.0;
+          hasCompletedRequirements =
+              meetingsCompleted >= society.meetingRequirement;
+        } else {
+          // For other types, find the matching requirement in the society
+          final matchingRequirement = society.hourRequirements.firstWhere(
+            (req) => _normalizeType(req.type) == _normalizeType(event.type),
+            orElse: () => HourRequirement(
+              id: -1,
+              type: event.type,
+              hoursNeeded: 0,
+              description: '',
+              isActive: false,
+            ),
+          );
+
+          // Check if user has completed the required hours for this type
+          final completedHours =
+              _completedHoursMap[_normalizeType(event.type)] ?? 0.0;
+          hasCompletedRequirements =
+              completedHours >= matchingRequirement.hoursNeeded;
         }
+      }
 
 // Check if signup is delayed
-final canSignUp = !hasCompletedRequirements || !event.hasDelay || event.canSignUpForTimeSlot(timeSlot);
-    if (!canSignUp) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Signup will be available ${event.delayHours} hours before the event',
+      final canSignUp = !hasCompletedRequirements ||
+          !event.hasDelay ||
+          event.canSignUpForTimeSlot(timeSlot);
+      if (!canSignUp) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Signup will be available ${event.delayHours} hours before the event',
+            ),
           ),
-        ),
-      );
-      return;
-    }
+        );
+        return;
+      }
       // Check if the user is already signed up
       final existingAttendee = await Supabase.instance.client
           .from('Attendees')
@@ -2635,10 +2715,12 @@ final canSignUp = !hasCompletedRequirements || !event.hasDelay || event.canSignU
   }
 }
 
-Future<void> exportToExcel(BuildContext context, List<UserProfile> users) async {
+Future<void> exportToExcel(
+    BuildContext context, List<UserProfile> users) async {
   try {
     // Get current society to properly filter data and get requirements
-    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     if (society == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cannot export: No society selected')),
@@ -2690,7 +2772,8 @@ Future<void> exportToExcel(BuildContext context, List<UserProfile> users) async 
 
         final hours = (entry['hours'] as num?)?.toDouble() ?? 0.0;
         final type = entry['type']?.toString() ?? 'Unknown Type';
-        final normalizedType = _normalizeType(type); // Normalize for consistent comparison
+        final normalizedType =
+            _normalizeType(type); // Normalize for consistent comparison
         final eventName = entry['event_name']?.toString() ?? 'Unnamed Event';
 
         // Parse date safely
@@ -2798,44 +2881,61 @@ Future<void> exportToExcel(BuildContext context, List<UserProfile> users) async 
     // Write data for each user
     int rowIndex = 1;
     for (var user in users) {
-      final userData = userServiceData[user.id] ?? {
-        'hoursByType': {for (var type in requirementTypes) _normalizeType(type): 0.0},
-        'meetingsAttended': 0,
-        'totalHours': 0.0,
-        'eventsList': <String>[],
-      };
+      final userData = userServiceData[user.id] ??
+          {
+            'hoursByType': {
+              for (var type in requirementTypes) _normalizeType(type): 0.0
+            },
+            'meetingsAttended': 0,
+            'totalHours': 0.0,
+            'eventsList': <String>[],
+          };
 
       // Column index tracker
       int colIndex = 0;
 
       // Base data
-      sheetObject.cell(CellIndex.indexByColumnRow(columnIndex: colIndex++, rowIndex: rowIndex))
+      sheetObject
+          .cell(CellIndex.indexByColumnRow(
+              columnIndex: colIndex++, rowIndex: rowIndex))
           .value = TextCellValue(user.name);
 
-      sheetObject.cell(CellIndex.indexByColumnRow(columnIndex: colIndex++, rowIndex: rowIndex))
+      sheetObject
+          .cell(CellIndex.indexByColumnRow(
+              columnIndex: colIndex++, rowIndex: rowIndex))
           .value = TextCellValue(emailMap[user.id] ?? '');
 
-      sheetObject.cell(CellIndex.indexByColumnRow(columnIndex: colIndex++, rowIndex: rowIndex))
+      sheetObject
+          .cell(CellIndex.indexByColumnRow(
+              columnIndex: colIndex++, rowIndex: rowIndex))
           .value = TextCellValue(user.hasPaidDues ? 'Yes' : 'No');
 
-      sheetObject.cell(CellIndex.indexByColumnRow(columnIndex: colIndex++, rowIndex: rowIndex))
+      sheetObject
+          .cell(CellIndex.indexByColumnRow(
+              columnIndex: colIndex++, rowIndex: rowIndex))
           .value = DoubleCellValue(userData['totalHours']);
 
-      sheetObject.cell(CellIndex.indexByColumnRow(columnIndex: colIndex++, rowIndex: rowIndex))
+      sheetObject
+          .cell(CellIndex.indexByColumnRow(
+              columnIndex: colIndex++, rowIndex: rowIndex))
           .value = IntCellValue(userData['meetingsAttended']);
 
       // Dynamic requirement type hours
       for (var type in requirementTypes) {
         if (type == 'Meeting') continue; // Skip Meeting (already added)
-        
+
         final hours = userData['hoursByType'][_normalizeType(type)] ?? 0.0;
-        sheetObject.cell(CellIndex.indexByColumnRow(columnIndex: colIndex++, rowIndex: rowIndex))
+        sheetObject
+            .cell(CellIndex.indexByColumnRow(
+                columnIndex: colIndex++, rowIndex: rowIndex))
             .value = DoubleCellValue(hours);
       }
 
       // Event details in sequential columns
       for (var i = 0; i < (userData['eventsList'] as List).length; i++) {
-        sheetObject.cell(CellIndex.indexByColumnRow(columnIndex: colIndex + i, rowIndex: rowIndex))
+        sheetObject
+            .cell(CellIndex.indexByColumnRow(
+                columnIndex: colIndex + i, rowIndex: rowIndex))
             .value = TextCellValue(userData['eventsList'][i]);
       }
 
@@ -2854,7 +2954,8 @@ Future<void> exportToExcel(BuildContext context, List<UserProfile> users) async 
         // Web handling is automatic through excel package
       } else {
         if (Platform.isAndroid) {
-          final file = File('storage/emulated/0/Download/NHS_Members_Report.xlsx');
+          final file =
+              File('storage/emulated/0/Download/NHS_Members_Report.xlsx');
           await file.writeAsBytes(fileBytes);
         } else if (Platform.isIOS) {
           final Directory dir = await getApplicationDocumentsDirectory();
@@ -2875,11 +2976,14 @@ Future<void> exportToExcel(BuildContext context, List<UserProfile> users) async 
 
 // Helper function to normalize type strings for consistent matching
 String _normalizeType(String type) {
-  return type.trim().split(' ').map((word) => 
-    word.isNotEmpty ? 
-      word[0].toUpperCase() + (word.length > 1 ? word.substring(1).toLowerCase() : '') : 
-      ''
-  ).join(' ');
+  return type
+      .trim()
+      .split(' ')
+      .map((word) => word.isNotEmpty
+          ? word[0].toUpperCase() +
+              (word.length > 1 ? word.substring(1).toLowerCase() : '')
+          : '')
+      .join(' ');
 }
 
 /// Helper class to store processed user data
@@ -2897,6 +3001,7 @@ class UserServiceData {
 ///
 /// Returns:
 /// - Future<String>
+
 Future<String> _getUserName(String? userId) async {
   if (userId != null) {
     final response = await Supabase.instance.client
@@ -2909,7 +3014,6 @@ Future<String> _getUserName(String? userId) async {
   }
   return 'Unknown User';
 }
-
 
 class UserRanking {
   final String userId;
@@ -2925,11 +3029,11 @@ class UserRanking {
   });
 }
 
-
 class LeaderboardPage extends StatefulWidget {
   final String currentUserId;
 
-  const LeaderboardPage({Key? key, required this.currentUserId}) : super(key: key);
+  const LeaderboardPage({Key? key, required this.currentUserId})
+      : super(key: key);
 
   @override
   _LeaderboardPageState createState() => _LeaderboardPageState();
@@ -2949,7 +3053,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   Future<void> _fetchLeaderboardData() async {
     try {
       // Fetch profiles first
-      final profilesResponse = await supabase.from('profiles').select('user_id, name');
+      final profilesResponse =
+          await supabase.from('profiles').select('user_id, name');
 
       // Create a map of user_id to name for quick lookup
       Map<String, String> userNames = {
@@ -3041,9 +3146,13 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                     // Header section
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 16, horizontal: 16),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primaryContainer
+                            .withOpacity(0.5),
                         borderRadius: const BorderRadius.only(
                           bottomLeft: Radius.circular(32),
                           bottomRight: Radius.circular(32),
@@ -3056,14 +3165,19 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimaryContainer,
                             ),
                           ),
                           Text(
                             'Service Hour Champions',
                             style: TextStyle(
                               fontSize: 14,
-                              color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.8),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimaryContainer
+                                  .withOpacity(0.8),
                             ),
                           ),
                           const SizedBox(height: 20),
@@ -3071,7 +3185,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                         ],
                       ),
                     ),
-                    
+
                     if (_rankings.length > 3) ...[
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
@@ -3103,9 +3217,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                         },
                       ),
                     ],
-                    
+
                     // Current user section (if not in top 10)
-                    if (_currentUserRanking != null && _currentUserRanking!.rank > 10) ...[
+                    if (_currentUserRanking != null &&
+                        _currentUserRanking!.rank > 10) ...[
                       const Divider(height: 40, thickness: 1),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -3129,12 +3244,19 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                         ),
                       ),
                       Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primaryContainer
+                              .withOpacity(0.5),
                           borderRadius: BorderRadius.circular(16),
                           border: border.Border.all(
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withOpacity(0.2),
                             width: 2,
                           ),
                         ),
@@ -3202,7 +3324,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 height: height,
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.3),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(8)),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -3222,7 +3345,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: color.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
@@ -3247,7 +3371,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
 
   Widget _buildRankingTile(UserRanking ranking) {
     final bool isCurrentUser = ranking.userId == widget.currentUserId;
-    
+
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       leading: Container(
@@ -3299,7 +3423,6 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   }
 }
 
-
 // Helper to get appropriate icons for different hour types
 IconData _getIconForType(String type) {
   switch (type.toLowerCase()) {
@@ -3315,11 +3438,9 @@ IconData _getIconForType(String type) {
 }
 
 // Helper method to get color based on event type
-  Color _getColorForEventType(String type, BuildContext context) {
-
-        return Theme.of(context).colorScheme.primary;
-  }
- 
+Color _getColorForEventType(String type, BuildContext context) {
+  return Theme.of(context).colorScheme.primary;
+}
 
 class CompletedHoursPage extends StatefulWidget {
   const CompletedHoursPage({super.key});
@@ -3332,8 +3453,8 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
   Map<String, double> _completedHoursMap = {};
   Map<String, List<CompletedHour>> _hoursByTypeMap = {};
   Map<String, double> _requirementMap = {};
-  int _meetingRequirement = 5;  // Default value
-  
+  int _meetingRequirement = 5; // Default value
+
   List<MeetingNote> _meetingNotes = [];
   bool _isLoading = true;
 
@@ -3342,34 +3463,35 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
     super.initState();
     _fetchData();
   }
-  
+
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
-    
+
     try {
       // Get current society
-      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
       if (society == null) {
         setState(() => _isLoading = false);
         return;
       }
-      
+
       // Get society requirements
       _meetingRequirement = society.meetingRequirement;
       _requirementMap = {};
-      
+
       for (final req in society.hourRequirements) {
         if (req.isActive) {
           _requirementMap[req.type] = req.hoursNeeded;
         }
       }
-      
+
       // Run queries in parallel
       await Future.wait([
         _fetchCompletedHours(),
         _fetchMeetingNotes(),
       ]);
-      
+
       setState(() => _isLoading = false);
     } catch (e) {
       print('Error fetching data: $e');
@@ -3379,9 +3501,10 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
 
   Future<void> _fetchMeetingNotes() async {
     try {
-      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
       if (society == null) return;
-      
+
       final response = await Supabase.instance.client
           .from('Notes')
           .select('*')
@@ -3389,7 +3512,8 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
           .order('created_at', ascending: false);
 
       setState(() {
-        _meetingNotes = response.map((json) => MeetingNote.fromJson(json)).toList();
+        _meetingNotes =
+            response.map((json) => MeetingNote.fromJson(json)).toList();
       });
     } catch (e) {
       print('Error fetching meeting notes: $e');
@@ -3399,7 +3523,8 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
   Future<void> _fetchCompletedHours() async {
     final User? user = supabase.auth.currentUser;
     final userId = user?.id;
-    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
 
     if (userId != null && society != null) {
       // Get all service hours for this user in this society in a single query
@@ -3412,13 +3537,13 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
       final data = response;
       Map<String, double> hoursMap = {};
       Map<String, List<CompletedHour>> hoursByType = {};
-      
+
       // Initialize maps with all requirement types
       for (final reqType in _requirementMap.keys) {
         hoursMap[reqType] = 0;
         hoursByType[reqType] = [];
       }
-      
+
       // Always include Meeting type
       if (!hoursMap.containsKey('Meeting')) {
         hoursMap['Meeting'] = 0;
@@ -3431,23 +3556,21 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
         final eventType = entry['type'] as String;
         final eventName = entry['event_name'] as String? ?? 'Unknown Event';
         final dateString = entry['date'] as String?;
-        final DateTime date = dateString != null ? 
-            DateTime.parse(dateString) : DateTime.now();
-        
+        final DateTime date =
+            dateString != null ? DateTime.parse(dateString) : DateTime.now();
+
         // Use normalized type for consistent matching
         final normalizedType = _normalizeType(eventType);
-        
+
         if (hoursMap.containsKey(normalizedType)) {
           hoursMap[normalizedType] = hoursMap[normalizedType]! + hours;
-          
+
           // Also store the individual hour entries
-          hoursByType[normalizedType]!.add(
-            CompletedHour(
-              title: eventName,
-              date: date,
-              hours: hours,
-            )
-          );
+          hoursByType[normalizedType]!.add(CompletedHour(
+            title: eventName,
+            date: date,
+            hours: hours,
+          ));
         }
       }
 
@@ -3461,11 +3584,14 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
   // Helper method to normalize type strings for consistent matching
   String _normalizeType(String type) {
     // Convert to title case for consistent comparison
-    return type.trim().split(' ').map((word) => 
-      word.isNotEmpty ? 
-        word[0].toUpperCase() + (word.length > 1 ? word.substring(1).toLowerCase() : '') : 
-        ''
-    ).join(' ');
+    return type
+        .trim()
+        .split(' ')
+        .map((word) => word.isNotEmpty
+            ? word[0].toUpperCase() +
+                (word.length > 1 ? word.substring(1).toLowerCase() : '')
+            : '')
+        .join(' ');
   }
 
   void _showMeetingNotesDialog() {
@@ -3534,402 +3660,420 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
   }
 
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      elevation: 0,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      title: Text(
-        'Completed Hours',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 24.0,
-          color: Theme.of(context).colorScheme.onSurface,
-        ),
-      ),
-      centerTitle: true,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.leaderboard),
-          color: Theme.of(context).colorScheme.primary,
-          tooltip: 'View Leaderboard',
-          onPressed: _openLeaderboard,
-        ),
-      ],
-    ),
-    body: _isLoading 
-      ? Center(
-          child: CircularProgressIndicator(
-            color: Theme.of(context).colorScheme.primary,
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        title: Text(
+          'Completed Hours',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 24.0,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
-        )
-      : RefreshIndicator(
-          color: Theme.of(context).colorScheme.primary,
-          onRefresh: _fetchData,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(
-              children: [
-                // Header with meeting notes button
-                Card(
-                  margin: const EdgeInsets.all(16),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  color: Theme.of(context).colorScheme.secondaryContainer,
-                  child: InkWell(
-                    onTap: _showMeetingNotesDialog,
-                    borderRadius: BorderRadius.circular(16),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            backgroundColor: Theme.of(context).colorScheme.secondary,
-                            child: Icon(
-                              Icons.notes,
-                              color: Theme.of(context).colorScheme.onSecondary,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Meeting Notes',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.onSecondaryContainer,
-                                  ),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.leaderboard),
+            color: Theme.of(context).colorScheme.primary,
+            tooltip: 'View Leaderboard',
+            onPressed: _openLeaderboard,
+          ),
+        ],
+      ),
+      body: _isLoading
+          ? Center(
+              child: CircularProgressIndicator(
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            )
+          : RefreshIndicator(
+              color: Theme.of(context).colorScheme.primary,
+              onRefresh: _fetchData,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  children: [
+                    // Header with meeting notes button
+                    Card(
+                      margin: const EdgeInsets.all(16),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      color: Theme.of(context).colorScheme.secondaryContainer,
+                      child: InkWell(
+                        onTap: _showMeetingNotesDialog,
+                        borderRadius: BorderRadius.circular(16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                backgroundColor:
+                                    Theme.of(context).colorScheme.secondary,
+                                child: Icon(
+                                  Icons.notes,
+                                  color:
+                                      Theme.of(context).colorScheme.onSecondary,
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'View important information from previous meetings',
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.onSecondaryContainer.withOpacity(0.8),
-                                  ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Meeting Notes',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSecondaryContainer,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'View important information from previous meetings',
+                                      style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSecondaryContainer
+                                            .withOpacity(0.8),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
+                              ),
+                              const Icon(Icons.arrow_forward_ios, size: 16),
+                            ],
                           ),
-                          const Icon(Icons.arrow_forward_ios, size: 16),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
+
+                    // Hour requirements sections
+                    ..._buildRequirementsList(),
+                  ],
                 ),
-                
-                // Hour requirements sections
-                ..._buildRequirementsList(),
-              ],
+              ),
             ),
-          ),
-        ),
-    floatingActionButton: FloatingActionButton.extended(
-      onPressed: _openWebsite,
-      icon: const Icon(Icons.report_problem),
-      label: const Text('Report Issue'),
-      elevation: 4,
-    ),
-  );
-}
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _openWebsite,
+        icon: const Icon(Icons.report_problem),
+        label: const Text('Report Issue'),
+        elevation: 4,
+      ),
+    );
+  }
 
 // Build list of requirements with progress and details
-List<Widget> _buildRequirementsList() {
-  List<Widget> widgets = [];
-  
-  // First build standard hour requirements
-  _requirementMap.forEach((type, hoursNeeded) {
-    final completedHours = _completedHoursMap[type] ?? 0.0;
-    
-    widgets.add(
-      _buildProgressBar(context, type, completedHours, hoursNeeded.floor())
-    );
-    
-    widgets.add(
-      _buildCompletedHoursList(type, _hoursByTypeMap[type] ?? [])
-    );
-    
-    widgets.add(const SizedBox(height: 20));
-  });
-  
-  // Then add the special meeting requirement
-  final meetingHours = _completedHoursMap['Meeting'] ?? 0.0;
-  widgets.add(
-    _buildProgressBar(context, 'Meeting', meetingHours, _meetingRequirement, isMeeting: true)
-  );
-  
-  widgets.add(
-    _buildCompletedHoursList('Meeting', _hoursByTypeMap['Meeting'] ?? [])
-  );
-  
-  return widgets;
-}
+  List<Widget> _buildRequirementsList() {
+    List<Widget> widgets = [];
 
-Widget _buildProgressBar(
-  BuildContext context,
-  String title,
-  double completedHours,
-  int hoursNeeded,
-  {bool isMeeting = false}
-) {
-  // Calculate percentage for display
-  final percentage = ((completedHours / hoursNeeded) * 100).clamp(0, 100).toInt();
-  final isComplete = completedHours >= hoursNeeded;
-  final color = isMeeting 
-      ? Theme.of(context).colorScheme.tertiary 
-      : Theme.of(context).colorScheme.primary;
-  final backgroundColor = isMeeting 
-      ? Theme.of(context).colorScheme.tertiaryContainer 
-      : Theme.of(context).colorScheme.primaryContainer;
-  
-  return Container(
-    margin: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Type with icon
-            Row(
-              children: [
-                Icon(
-                  isMeeting ? Icons.groups_rounded : _getIconForType(title),
-                  color: color,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  isMeeting ? 'Meeting Attendance' : '$title Hours',
-                  style: TextStyle(
-                    fontSize: 16, 
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-              ],
-            ),
-            
-            // Completion percentage
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: isComplete ? color : Theme.of(context).colorScheme.surfaceVariant,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                isComplete ? 'Complete!' : '$percentage%',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: isComplete 
-                      ? (isMeeting ? Theme.of(context).colorScheme.onTertiary : Theme.of(context).colorScheme.onPrimary)
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ],
-        ),
-        
-        const SizedBox(height: 10),
-        
-        // Hours text and progress
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                '${completedHours.toStringAsFixed(1)} / $hoursNeeded ${isMeeting ? 'meetings' : 'hours'}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-            Text(
-              isMeeting ? '$completedHours of $hoursNeeded required' : '${(completedHours / hoursNeeded * 100).toStringAsFixed(0)}% complete',
-              style: TextStyle(
-                fontSize: 14,
-                color: color,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-        
-        const SizedBox(height: 8),
-        
-        // Progress bar with animation
-        TweenAnimationBuilder<double>(
-          duration: const Duration(milliseconds: 1000),
-          curve: Curves.easeOutQuart,
-          tween: Tween<double>(
-            begin: 0,
-            end: (completedHours / hoursNeeded).clamp(0.0, 1.0),
-          ),
-          builder: (context, value, _) {
-            return Stack(
-              children: [
-                // Background track
-                Container(
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: backgroundColor.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                ),
-                
-                // Progress
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 500),
-                  height: 12,
-                  width: MediaQuery.of(context).size.width * value * 0.89,
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ],
-    ),
-  );
-}
+    // First build standard hour requirements
+    _requirementMap.forEach((type, hoursNeeded) {
+      final completedHours = _completedHoursMap[type] ?? 0.0;
 
-Widget _buildCompletedHoursList(String type, List<CompletedHour> hours) {
-  if (hours.isEmpty) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Container(
-        padding: const EdgeInsets.all(16.0),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-          borderRadius: BorderRadius.circular(12),
-          border: border.Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant,
-            width: 1,
-          ),
-        ),
-        child: Center(
-          child: Column(
+      widgets.add(_buildProgressBar(
+          context, type, completedHours, hoursNeeded.floor()));
+
+      widgets.add(_buildCompletedHoursList(type, _hoursByTypeMap[type] ?? []));
+
+      widgets.add(const SizedBox(height: 20));
+    });
+
+    // Then add the special meeting requirement
+    final meetingHours = _completedHoursMap['Meeting'] ?? 0.0;
+    widgets.add(_buildProgressBar(
+        context, 'Meeting', meetingHours, _meetingRequirement,
+        isMeeting: true));
+
+    widgets.add(
+        _buildCompletedHoursList('Meeting', _hoursByTypeMap['Meeting'] ?? []));
+
+    return widgets;
+  }
+
+  Widget _buildProgressBar(BuildContext context, String title,
+      double completedHours, int hoursNeeded,
+      {bool isMeeting = false}) {
+    // Calculate percentage for display
+    final percentage =
+        ((completedHours / hoursNeeded) * 100).clamp(0, 100).toInt();
+    final isComplete = completedHours >= hoursNeeded;
+    final color = isMeeting
+        ? Theme.of(context).colorScheme.tertiary
+        : Theme.of(context).colorScheme.primary;
+    final backgroundColor = isMeeting
+        ? Theme.of(context).colorScheme.tertiaryContainer
+        : Theme.of(context).colorScheme.primaryContainer;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(
-                Icons.event_busy, 
-                size: 32,
-                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+              // Type with icon
+              Row(
+                children: [
+                  Icon(
+                    isMeeting ? Icons.groups_rounded : _getIconForType(title),
+                    color: color,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isMeeting ? 'Meeting Attendance' : '$title Hours',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                'No ${type.toLowerCase()} hours recorded yet',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
-                  fontStyle: FontStyle.italic,
+
+              // Completion percentage
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isComplete
+                      ? color
+                      : Theme.of(context).colorScheme.surfaceVariant,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  isComplete ? 'Complete!' : '$percentage%',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: isComplete
+                        ? (isMeeting
+                            ? Theme.of(context).colorScheme.onTertiary
+                            : Theme.of(context).colorScheme.onPrimary)
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             ],
           ),
-        ),
+
+          const SizedBox(height: 10),
+
+          // Hours text and progress
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${completedHours.toStringAsFixed(1)} / $hoursNeeded ${isMeeting ? 'meetings' : 'hours'}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              Text(
+                isMeeting
+                    ? '$completedHours of $hoursNeeded required'
+                    : '${(completedHours / hoursNeeded * 100).toStringAsFixed(0)}% complete',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: color,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // Progress bar with animation
+          TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 1000),
+            curve: Curves.easeOutQuart,
+            tween: Tween<double>(
+              begin: 0,
+              end: (completedHours / hoursNeeded).clamp(0.0, 1.0),
+            ),
+            builder: (context, value, _) {
+              return Stack(
+                children: [
+                  // Background track
+                  Container(
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: backgroundColor.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+
+                  // Progress
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 500),
+                    height: 12,
+                    width: MediaQuery.of(context).size.width * value * 0.89,
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }
-  
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
-          child: Text(
-            '${hours.length} ${hours.length == 1 ? 'Event' : 'Events'}',
-            style: TextStyle(
-              fontWeight: FontWeight.w500,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+
+  Widget _buildCompletedHoursList(String type, List<CompletedHour> hours) {
+    if (hours.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        child: Container(
+          padding: const EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            color:
+                Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(12),
+            border: border.Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant,
+              width: 1,
+            ),
+          ),
+          child: Center(
+            child: Column(
+              children: [
+                Icon(
+                  Icons.event_busy,
+                  size: 32,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurfaceVariant
+                      .withOpacity(0.6),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'No ${type.toLowerCase()} hours recorded yet',
+                  style: TextStyle(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant
+                        .withOpacity(0.6),
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: hours.length,
-          itemBuilder: (context, index) {
-            final hour = hours[index];
-            
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
+            child: Text(
+              '${hours.length} ${hours.length == 1 ? 'Event' : 'Events'}',
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
-              child: ListTile(
-                dense: false,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                leading: CircleAvatar(
-                  backgroundColor: _getColorForEventType(type, context).withOpacity(0.2),
-                  child: Text(
-                    hour.title.substring(0, 1).toUpperCase(),
-                    style: TextStyle(
-                      color: _getColorForEventType(type, context),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                title: Text(
-                  hour.title,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today,
-                      size: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      hour.date.year == 0 
-                          ? 'Date not recorded' 
-                          : '${hour.date.month}-${hour.date.day}-${hour.date.year}',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+            ),
+          ),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: hours.length,
+            itemBuilder: (context, index) {
+              final hour = hours[index];
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color:
+                          Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _getColorForEventType(type, context).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
+                child: ListTile(
+                  dense: false,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  leading: CircleAvatar(
+                    backgroundColor:
+                        _getColorForEventType(type, context).withOpacity(0.2),
+                    child: Text(
+                      hour.title.substring(0, 1).toUpperCase(),
+                      style: TextStyle(
+                        color: _getColorForEventType(type, context),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                  child: Text(
-                    '${hour.hours.toStringAsFixed(1)}h',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: _getColorForEventType(type, context),
+                  title: Text(
+                    hour.title,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        hour.date.year == 0
+                            ? 'Date not recorded'
+                            : '${hour.date.month}-${hour.date.day}-${hour.date.year}',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  trailing: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color:
+                          _getColorForEventType(type, context).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      '${hour.hours.toStringAsFixed(1)}h',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: _getColorForEventType(type, context),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            );
-          },
-        ),
-      ],
-    ),
-  );
-}
-  
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
 
   void _openWebsite() async {
     final Uri url = Uri.parse(
@@ -3939,7 +4083,6 @@ Widget _buildCompletedHoursList(String type, List<CompletedHour> hours) {
     }
   }
 }
-
 
 class Collection {
   final int id;
@@ -3991,19 +4134,17 @@ class ThemeNotifier with ChangeNotifier {
 enum ThemeMode { light, dark, midnight }
 
 class ThemeProvider extends ChangeNotifier {
-  
-  
   // Current theme mode
   ThemeMode _themeMode = ThemeMode.light;
-  
+
   // Getter for theme mode
   ThemeMode get themeMode => _themeMode;
-  
+
   // Convenience getters
   bool get isLightMode => _themeMode == ThemeMode.light;
   bool get isDarkMode => _themeMode == ThemeMode.dark;
   bool get isMidnightMode => _themeMode == ThemeMode.midnight;
-  
+
   ThemeProvider() {
     loadThemePreference();
   }
@@ -4035,7 +4176,7 @@ class ThemeProvider extends ChangeNotifier {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setInt('themeMode', _themeMode.index);
   }
-  
+
   // Get theme data based on current mode
   ThemeData getThemeData(Color themeColor) {
     switch (_themeMode) {
@@ -4081,7 +4222,7 @@ class ThemeProvider extends ChangeNotifier {
 
 class SettingsPage extends StatefulWidget {
   final HonorSociety? society;
-  
+
   const SettingsPage({super.key, this.society});
 
   @override
@@ -4148,9 +4289,8 @@ class _SettingsPageState extends State<SettingsPage> {
     if (userId == null) return;
 
     try {
-      final societies = await supabase
-          .from('user_society_memberships')
-          .select('''
+      final societies =
+          await supabase.from('user_society_memberships').select('''
             honor_societies!inner(
               id,
               name,
@@ -4166,8 +4306,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 is_active
               )
             )
-          ''')
-          .eq('user_id', userId);
+          ''').eq('user_id', userId);
 
       if (mounted) {
         setState(() {
@@ -4263,7 +4402,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.group_off, size: 48, color: Colors.grey),
+                          const Icon(Icons.group_off,
+                              size: 48, color: Colors.grey),
                           const SizedBox(height: 16),
                           Text(
                             'You\'re not a member of any societies',
@@ -4278,15 +4418,18 @@ class _SettingsPageState extends State<SettingsPage> {
                       itemBuilder: (context, index) {
                         final society = _userSocieties[index];
                         final isCurrent = widget.society?.id == society.id;
-                        
+
                         return ListTile(
                           leading: society.imageUrl != null
-                              ? CircleAvatar(backgroundImage: NetworkImage(society.imageUrl!))
+                              ? CircleAvatar(
+                                  backgroundImage:
+                                      NetworkImage(society.imageUrl!))
                               : CircleAvatar(child: Text(society.name[0])),
                           title: Text(society.name),
                           subtitle: isCurrent ? const Text('Current') : null,
                           trailing: isCurrent
-                              ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary)
+                              ? Icon(Icons.check_circle,
+                                  color: Theme.of(context).colorScheme.primary)
                               : TextButton(
                                   child: const Text('Switch'),
                                   onPressed: () {
@@ -4308,7 +4451,8 @@ class _SettingsPageState extends State<SettingsPage> {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SocietyJoinRequestPage()),
+                MaterialPageRoute(
+                    builder: (context) => const SocietyJoinRequestPage()),
               );
             },
             child: const Text('Join New Society'),
@@ -4333,20 +4477,19 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-         leading: IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const SocietySelectionPage()),
-                (route) => false,
-              );
-            },
-          ),
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const SocietySelectionPage()),
+              (route) => false,
+            );
+          },
+        ),
         elevation: 0,
-        backgroundColor: Theme.of(context)
-            .bannerTheme
-            .backgroundColor,
+        backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
         title: Text(
           'Profile',
           style: TextStyle(
@@ -4387,14 +4530,17 @@ class _SettingsPageState extends State<SettingsPage> {
                           if (widget.society!.imageUrl != null)
                             CircleAvatar(
                               radius: 24,
-                              backgroundImage: NetworkImage(widget.society!.imageUrl!),
+                              backgroundImage:
+                                  NetworkImage(widget.society!.imageUrl!),
                             )
                           else
                             CircleAvatar(
                               radius: 24,
                               child: Text(widget.society!.name[0]),
-                              backgroundColor: Theme.of(context).colorScheme.primary,
-                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.primary,
+                              foregroundColor:
+                                  Theme.of(context).colorScheme.onPrimary,
                             ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -4411,9 +4557,13 @@ class _SettingsPageState extends State<SettingsPage> {
                                 if (_isAdmin)
                                   Chip(
                                     label: const Text('Admin'),
-                                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                                    backgroundColor: Theme.of(context)
+                                        .colorScheme
+                                        .primaryContainer,
                                     labelStyle: TextStyle(
-                                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onPrimaryContainer,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 12,
                                     ),
@@ -4433,7 +4583,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
             const SizedBox(height: 16),
-            
+
             // User Profile Card
             Card(
               elevation: 2,
@@ -4477,8 +4627,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   TextFormField(
-                    keyboardType:
-                        const TextInputType.numberWithOptions(),
+                    keyboardType: const TextInputType.numberWithOptions(),
                     inputFormatters: <TextInputFormatter>[
                       FilteringTextInputFormatter.digitsOnly
                     ],
@@ -4543,7 +4692,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               ),
                             ),
                             const SizedBox(height: 16),
-                            
+
                             // Theme Color Picker
                             ListTile(
                               leading: CircleAvatar(
@@ -4576,42 +4725,52 @@ class _SettingsPageState extends State<SettingsPage> {
                                 );
                               },
                             ),
-                            
+
                             const Divider(),
-                            
+
                             // Theme Mode Selection
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 16.0, vertical: 8.0),
                                   child: Text('Theme Mode'),
                                 ),
                                 RadioListTile<ThemeMode>(
                                   title: const Text('Light'),
                                   value: ThemeMode.light,
-                                  groupValue: Provider.of<ThemeProvider>(context).themeMode,
+                                  groupValue:
+                                      Provider.of<ThemeProvider>(context)
+                                          .themeMode,
                                   onChanged: (value) {
-                                    Provider.of<ThemeProvider>(context, listen: false)
-                                      .setThemeMode(ThemeMode.light);
+                                    Provider.of<ThemeProvider>(context,
+                                            listen: false)
+                                        .setThemeMode(ThemeMode.light);
                                   },
                                 ),
                                 RadioListTile<ThemeMode>(
                                   title: const Text('Dark'),
                                   value: ThemeMode.dark,
-                                  groupValue: Provider.of<ThemeProvider>(context).themeMode,
+                                  groupValue:
+                                      Provider.of<ThemeProvider>(context)
+                                          .themeMode,
                                   onChanged: (value) {
-                                    Provider.of<ThemeProvider>(context, listen: false)
-                                      .setThemeMode(ThemeMode.dark);
+                                    Provider.of<ThemeProvider>(context,
+                                            listen: false)
+                                        .setThemeMode(ThemeMode.dark);
                                   },
                                 ),
                                 RadioListTile<ThemeMode>(
                                   title: const Text('Midnight'),
                                   value: ThemeMode.midnight,
-                                  groupValue: Provider.of<ThemeProvider>(context).themeMode,
+                                  groupValue:
+                                      Provider.of<ThemeProvider>(context)
+                                          .themeMode,
                                   onChanged: (value) {
-                                    Provider.of<ThemeProvider>(context, listen: false)
-                                      .setThemeMode(ThemeMode.midnight);
+                                    Provider.of<ThemeProvider>(context,
+                                            listen: false)
+                                        .setThemeMode(ThemeMode.midnight);
                                   },
                                 ),
                               ],
@@ -4625,7 +4784,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
             const SizedBox(height: 24.0),
-            
+
             // QR Code for attendance
             Center(
               child: Column(
@@ -4647,7 +4806,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 24.0),
             ElevatedButton.icon(
               onPressed: () {
@@ -4682,12 +4841,12 @@ class AdminEventsPage extends StatefulWidget {
 }
 
 class _AdminEventsPageState extends State<AdminEventsPage> {
-  final _formKey = GlobalKey<FormState>();
   List<Event> _events = [];
   List<Collection> _collections = [];
   Event? _draggedEvent;
   int? _hoveredCollectionIndex;
   bool _isLoading = false;
+  String _selectedEventType = 'All';
 
   @override
   void initState() {
@@ -4696,284 +4855,1097 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
     _fetchCollections();
   }
 
-  // Add this method to your _AdminEventsPageState class:
+  // Get available requirement types from current society
+  List<String> get _availableEventTypes {
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    if (society == null)
+      return ['All', 'Service', 'Tutoring', 'Meeting']; // Default fallback
 
-void _showAddEventDialog() {
-  final _formKey = GlobalKey<FormState>();
-  String _eventName = '';
-  String _eventDescription = '';
-  DateTime _eventDate = DateTime.now();
-  List<TimeSlot> _timeSlots = [];
-  bool _isMandatory = false;
-  String? _selectedEventType;
-  int? _selectedCollectionId;
-  bool _requiresForms = false;
-  String _formLink = '';
-  int swap_request_deadline_hours = 24;
-  bool _hasDelay = false;
-  int _delayHours = 0;
-  late int _societyId = widget.society?.id ?? 1; // Default to society_id 1 if none selected
+    // Start with All and Meeting (special case)
+    final types = ['All', 'Meeting'];
 
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return StatefulBuilder(
-        builder: (BuildContext context, StateSetter setState) {
-          return AlertDialog(
-            title: const Text('Add Event'),
-            content: SingleChildScrollView(
-              child: Form(
-                key: _formKey,
+    // Add all active requirements from the society
+    for (final req in society.hourRequirements) {
+      if (req.isActive && !types.contains(req.type)) {
+        types.add(req.type);
+      }
+    }
+
+    return types;
+  }
+
+  // Add this filtered events getter
+  List<Event> get _filteredEvents {
+    if (_selectedEventType == 'All') return _events;
+
+    return _events
+        .where((event) =>
+            _normalizeType(event.type) == _normalizeType(_selectedEventType))
+        .toList();
+  }
+
+  // Helper method to normalize type strings for consistent matching
+  String _normalizeType(String type) {
+    return type
+        .trim()
+        .split(' ')
+        .map((word) => word.isNotEmpty
+            ? word[0].toUpperCase() +
+                (word.length > 1 ? word.substring(1).toLowerCase() : '')
+            : '')
+        .join(' ');
+  }
+
+  // Build event type filter chips based on society requirements
+  List<Widget> _buildEventTypeChips() {
+    return _availableEventTypes.map((type) {
+      return FilterChip(
+        label: Text(type),
+        selected: _selectedEventType == type,
+        onSelected: (selected) {
+          setState(() {
+            _selectedEventType = type;
+          });
+        },
+        backgroundColor:
+            Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+        selectedColor: Theme.of(context).colorScheme.primaryContainer,
+        checkmarkColor: Theme.of(context).colorScheme.primary,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      );
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final uncategorizedEvents =
+        _filteredEvents.where((event) => event.collectionId == null).toList();
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWideScreen = screenWidth > 900;
+
+    return Scaffold(
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
+        title: Text(
+          'Events',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 24.0,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: Row(
+        children: [
+          // Optional side panel for wide screens
+          if (isWideScreen)
+            Container(
+              width: 250,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                border: border.Border(
+                  right: BorderSide(
+                    color: Theme.of(context).dividerColor,
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Society Selection (if user is member of multiple societies)
-                    FutureBuilder<List<HonorSociety>>(
-                      future: _fetchUserSocieties(),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
-                        }
-                        
-                        if (snapshot.hasError) {
-                          return Text('Error: ${snapshot.error}');
-                        }
-                        
-                        final societies = snapshot.data ?? [];
-                        
-                        // Only show society dropdown if user is in multiple societies
-                        if (societies.length > 1) {
-                          return DropdownButtonFormField<int>(
-                            value: _societyId,
-                            items: societies.map((society) => DropdownMenuItem(
-                              value: society.id,
-                              child: Text(society.name),
-                            )).toList(),
-                            onChanged: (value) => setState(() => _societyId = value!),
-                            decoration: const InputDecoration(
-                              labelText: 'Society',
-                              border: OutlineInputBorder(),
-                              hintText: 'Select society for this event',
-                            ),
-                          );
-                        }
-                        
-                        // If only one society, show it as text
-                        if (societies.isNotEmpty) {
-                          _societyId = societies.first.id;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 16.0),
-                            child: Row(
-                              children: [
-                                const Text('Society: ', 
-                                  style: TextStyle(fontWeight: FontWeight.bold)
-                                ),
-                                Text(societies.first.name),
-                              ],
-                            ),
-                          );
-                        }
-                        
-                        return const SizedBox.shrink();
-                      },
+                    Text(
+                      'Filters',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     ),
                     const SizedBox(height: 16),
-                    
-                    // Event details
-                    TextFormField(
-                      decoration:
-                          const InputDecoration(labelText: 'Event Name'),
-                      validator: (value) => value!.isEmpty
-                          ? 'Please enter an event name'
-                          : null,
-                      onSaved: (value) => _eventName = value!,
+                    // Vertical chips for wider screens
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      direction: Axis.vertical,
+                      children: _buildEventTypeChips(),
                     ),
-                    TextFormField(
-                      decoration: const InputDecoration(
-                          labelText: 'Event Description'),
-                      validator: (value) => value!.isEmpty
-                          ? 'Please enter a description'
-                          : null,
-                      onSaved: (value) => _eventDescription = value!,
-                    ),
-                    SizedBox(
-                      height: 15,
-                    ),
-                    ElevatedButton(
-                      child: Text(_eventDate == null
-                          ? 'Select Date'
-                          : '${_eventDate.toString().substring(0, 10)}'),
-                      onPressed: () async {
-                        final DateTime? picked = await showDatePicker(
-                          context: context,
-                          initialDate: _eventDate,
-                          firstDate: DateTime.now(),
-                          lastDate:
-                              DateTime.now().add(const Duration(days: 365)),
-                        );
-                        if (picked != null) {
-                          setState(() => _eventDate = picked);
-                        }
-                      },
-                    ),
-                    FutureBuilder<List<HourRequirement>>(
-                      future: _fetchSocietyHourRequirements(_societyId),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const CircularProgressIndicator();
-                        }
-                        
-                        final requirements = snapshot.data ?? [];
-                        final activeTypes = requirements
-                            .where((req) => req.isActive)
-                            .map((req) => req.type)
-                            .toList();
-                        
-                        // Add Meeting to the types if not already present
-                        if (!activeTypes.contains('Meeting')) {
-                          activeTypes.add('Meeting');
-                        }
-                        
-                        return DropdownButtonFormField<String>(
-                          value: _selectedEventType,
-                          items: activeTypes
-                              .map((type) => DropdownMenuItem(
-                                  value: type, child: Text(type)))
-                              .toList(),
-                          onChanged: (value) =>
-                              setState(() => _selectedEventType = value),
-                          decoration:
-                              const InputDecoration(labelText: 'Event Type'),
-                          validator: (value) => value == null
-                              ? 'Please select an event type'
-                              : null,
-                        );
-                      }
-                    ),
-                    
-                    // Add remaining fields from the original implementation
-                    DropdownButtonFormField<int>(
-                      value: _selectedCollectionId,
-                      items: [
-                        const DropdownMenuItem(
-                            value: null, child: Text('No Collection')),
-                        ..._collections.map((collection) => DropdownMenuItem(
-                              value: collection.id,
-                              child: Text(collection.name),
-                            )),
-                      ],
-                      onChanged: (value) =>
-                          setState(() => _selectedCollectionId = value),
-                      decoration:
-                          const InputDecoration(labelText: 'Collection'),
-                    ),
-                    TextFormField(
-                      initialValue: swap_request_deadline_hours.toString(),
-                      decoration: const InputDecoration(
-                        labelText: 'Cancel Deadline (hours before event)',
+                    const Divider(height: 32),
+                    Text(
+                      'Actions',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
-                      keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter the deadline';
-                        }
-                        final hours = int.tryParse(value);
-                        if (hours == null || hours < 0) {
-                          return 'Please enter a valid number of hours';
-                        }
-                        return null;
-                      },
-                      onSaved: (value) {
-                        swap_request_deadline_hours = int.parse(value!);
-                      },
                     ),
-                    CheckboxListTile(
-                      title: const Text('Mandatory'),
-                      value: _isMandatory,
-                      onChanged: (bool? value) {
-                        setState(() => _isMandatory = value!);
-                      },
+                    const SizedBox(height: 16),
+                    ListTile(
+                      leading: Icon(Icons.add,
+                          color: Theme.of(context).colorScheme.primary),
+                      title: const Text('Add Event'),
+                      onTap: _showAddEventDialog,
+                      dense: true,
                     ),
-                    CheckboxListTile(
-                      title: const Text('Requires Forms'),
-                      value: _requiresForms,
-                      onChanged: (bool? value) {
-                        setState(() => _requiresForms = value!);
-                      },
+                    ListTile(
+                      leading: Icon(Icons.create_new_folder,
+                          color: Theme.of(context).colorScheme.primary),
+                      title: const Text('Add Collection'),
+                      onTap: _showAddCollectionDialog,
+                      dense: true,
                     ),
-                    if (_requiresForms)
-                      TextFormField(
-                        decoration:
-                            const InputDecoration(labelText: 'Form Link'),
-                        validator: (value) => value!.isEmpty
-                            ? 'Please enter a form link'
-                            : null,
-                        onSaved: (value) => _formLink = value!,
-                      ),
-                    CheckboxListTile(
-                      title: const Text('Signup Delay'),
-                      value: _hasDelay,
-                      onChanged: (bool? value) {
-                        setState(() => _hasDelay = value!);
-                      },
-                    ),
-                    if (_hasDelay)
-                      TextFormField(
-                        decoration: const InputDecoration(
-                          labelText: 'Delay Hours Before Event',
-                          helperText: 'Hours before event to allow signup',
-                        ),
-                        keyboardType: TextInputType.number,
-                        initialValue: _delayHours.toString(),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter delay hours';
-                          }
-                          final hours = int.tryParse(value);
-                          if (hours == null || hours < 0) {
-                            return 'Please enter a valid number';
-                          }
-                          return null;
-                        },
-                        onSaved: (value) {
-                          _delayHours = int.parse(value!);
-                        },
-                      ),
-                    SizedBox(
-                      height: 15,
-                    ),
-                    ElevatedButton(
-                      child: const Text('Add Time Slot'),
-                      onPressed: () =>
-                          _showAddTimeSlotDialog(setState, _timeSlots),
-                    ),
-                    ..._timeSlots.map((timeSlot) => ListTile(
-                          title: Text(
-                              '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}'),
-                          subtitle:
-                              Text('Capacity: ${timeSlot.numberOfPeople}'),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () =>
-                                setState(() => _timeSlots.remove(timeSlot)),
-                          ),
-                        )),
                   ],
                 ),
               ),
             ),
-            actions: [
-              TextButton(
-                child: const Text('Cancel'),
-                onPressed: () => Navigator.of(context).pop(),
+
+          // Main content area (takes full width on mobile, remaining space on web)
+          Expanded(
+            child: Column(
+              children: [
+                // Show horizontal chips only on mobile
+                if (!isWideScreen)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Wrap(
+                        spacing: 12,
+                        children: _buildEventTypeChips(),
+                      ),
+                    ),
+                  ),
+
+                // Event Count and Loading Indicator
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _isLoading
+                            ? 'Loading events...'
+                            : '${_filteredEvents.length} ${_filteredEvents.length == 1 ? 'event' : 'events'}${_selectedEventType != 'All' ? ' - $_selectedEventType' : ''}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      if (_isLoading)
+                        const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2)),
+                    ],
+                  ),
+                ),
+
+                // Main event list
+                Expanded(
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : RefreshIndicator(
+                          onRefresh: () async {
+                            await _fetchEvents();
+                            await _fetchCollections();
+                          },
+                          child: _filteredEvents.isEmpty && _collections.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.event_busy,
+                                        size: 64,
+                                        color: Colors.grey,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'No events found',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .headlineSmall,
+                                      ),
+                                      if (_selectedEventType != 'All')
+                                        Padding(
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: TextButton.icon(
+                                            icon: const Icon(
+                                                Icons.filter_alt_off),
+                                            label: const Text('Clear filter'),
+                                            onPressed: () {
+                                              setState(() {
+                                                _selectedEventType = 'All';
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                )
+                              : ListView.builder(
+                                  itemCount: _collections.length +
+                                      uncategorizedEvents.length,
+                                  itemBuilder: (context, index) {
+                                    if (index < _collections.length) {
+                                      final collection = _collections[index];
+                                      return _buildCollectionCard(
+                                          collection, index);
+                                    } else {
+                                      final event = uncategorizedEvents[
+                                          index - _collections.length];
+                                      return _buildEventCard(event);
+                                    }
+                                  },
+                                ),
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      // Only show FAB on mobile
+      floatingActionButton: isWideScreen
+          ? null
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                FloatingActionButton(
+                  onPressed: _showAddEventDialog,
+                  heroTag: 'addEvent',
+                  child: const Icon(Icons.add),
+                ),
+                const SizedBox(width: 16),
+                FloatingActionButton(
+                  onPressed: _showAddCollectionDialog,
+                  heroTag: 'addCollection',
+                  child: const Icon(Icons.create_new_folder),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildEventCard(Event event) {
+    final bool isNew = event.createdAt
+        .isAfter(DateTime.now().subtract(const Duration(days: 7)));
+    final bool isMandatory = event.isMandatory;
+
+    // Get color for event type
+    final Color typeColor = _getColorForEventType(event.type, context);
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      clipBehavior: Clip.antiAlias,
+      child: Draggable<Event>(
+        data: event,
+        feedback: Card(
+          elevation: 4.0,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            width: 200,
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: typeColor.withOpacity(0.15),
+                      radius: 16,
+                      child: Icon(
+                        _getIconForType(event.type),
+                        color: typeColor,
+                        size: 16,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        event.name,
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        childWhenDragging: Opacity(
+          opacity: 0.5,
+          child: Card(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            elevation: 0,
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .surfaceVariant
+                    .withOpacity(0.3),
+                borderRadius: BorderRadius.circular(16),
+                border: border.Border.all(
+                  color: typeColor.withOpacity(0.5),
+                  width: 2,
+                ),
               ),
-              ElevatedButton(
-                child: const Text('Add Event'),
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    _formKey.currentState!.save();
-                    _addEvent(
+              child: SizedBox(
+                height: 120,
+                child: Center(
+                  child: Text(
+                    'Moving ${event.name}...',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurfaceVariant
+                          .withOpacity(0.7),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        onDragStarted: () => _onEventDragStarted(event),
+        onDragEnd: (details) {
+          if (event.collectionId != null) {
+            _onEventDropped(event, null);
+          }
+        },
+        child: Stack(
+          children: [
+            // Type indicator side bar
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 4,
+              child: Container(color: typeColor),
+            ),
+
+            // Main content with full expansion
+            Theme(
+              data:
+                  Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                initiallyExpanded: false,
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: EdgeInsets.zero,
+                title: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Event icon with type color
+                      CircleAvatar(
+                        backgroundColor: typeColor.withOpacity(0.15),
+                        radius: 20,
+                        child: Icon(
+                          _getIconForType(event.type),
+                          color: typeColor,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+
+                      // Event title and date
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    event.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16.0,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+
+                                // Event badges
+                                if (isNew)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 1),
+                                    margin: const EdgeInsets.only(left: 4),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .secondary
+                                          .withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: border.Border.all(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .secondary
+                                            .withOpacity(0.2),
+                                        width: 0.5,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'New',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .secondary,
+                                      ),
+                                    ),
+                                  ),
+
+                                if (isMandatory)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 1),
+                                    margin: const EdgeInsets.only(left: 4),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .tertiary
+                                          .withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: border.Border.all(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .tertiary
+                                            .withOpacity(0.2),
+                                        width: 0.5,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Required',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .tertiary,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+
+                            // Date and type on same row
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_today,
+                                  size: 12,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  "${DateFormat('MMM d, y').format(event.date)}",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: typeColor.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    event.type,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                      color: typeColor,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                // Indicate number of time slots
+                                Text(
+                                  '${event.timeSlots.length} ${event.timeSlots.length == 1 ? 'slot' : 'slots'}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant
+                                        .withOpacity(0.8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Action buttons as trailing widgets
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 20),
+                      onPressed: () => _showEditEventDialog(event),
+                      tooltip: 'Edit Event',
+                      padding: const EdgeInsets.all(8),
+                      constraints: const BoxConstraints(),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, size: 20),
+                      onPressed: () => _deleteEvent(event),
+                      tooltip: 'Delete Event',
+                      padding: const EdgeInsets.all(8),
+                      constraints: const BoxConstraints(),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                ),
+                // Time slots as children when expanded
+                children: [
+                  const Divider(height: 1),
+                  ...event.timeSlots.map((timeSlot) {
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceVariant
+                              .withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ListTile(
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 2),
+                          title: Row(
+                            children: [
+                              Icon(
+                                Icons.access_time,
+                                size: 14,
+                                color: typeColor,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
+                                style: const TextStyle(
+                                  fontSize: 13.0,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(left: 18, top: 2),
+                            child: Row(
+                              children: [
+                                Text(
+                                  'Capacity: ${timeSlot.numberOfPeople}',
+                                  style: TextStyle(
+                                    fontSize: 12.0,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Attendees: ${timeSlot.attendees.length}',
+                                  style: TextStyle(
+                                    fontSize: 12.0,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.edit, size: 20),
+                            onPressed: () =>
+                                _showEditTimeSlotDialog(event, timeSlot),
+                            visualDensity: VisualDensity.standard,
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCollectionCard(Collection collection, int index) {
+    final isHovered = _hoveredCollectionIndex == index;
+    final eventsInCollection = _filteredEvents
+        .where((event) => event.collectionId == collection.id)
+        .toList();
+
+    return DragTarget<Event>(
+      onWillAccept: (data) => true,
+      onAccept: (data) {
+        if (data is Event) {
+          _onEventDropped(data, collection.id);
+        }
+      },
+      onLeave: (data) {
+        setState(() {
+          _hoveredCollectionIndex = null;
+        });
+      },
+      builder: (context, candidateData, rejectedData) {
+        return Card(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          elevation: 2,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          color: isHovered
+              ? Theme.of(context).colorScheme.surfaceVariant
+              : Theme.of(context).colorScheme.surface,
+          child: Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              leading: Icon(
+                Icons.folder,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      collection.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16.0,
+                      ),
+                    ),
+                  ),
+                  // Show count of events in this collection
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: eventsInCollection.isEmpty
+                          ? Theme.of(context).colorScheme.surfaceVariant
+                          : Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      eventsInCollection.length.toString(),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: eventsInCollection.isEmpty
+                            ? Theme.of(context).colorScheme.onSurfaceVariant
+                            : Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: () => _showDeleteCollectionDialog(collection),
+                    tooltip: 'Delete Collection',
+                  ),
+                  const Icon(Icons.expand_more),
+                ],
+              ),
+              children: eventsInCollection.isEmpty
+                  ? [
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Center(
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.inbox,
+                                size: 48,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withOpacity(0.3),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'No events in this collection',
+                                style: TextStyle(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withOpacity(0.7),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Drag and drop events here',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withOpacity(0.5),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ]
+                  : eventsInCollection
+                      .map((event) => _buildEventCard(event))
+                      .toList(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Helper to get appropriate icons for different event types
+  IconData _getIconForType(String type) {
+    final lowerType = type.toLowerCase();
+    if (lowerType.contains('service')) return Icons.volunteer_activism;
+    if (lowerType.contains('tutor')) return Icons.school;
+    if (lowerType.contains('meeting')) return Icons.groups;
+    if (lowerType.contains('leader')) return Icons.emoji_people;
+    return Icons.event;
+  }
+
+  // Helper method to get color based on event type
+  Color _getColorForEventType(String type, BuildContext context) {
+    final lowerType = type.toLowerCase();
+    if (lowerType.contains('service'))
+      return Theme.of(context).colorScheme.primary;
+    if (lowerType.contains('tutor'))
+      return Theme.of(context).colorScheme.secondary;
+    if (lowerType.contains('meeting'))
+      return Theme.of(context).colorScheme.tertiary;
+    if (lowerType.contains('leader')) return Colors.amber;
+    return Theme.of(context).colorScheme.primary;
+  }
+
+  void _showAddEventDialog() {
+    final _formKey = GlobalKey<FormState>();
+    String _eventName = '';
+    String _eventDescription = '';
+    DateTime _eventDate = DateTime.now();
+    List<TimeSlot> _timeSlots = [];
+    bool _isMandatory = false;
+    String? _selectedEventType;
+    int? _selectedCollectionId;
+    bool _requiresForms = false;
+    String _formLink = '';
+    int swap_request_deadline_hours = 24;
+    bool _hasDelay = false;
+    int _delayHours = 0;
+    late int _societyId =
+        widget.society?.id ?? 1; // Default to society_id 1 if none selected
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return AlertDialog(
+              title: const Text('Add Event'),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Society Selection (if user is member of multiple societies)
+                      FutureBuilder<List<HonorSociety>>(
+                        future: _fetchUserSocieties(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                                child: CircularProgressIndicator());
+                          }
+
+                          if (snapshot.hasError) {
+                            return Text('Error: ${snapshot.error}');
+                          }
+
+                          final societies = snapshot.data ?? [];
+
+                          // Only show society dropdown if user is in multiple societies
+                          if (societies.length > 1) {
+                            return DropdownButtonFormField<int>(
+                              value: _societyId,
+                              items: societies
+                                  .map((society) => DropdownMenuItem(
+                                        value: society.id,
+                                        child: Text(society.name),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) =>
+                                  setState(() => _societyId = value!),
+                              decoration: const InputDecoration(
+                                labelText: 'Society',
+                                border: OutlineInputBorder(),
+                                hintText: 'Select society for this event',
+                              ),
+                            );
+                          }
+
+                          // If only one society, show it as text
+                          if (societies.isNotEmpty) {
+                            _societyId = societies.first.id;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16.0),
+                              child: Row(
+                                children: [
+                                  const Text('Society: ',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold)),
+                                  Text(societies.first.name),
+                                ],
+                              ),
+                            );
+                          }
+
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Event details
+                      TextFormField(
+                        decoration:
+                            const InputDecoration(labelText: 'Event Name'),
+                        validator: (value) => value!.isEmpty
+                            ? 'Please enter an event name'
+                            : null,
+                        onSaved: (value) => _eventName = value!,
+                      ),
+                      TextFormField(
+                        decoration: const InputDecoration(
+                            labelText: 'Event Description'),
+                        validator: (value) => value!.isEmpty
+                            ? 'Please enter a description'
+                            : null,
+                        onSaved: (value) => _eventDescription = value!,
+                      ),
+                      SizedBox(
+                        height: 15,
+                      ),
+                      ElevatedButton(
+                        child: Text(_eventDate == null
+                            ? 'Select Date'
+                            : '${_eventDate.toString().substring(0, 10)}'),
+                        onPressed: () async {
+                          final DateTime? picked = await showDatePicker(
+                            context: context,
+                            initialDate: _eventDate,
+                            firstDate: DateTime.now(),
+                            lastDate:
+                                DateTime.now().add(const Duration(days: 365)),
+                          );
+                          if (picked != null) {
+                            setState(() => _eventDate = picked);
+                          }
+                        },
+                      ),
+                      FutureBuilder<List<HourRequirement>>(
+                          future: _fetchSocietyHourRequirements(_societyId),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const CircularProgressIndicator();
+                            }
+
+                            final requirements = snapshot.data ?? [];
+                            final activeTypes = requirements
+                                .where((req) => req.isActive)
+                                .map((req) => req.type)
+                                .toList();
+
+                            // Add Meeting to the types if not already present
+                            if (!activeTypes.contains('Meeting')) {
+                              activeTypes.add('Meeting');
+                            }
+
+                            return DropdownButtonFormField<String>(
+                              value: _selectedEventType,
+                              items: activeTypes
+                                  .map((type) => DropdownMenuItem(
+                                      value: type, child: Text(type)))
+                                  .toList(),
+                              onChanged: (value) =>
+                                  setState(() => _selectedEventType = value),
+                              decoration: const InputDecoration(
+                                  labelText: 'Event Type'),
+                              validator: (value) => value == null
+                                  ? 'Please select an event type'
+                                  : null,
+                            );
+                          }),
+
+                      // Add remaining fields from the original implementation
+                      DropdownButtonFormField<int>(
+                        value: _selectedCollectionId,
+                        items: [
+                          const DropdownMenuItem(
+                              value: null, child: Text('No Collection')),
+                          ..._collections.map((collection) => DropdownMenuItem(
+                                value: collection.id,
+                                child: Text(collection.name),
+                              )),
+                        ],
+                        onChanged: (value) =>
+                            setState(() => _selectedCollectionId = value),
+                        decoration:
+                            const InputDecoration(labelText: 'Collection'),
+                      ),
+                      TextFormField(
+                        initialValue: swap_request_deadline_hours.toString(),
+                        decoration: const InputDecoration(
+                          labelText: 'Cancel Deadline (hours before event)',
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter the deadline';
+                          }
+                          final hours = int.tryParse(value);
+                          if (hours == null || hours < 0) {
+                            return 'Please enter a valid number of hours';
+                          }
+                          return null;
+                        },
+                        onSaved: (value) {
+                          swap_request_deadline_hours = int.parse(value!);
+                        },
+                      ),
+                      CheckboxListTile(
+                        title: const Text('Mandatory'),
+                        value: _isMandatory,
+                        onChanged: (bool? value) {
+                          setState(() => _isMandatory = value!);
+                        },
+                      ),
+                      CheckboxListTile(
+                        title: const Text('Requires Forms'),
+                        value: _requiresForms,
+                        onChanged: (bool? value) {
+                          setState(() => _requiresForms = value!);
+                        },
+                      ),
+                      if (_requiresForms)
+                        TextFormField(
+                          decoration:
+                              const InputDecoration(labelText: 'Form Link'),
+                          validator: (value) => value!.isEmpty
+                              ? 'Please enter a form link'
+                              : null,
+                          onSaved: (value) => _formLink = value!,
+                        ),
+                      CheckboxListTile(
+                        title: const Text('Signup Delay'),
+                        value: _hasDelay,
+                        onChanged: (bool? value) {
+                          setState(() => _hasDelay = value!);
+                        },
+                      ),
+                      if (_hasDelay)
+                        TextFormField(
+                          decoration: const InputDecoration(
+                            labelText: 'Delay Hours Before Event',
+                            helperText: 'Hours before event to allow signup',
+                          ),
+                          keyboardType: TextInputType.number,
+                          initialValue: _delayHours.toString(),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter delay hours';
+                            }
+                            final hours = int.tryParse(value);
+                            if (hours == null || hours < 0) {
+                              return 'Please enter a valid number';
+                            }
+                            return null;
+                          },
+                          onSaved: (value) {
+                            _delayHours = int.parse(value!);
+                          },
+                        ),
+                      SizedBox(
+                        height: 15,
+                      ),
+                      ElevatedButton(
+                        child: const Text('Add Time Slot'),
+                        onPressed: () =>
+                            _showAddTimeSlotDialog(setState, _timeSlots),
+                      ),
+                      ..._timeSlots.map((timeSlot) => ListTile(
+                            title: Text(
+                                '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}'),
+                            subtitle:
+                                Text('Capacity: ${timeSlot.numberOfPeople}'),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete),
+                              onPressed: () =>
+                                  setState(() => _timeSlots.remove(timeSlot)),
+                            ),
+                          )),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  child: const Text('Cancel'),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                ElevatedButton(
+                  child: const Text('Add Event'),
+                  onPressed: () {
+                    if (_formKey.currentState!.validate()) {
+                      _formKey.currentState!.save();
+                      _addEvent(
                         _eventName,
                         _eventDescription,
                         _eventDate,
@@ -4987,28 +5959,27 @@ void _showAddEventDialog() {
                         _hasDelay,
                         _delayHours,
                         _societyId,
-                    );
-                    Navigator.of(context).pop();
-                  }
-                },
-              ),
-            ],
-          );
-        },
-      );
-    },
-  );
-}
+                      );
+                      Navigator.of(context).pop();
+                    }
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 
 // Add this helper method to fetch user societies
-Future<List<HonorSociety>> _fetchUserSocieties() async {
-  try {
-    final userId = supabase.auth.currentUser?.id;
-    if (userId == null) return [];
+  Future<List<HonorSociety>> _fetchUserSocieties() async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return [];
 
-    final societies = await supabase
-        .from('user_society_memberships')
-        .select('''
+      final societies =
+          await supabase.from('user_society_memberships').select('''
           honor_societies!inner(
             id,
             name,
@@ -5017,346 +5988,243 @@ Future<List<HonorSociety>> _fetchUserSocieties() async {
             meeting_requirement,
             created_at
           )
-        ''')
-        .eq('user_id', userId);
+        ''').eq('user_id', userId);
 
-    return societies.map<HonorSociety>((membership) {
-      final societyData = membership['honor_societies'];
-      
-      return HonorSociety(
-        id: societyData['id'],
-        name: societyData['name'],
-        description: societyData['description'],
-        imageUrl: societyData['image_url'],
-        hourRequirements: [], // We'll fetch these separately if needed
-        meetingRequirement: societyData['meeting_requirement'],
-        createdAt: DateTime.parse(societyData['created_at']),
-      );
-    }).toList();
-  } catch (e) {
-    print('Error fetching user societies: $e');
-    return [];
+      return societies.map<HonorSociety>((membership) {
+        final societyData = membership['honor_societies'];
+
+        return HonorSociety(
+          id: societyData['id'],
+          name: societyData['name'],
+          description: societyData['description'],
+          imageUrl: societyData['image_url'],
+          hourRequirements: [], // We'll fetch these separately if needed
+          meetingRequirement: societyData['meeting_requirement'],
+          createdAt: DateTime.parse(societyData['created_at']),
+        );
+      }).toList();
+    } catch (e) {
+      print('Error fetching user societies: $e');
+      return [];
+    }
   }
-}
 
 // Add this helper method to fetch society hour requirements
-Future<List<HourRequirement>> _fetchSocietyHourRequirements(int societyId) async {
-  try {
-    final response = await supabase
-        .from('hour_requirements')
-        .select()
-        .eq('society_id', societyId);
+  Future<List<HourRequirement>> _fetchSocietyHourRequirements(
+      int societyId) async {
+    try {
+      final response = await supabase
+          .from('hour_requirements')
+          .select()
+          .eq('society_id', societyId);
 
-    return response.map<HourRequirement>((json) => HourRequirement.fromJson(json)).toList();
-  } catch (e) {
-    print('Error fetching society hour requirements: $e');
-    return [];
+      return response
+          .map<HourRequirement>((json) => HourRequirement.fromJson(json))
+          .toList();
+    } catch (e) {
+      print('Error fetching society hour requirements: $e');
+      return [];
+    }
   }
-}
-
 
 // Update _fetchEvents to filter by society if specified
 // In AdminEventsPage class - replace the current _fetchEvents method
 
-Future<void> _fetchEvents() async {
-  setState(() {
-    _isLoading = true;
-  });
+  Future<void> _fetchEvents() async {
+    setState(() {
+      _isLoading = true;
+    });
 
-  try {
-    // Get current society
-    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
-    if (society == null) {
-      setState(() {
-        _events = [];
-        _isLoading = false;
-      });
-      return;
-    }
-    
-    // 1. Fetch events for this society
-    final eventsResponse = await supabase
-        .from('Events')
-        .select()
-        .eq('society_id', society.id)
-        .order('date');
-    
-    // Create events with empty time slots first
-    List<Event> events = eventsResponse.map<Event>((json) => Event.fromJson(json)).toList();
-    
-    // 2. Fetch time slots for all events in a single query
-    final eventIds = events.map((e) => e.id).toList();
-    if (eventIds.isEmpty) {
-      setState(() {
-        _events = [];
-        _isLoading = false;
-      });
-      return;
-    }
-    
-    final timeSlotsResponse = await supabase
-        .from('Time slots')
-        .select()
-        .inFilter('event_id', eventIds);
-    
-    // Create a map of event_id -> List<TimeSlot>
-    Map<int, List<TimeSlot>> timeSlotsByEvent = {};
-    for (var json in timeSlotsResponse) {
-      final timeSlot = TimeSlot.fromJson(json);
-      final eventId = timeSlot.eventId;
-      
-      if (!timeSlotsByEvent.containsKey(eventId)) {
-        timeSlotsByEvent[eventId] = [];
+    try {
+      // Get current society
+      final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      if (society == null) {
+        setState(() {
+          _events = [];
+          _isLoading = false;
+        });
+        return;
       }
-      timeSlotsByEvent[eventId]!.add(timeSlot);
-    }
-    
-    // 3. Fetch attendees for all time slots
-    final timeSlotIds = timeSlotsResponse.map<int>((json) => json['id']).toList();
-    
-    if (timeSlotIds.isNotEmpty) {
-      final attendeesResponse = await supabase
-          .from('Attendees')
-          .select('*, profiles:user_id(name)')
-          .inFilter('timeslot_id', timeSlotIds);
-      
-      // Create a map of timeslot_id -> List<Attendee>
-      Map<int, List<Attendee>> attendeesByTimeSlot = {};
-      for (var json in attendeesResponse) {
-        final attendee = Attendee(
-          id: json['id'],
-          timeSlotId: json['timeslot_id'],
-          userId: json['user_id'],
-          name: json['profiles']['name'],
-          isPresent: json['is_present'] ?? false,
-          formsCompleted: json['forms_completed'] ?? false,
-        );
-        
-        final timeSlotId = attendee.timeSlotId;
-        if (!attendeesByTimeSlot.containsKey(timeSlotId)) {
-          attendeesByTimeSlot[timeSlotId] = [];
+
+      // 1. Fetch events for this society
+      final eventsResponse = await supabase
+          .from('Events')
+          .select()
+          .eq('society_id', society.id)
+          .order('date');
+
+      // Create events with empty time slots first
+      List<Event> events =
+          eventsResponse.map<Event>((json) => Event.fromJson(json)).toList();
+
+      // 2. Fetch time slots for all events in a single query
+      final eventIds = events.map((e) => e.id).toList();
+      if (eventIds.isEmpty) {
+        setState(() {
+          _events = [];
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final timeSlotsResponse = await supabase
+          .from('Time slots')
+          .select()
+          .inFilter('event_id', eventIds);
+
+      // Create a map of event_id -> List<TimeSlot>
+      Map<int, List<TimeSlot>> timeSlotsByEvent = {};
+      for (var json in timeSlotsResponse) {
+        final timeSlot = TimeSlot.fromJson(json);
+        final eventId = timeSlot.eventId;
+
+        if (!timeSlotsByEvent.containsKey(eventId)) {
+          timeSlotsByEvent[eventId] = [];
         }
-        attendeesByTimeSlot[timeSlotId]!.add(attendee);
+        timeSlotsByEvent[eventId]!.add(timeSlot);
       }
-      
-      // Now assign attendees to time slots
-      for (var timeSlotList in timeSlotsByEvent.values) {
-        for (var timeSlot in timeSlotList) {
-          if (attendeesByTimeSlot.containsKey(timeSlot.id)) {
-            timeSlot.attendees = attendeesByTimeSlot[timeSlot.id]!;
+
+      // 3. Fetch attendees for all time slots
+      final timeSlotIds =
+          timeSlotsResponse.map<int>((json) => json['id']).toList();
+
+      if (timeSlotIds.isNotEmpty) {
+        final attendeesResponse = await supabase
+            .from('Attendees')
+            .select('*, profiles:user_id(name)')
+            .inFilter('timeslot_id', timeSlotIds);
+
+        // Create a map of timeslot_id -> List<Attendee>
+        Map<int, List<Attendee>> attendeesByTimeSlot = {};
+        for (var json in attendeesResponse) {
+          final attendee = Attendee(
+            id: json['id'],
+            timeSlotId: json['timeslot_id'],
+            userId: json['user_id'],
+            name: json['profiles']['name'],
+            isPresent: json['is_present'] ?? false,
+            formsCompleted: json['forms_completed'] ?? false,
+          );
+
+          final timeSlotId = attendee.timeSlotId;
+          if (!attendeesByTimeSlot.containsKey(timeSlotId)) {
+            attendeesByTimeSlot[timeSlotId] = [];
+          }
+          attendeesByTimeSlot[timeSlotId]!.add(attendee);
+        }
+
+        // Now assign attendees to time slots
+        for (var timeSlotList in timeSlotsByEvent.values) {
+          for (var timeSlot in timeSlotList) {
+            if (attendeesByTimeSlot.containsKey(timeSlot.id)) {
+              timeSlot.attendees = attendeesByTimeSlot[timeSlot.id]!;
+            }
           }
         }
       }
-    }
-    
-    // Finally, assign time slots to events
-    for (var event in events) {
-      if (timeSlotsByEvent.containsKey(event.id)) {
-        event.timeSlots = timeSlotsByEvent[event.id]!;
+
+      // Finally, assign time slots to events
+      for (var event in events) {
+        if (timeSlotsByEvent.containsKey(event.id)) {
+          event.timeSlots = timeSlotsByEvent[event.id]!;
+        }
+      }
+
+      // Update state with the fully assembled events
+      setState(() {
+        _events = events;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error fetching events: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading events: $e')),
+        );
+        setState(() => _isLoading = false);
       }
     }
-    
-    // Update state with the fully assembled events
-    setState(() {
-      _events = events;
-      _isLoading = false;
-    });
-  } catch (e) {
-    print('Error fetching events: $e');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading events: $e')),
-      );
-      setState(() => _isLoading = false);
-    }
   }
-}
 
 // Also update the _fetchCollections method to filter by society if specified
-Future<void> _fetchCollections() async {
-  try {
-    var query = Supabase.instance.client
-        .from('Collections')
-        .select('*');
-        
-    // If we have a society specified, filter by it
-    if (widget.society != null) {
-      query = query.eq('society_id', widget.society!.id);
-    }
-    
-    final response = await query;
+  Future<void> _fetchCollections() async {
+    try {
+      var query = Supabase.instance.client.from('Collections').select('*');
 
-    final List<dynamic> data = response;
-    if (mounted) {
-      setState(() {
-        _collections = data.map((json) => Collection.fromJson(json)).toList();
-      });
+      // If we have a society specified, filter by it
+      if (widget.society != null) {
+        query = query.eq('society_id', widget.society!.id);
+      }
+
+      final response = await query;
+
+      final List<dynamic> data = response;
+      if (mounted) {
+        setState(() {
+          _collections = data.map((json) => Collection.fromJson(json)).toList();
+        });
+      }
+    } catch (e) {
+      print('Error fetching collections: $e');
     }
-  } catch (e) {
-    print('Error fetching collections: $e');
   }
-}
 
-  @override
-  Widget build(BuildContext context) {
-    final uncategorizedEvents =
-        _events.where((event) => event.collectionId == null).toList();
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Theme.of(context)
-            .bannerTheme
-            .backgroundColor,
-        title: Text(
-          'Events',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 24.0,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
+  void _showDeleteCollectionDialog(Collection collection) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Collection'),
+        content: Text(
+          'Are you sure you want to delete "${collection.name}"? Events in this collection will be uncategorized but not deleted.',
         ),
-        centerTitle: true,
-      ),
-      body: ListView.builder(
-        itemCount: _collections.length + uncategorizedEvents.length,
-        itemBuilder: (context, index) {
-          if (index < _collections.length) {
-            final collection = _collections[index];
-            return _buildCollectionCard(collection, index);
-          } else {
-            final event = uncategorizedEvents[index - _collections.length];
-            return _buildEventCard(event);
-          }
-        },
-      ),
-      floatingActionButton: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton(
-            onPressed: _showAddEventDialog,
-            child: const Icon(Icons.add),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
           ),
-          const SizedBox(width: 16),
-          FloatingActionButton(
-            onPressed: _showAddCollectionDialog,
-            child: const Icon(Icons.create_new_folder),
+          ElevatedButton(
+            onPressed: () {
+              _deleteCollection(collection);
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Delete'),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCollectionCard(Collection collection, int index) {
-  final isHovered = _hoveredCollectionIndex == index;
+  Future<void> _deleteCollection(Collection collection) async {
+    try {
+      // First update all events in this collection to remove the collection_id
+      await supabase
+          .from('Events')
+          .update({'collection_id': null}).eq('collection_id', collection.id);
 
-  return DragTarget<Event>(
-    onWillAccept: (data) => true,
-    onAccept: (data) {
-      if (data is Event) {
-        _onEventDropped(data, collection.id);
-      }
-    },
-    onLeave: (data) {
+      // Then delete the collection
+      await supabase.from('Collections').delete().eq('id', collection.id);
+
+      // Update local state
       setState(() {
-        _hoveredCollectionIndex = null;
+        _collections.removeWhere((c) => c.id == collection.id);
       });
-    },
-    builder: (context, candidateData, rejectedData) {
-      return Card(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        elevation: 2,
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        color: isHovered ? Colors.grey[200] : null,
-        child: ExpansionTile(
-          leading: const Icon(Icons.folder),
-          title: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  collection.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16.0,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete),
-                onPressed: () => _showDeleteCollectionDialog(collection),
-              ),
-            ],
-          ),
-          children: _events
-              .where((event) => event.collectionId == collection.id)
-              .map((event) => _buildEventCard(event))
-              .toList(),
-        ),
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Collection deleted successfully')),
       );
-    },
-  );
-}
 
-void _showDeleteCollectionDialog(Collection collection) {
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Delete Collection'),
-      content: Text(
-        'Are you sure you want to delete "${collection.name}"? Events in this collection will be uncategorized but not deleted.',
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            _deleteCollection(collection);
-            Navigator.pop(context);
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-          child: const Text('Delete'),
-        ),
-      ],
-    ),
-  );
-}
-
-Future<void> _deleteCollection(Collection collection) async {
-  try {
-    // First update all events in this collection to remove the collection_id
-    await supabase
-        .from('Events')
-        .update({'collection_id': null})
-        .eq('collection_id', collection.id);
-
-    // Then delete the collection
-    await supabase
-        .from('Collections')
-        .delete()
-        .eq('id', collection.id);
-
-    // Update local state
-    setState(() {
-      _collections.removeWhere((c) => c.id == collection.id);
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Collection deleted successfully')),
-    );
-
-    // Refresh events to update their display
-    _fetchEvents();
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error deleting collection: $e')),
-    );
+      // Refresh events to update their display
+      _fetchEvents();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error deleting collection: $e')),
+      );
+    }
   }
-}
 
   void _showCollectionEvents(Collection collection) {
     showDialog(
@@ -5436,253 +6304,6 @@ Future<void> _deleteCollection(Collection collection) async {
   ///
   /// Returns:
   /// - Widget
-  Widget _buildEventCard(Event event) {
-    final bool isNew = event.createdAt
-        .isAfter(DateTime.now().subtract(const Duration(days: 7)));
-    final bool isMandatory = event.isMandatory;
-
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
-      elevation: 2,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Draggable<Event>(
-        data: event,
-        child: Stack(
-          children: [
-            if (isMandatory)
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.amber,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'Mandatory',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              )
-            else if (isNew)
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'New',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            CustomExpansionTile(
-              title: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            "${event.name} - ${event.date.month}/${event.date.day}/${event.date.year}",
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16.0,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () => _showEditEventDialog(event),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: () => _deleteEvent(event),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      event.description,
-                      style: TextStyle(
-                        fontSize: 14.0,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              children: event.timeSlots.map((timeSlot) {
-                return ListTile(
-                  title: Text(
-                    'Time: ${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
-                    style: const TextStyle(fontSize: 16.0),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Number of People: ${timeSlot.numberOfPeople}',
-                        style:
-                            TextStyle(fontSize: 14.0, color: Colors.grey[600]),
-                      ),
-                      Text(
-                        'Attendees: ${timeSlot.attendees.length}',
-                        style:
-                            TextStyle(fontSize: 14.0, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.edit),
-                    onPressed: () => _showEditTimeSlotDialog(event, timeSlot),
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
-        ),
-        feedback: Material(
-          elevation: 4.0,
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              event.name,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ),
-        childWhenDragging: Opacity(
-          opacity: 0.5,
-          child: Stack(
-            children: [
-              if (isMandatory)
-                Positioned(
-                  left: 255,
-                  top: 32,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.amber,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.star,
-                      color: Theme.of(context).colorScheme.onError,
-                      size: 16,
-                    ),
-                  ),
-                )
-              else if (isNew)
-                Positioned(
-                  left: 250,
-                  top: 32,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.errorContainer,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'New',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              CustomExpansionTile(
-                title: ListTile(
-                  title: Text(
-                    "${event.name} - ${event.date.month}/${event.date.day}/${event.date.year}",
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14.0,
-                    ),
-                  ),
-                  subtitle: Text(
-                    event.description,
-                    style: TextStyle(
-                      fontSize: 12.0,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit),
-                        onPressed: () {
-                          _showEditEventDialog(event);
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete),
-                        onPressed: () {
-                          _deleteEvent(event);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                children: event.timeSlots.map((timeSlot) {
-                  return ListTile(
-                    title: Text(
-                      'Time: ${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
-                      style: const TextStyle(
-                        fontSize: 16.0,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Number of People: ${timeSlot.numberOfPeople}',
-                      style: TextStyle(
-                        fontSize: 14.0,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.notes),
-                      onPressed: () {
-                        _showEditNotesDialog(event, timeSlot);
-                      },
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-        ),
-        onDragStarted: () => _onEventDragStarted(event),
-        onDragEnd: (details) {
-          if (event.collectionId != null) {
-            _onEventDropped(event, null);
-          }
-        },
-      ),
-    );
-  }
-
   void _onEventDragStarted(Event event) {
     setState(() {
       _draggedEvent = event;
@@ -5824,7 +6445,6 @@ Future<void> _deleteCollection(Collection collection) async {
     }
   }
 
-
   /// Displays dialog for adding new time slots to an event.
   /// Handles time selection and capacity input.
   ///
@@ -5881,8 +6501,7 @@ Future<void> _deleteCollection(Collection collection) async {
                     ),
                     TextFormField(
                       decoration: const InputDecoration(labelText: 'Capacity'),
-                      keyboardType:
-                          const TextInputType.numberWithOptions(),
+                      keyboardType: const TextInputType.numberWithOptions(),
                       validator: (value) => int.tryParse(value!) == null
                           ? 'Please enter a valid number'
                           : null,
@@ -5933,357 +6552,357 @@ Future<void> _deleteCollection(Collection collection) async {
 
   // In AdminEventsPage class - replace the _showEditEventDialog method
 
-void _showEditEventDialog(Event event) {
-  final _formKey = GlobalKey<FormState>();
-  String _eventName = event.name;
-  String _eventDescription = event.description;
-  DateTime _eventDate = event.date;
-  List<TimeSlot> _timeSlots = List.from(event.timeSlots);
-  bool _isMandatory = event.isMandatory;
-  String? _selectedEventType = event.type;
-  int? _selectedCollectionId = event.collectionId;
-  bool _requiresForms = event.requiresForms;
-  String _formLink = event.formLink ?? '';
-  int swapRequestDeadline = event.swapRequestDeadline.inHours;
-  bool _hasDelay = event.hasDelay;
-  int _delayHours = event.delayHours;
+  void _showEditEventDialog(Event event) {
+    final _formKey = GlobalKey<FormState>();
+    String _eventName = event.name;
+    String _eventDescription = event.description;
+    DateTime _eventDate = event.date;
+    List<TimeSlot> _timeSlots = List.from(event.timeSlots);
+    bool _isMandatory = event.isMandatory;
+    String? _selectedEventType = event.type;
+    int? _selectedCollectionId = event.collectionId;
+    bool _requiresForms = event.requiresForms;
+    String _formLink = event.formLink ?? '';
+    int swapRequestDeadline = event.swapRequestDeadline.inHours;
+    bool _hasDelay = event.hasDelay;
+    int _delayHours = event.delayHours;
 
-  // Get available event types from society
-  List<String> availableTypes = _getAvailableEventTypes();
+    // Get available event types from society
+    List<String> availableTypes = _getAvailableEventTypes();
 
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return StatefulBuilder(
-        builder: (BuildContext context, StateSetter setState) {
-          return AlertDialog(
-            title: const Text('Edit Event'),
-            content: SingleChildScrollView(
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextFormField(
-                      initialValue: _eventName,
-                      decoration:
-                          const InputDecoration(labelText: 'Event Name'),
-                      validator: (value) => value!.isEmpty
-                          ? 'Please enter an event name'
-                          : null,
-                      onSaved: (value) => _eventName = value!,
-                    ),
-                    TextFormField(
-                      initialValue: _eventDescription,
-                      decoration: const InputDecoration(
-                          labelText: 'Event Description'),
-                      validator: (value) => value!.isEmpty
-                          ? 'Please enter a description'
-                          : null,
-                      onSaved: (value) => _eventDescription = value!,
-                    ),
-                    SizedBox(
-                      height: 10,
-                    ),
-                    ElevatedButton(
-                      child: Text(
-                          'Date: ${_eventDate.toString().substring(0, 10)}'),
-                      onPressed: () async {
-                        final DateTime? picked = await showDatePicker(
-                          context: context,
-                          initialDate: _eventDate,
-                          firstDate: DateTime.now(),
-                          lastDate:
-                              DateTime.now().add(const Duration(days: 365)),
-                        );
-                        if (picked != null) {
-                          setState(() => _eventDate = picked);
-                        }
-                      },
-                    ),
-                    DropdownButtonFormField<String>(
-                      value: availableTypes.contains(_selectedEventType) 
-                          ? _selectedEventType 
-                          : availableTypes.first,
-                      items: availableTypes
-                          .map((type) => DropdownMenuItem(
-                              value: type, child: Text(type)))
-                          .toList(),
-                      onChanged: (value) =>
-                          setState(() => _selectedEventType = value),
-                      decoration:
-                          const InputDecoration(labelText: 'Event Type'),
-                      validator: (value) => value == null
-                          ? 'Please select an event type'
-                          : null,
-                    ),
-                    TextFormField(
-                      initialValue: swapRequestDeadline.toString(),
-                      decoration: const InputDecoration(
-                        labelText: 'Cancel Deadline (hours before Event)',
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter the deadline';
-                        }
-                        final hours = int.tryParse(value);
-                        if (hours == null || hours < 0) {
-                          return 'Please enter a valid number of hours';
-                        }
-                        return null;
-                      },
-                      onSaved: (value) {
-                        swapRequestDeadline = int.parse(value!);
-                      },
-                    ),
-                    DropdownButtonFormField<int>(
-                      value: _selectedCollectionId,
-                      items: [
-                        const DropdownMenuItem(
-                            value: null, child: Text('No Collection')),
-                        ..._collections.map((collection) => DropdownMenuItem(
-                              value: collection.id,
-                              child: Text(collection.name),
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
+              return AlertDialog(
+                title: const Text('Edit Event'),
+                content: SingleChildScrollView(
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextFormField(
+                          initialValue: _eventName,
+                          decoration:
+                              const InputDecoration(labelText: 'Event Name'),
+                          validator: (value) => value!.isEmpty
+                              ? 'Please enter an event name'
+                              : null,
+                          onSaved: (value) => _eventName = value!,
+                        ),
+                        TextFormField(
+                          initialValue: _eventDescription,
+                          decoration: const InputDecoration(
+                              labelText: 'Event Description'),
+                          validator: (value) => value!.isEmpty
+                              ? 'Please enter a description'
+                              : null,
+                          onSaved: (value) => _eventDescription = value!,
+                        ),
+                        SizedBox(
+                          height: 10,
+                        ),
+                        ElevatedButton(
+                          child: Text(
+                              'Date: ${_eventDate.toString().substring(0, 10)}'),
+                          onPressed: () async {
+                            final DateTime? picked = await showDatePicker(
+                              context: context,
+                              initialDate: _eventDate,
+                              firstDate: DateTime.now(),
+                              lastDate:
+                                  DateTime.now().add(const Duration(days: 365)),
+                            );
+                            if (picked != null) {
+                              setState(() => _eventDate = picked);
+                            }
+                          },
+                        ),
+                        DropdownButtonFormField<String>(
+                          value: availableTypes.contains(_selectedEventType)
+                              ? _selectedEventType
+                              : availableTypes.first,
+                          items: availableTypes
+                              .map((type) => DropdownMenuItem(
+                                  value: type, child: Text(type)))
+                              .toList(),
+                          onChanged: (value) =>
+                              setState(() => _selectedEventType = value),
+                          decoration:
+                              const InputDecoration(labelText: 'Event Type'),
+                          validator: (value) => value == null
+                              ? 'Please select an event type'
+                              : null,
+                        ),
+                        TextFormField(
+                          initialValue: swapRequestDeadline.toString(),
+                          decoration: const InputDecoration(
+                            labelText: 'Cancel Deadline (hours before Event)',
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter the deadline';
+                            }
+                            final hours = int.tryParse(value);
+                            if (hours == null || hours < 0) {
+                              return 'Please enter a valid number of hours';
+                            }
+                            return null;
+                          },
+                          onSaved: (value) {
+                            swapRequestDeadline = int.parse(value!);
+                          },
+                        ),
+                        DropdownButtonFormField<int>(
+                          value: _selectedCollectionId,
+                          items: [
+                            const DropdownMenuItem(
+                                value: null, child: Text('No Collection')),
+                            ..._collections
+                                .map((collection) => DropdownMenuItem(
+                                      value: collection.id,
+                                      child: Text(collection.name),
+                                    )),
+                          ],
+                          onChanged: (value) =>
+                              setState(() => _selectedCollectionId = value),
+                          decoration:
+                              const InputDecoration(labelText: 'Collection'),
+                        ),
+                        CheckboxListTile(
+                          title: const Text('Mandatory'),
+                          value: _isMandatory,
+                          onChanged: (bool? value) {
+                            setState(() => _isMandatory = value!);
+                          },
+                        ),
+                        CheckboxListTile(
+                          title: const Text('Requires Forms'),
+                          value: _requiresForms,
+                          onChanged: (bool? value) {
+                            setState(() => _requiresForms = value!);
+                          },
+                        ),
+                        if (_requiresForms)
+                          TextFormField(
+                            initialValue: _formLink,
+                            decoration:
+                                const InputDecoration(labelText: 'Form Link'),
+                            validator: (value) => value!.isEmpty
+                                ? 'Please enter a form link'
+                                : null,
+                            onSaved: (value) => _formLink = value!,
+                          ),
+                        CheckboxListTile(
+                          title: const Text('Signup Delay'),
+                          value: _hasDelay,
+                          onChanged: (bool? value) {
+                            setState(() => _hasDelay = value!);
+                          },
+                        ),
+                        if (_hasDelay)
+                          TextFormField(
+                            decoration: const InputDecoration(
+                              labelText: 'Delay Hours Before Event',
+                              helperText: 'Hours before event to allow signup',
+                            ),
+                            keyboardType: TextInputType.number,
+                            initialValue: _delayHours.toString(),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter delay hours';
+                              }
+                              final hours = int.tryParse(value);
+                              if (hours == null || hours < 0) {
+                                return 'Please enter a valid number';
+                              }
+                              return null;
+                            },
+                            onSaved: (value) {
+                              _delayHours = int.parse(value!);
+                            },
+                          ),
+                        ElevatedButton(
+                          child: const Text('Add Time Slot'),
+                          onPressed: () =>
+                              _showAddTimeSlotDialog(setState, _timeSlots),
+                        ),
+                        ..._timeSlots.map((timeSlot) => ListTile(
+                              title: Text(
+                                  '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}'),
+                              subtitle:
+                                  Text('Capacity: ${timeSlot.numberOfPeople}'),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete),
+                                onPressed: () =>
+                                    setState(() => _timeSlots.remove(timeSlot)),
+                              ),
                             )),
                       ],
-                      onChanged: (value) =>
-                          setState(() => _selectedCollectionId = value),
-                      decoration:
-                          const InputDecoration(labelText: 'Collection'),
                     ),
-                    CheckboxListTile(
-                      title: const Text('Mandatory'),
-                      value: _isMandatory,
-                      onChanged: (bool? value) {
-                        setState(() => _isMandatory = value!);
-                      },
-                    ),
-                    CheckboxListTile(
-                      title: const Text('Requires Forms'),
-                      value: _requiresForms,
-                      onChanged: (bool? value) {
-                        setState(() => _requiresForms = value!);
-                      },
-                    ),
-                    if (_requiresForms)
-                      TextFormField(
-                        initialValue: _formLink,
-                        decoration:
-                            const InputDecoration(labelText: 'Form Link'),
-                        validator: (value) => value!.isEmpty
-                            ? 'Please enter a form link'
-                            : null,
-                        onSaved: (value) => _formLink = value!,
-                      ),
-                    CheckboxListTile(
-                      title: const Text('Signup Delay'),
-                      value: _hasDelay,
-                      onChanged: (bool? value) {
-                        setState(() => _hasDelay = value!);
-                      },
-                    ),
-                    if (_hasDelay)
-                      TextFormField(
-                        decoration: const InputDecoration(
-                          labelText: 'Delay Hours Before Event',
-                          helperText: 'Hours before event to allow signup',
-                        ),
-                        keyboardType: TextInputType.number,
-                        initialValue: _delayHours.toString(),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter delay hours';
-                          }
-                          final hours = int.tryParse(value);
-                          if (hours == null || hours < 0) {
-                            return 'Please enter a valid number';
-                          }
-                          return null;
-                        },
-                        onSaved: (value) {
-                          _delayHours = int.parse(value!);
-                        },
-                      ),
-                    ElevatedButton(
-                      child: const Text('Add Time Slot'),
-                      onPressed: () =>
-                          _showAddTimeSlotDialog(setState, _timeSlots),
-                    ),
-                    ..._timeSlots.map((timeSlot) => ListTile(
-                          title: Text(
-                              '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}'),
-                          subtitle:
-                              Text('Capacity: ${timeSlot.numberOfPeople}'),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () =>
-                                setState(() => _timeSlots.remove(timeSlot)),
-                          ),
-                        )),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                child: const Text('Cancel'),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-              ElevatedButton(
-                child: const Text('Update'),
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    _formKey.currentState!.save();
-                    _updateEvent(
-                        event.id,
-                        _eventName,
-                        _eventDescription,
-                        _eventDate,
-                        _selectedEventType!,
-                        _isMandatory,
-                        _selectedCollectionId,
-                        _timeSlots,
-                        _requiresForms,
-                        _formLink,
-                        Duration(hours: swapRequestDeadline),
-                        _hasDelay,
-                        _delayHours);
-                    Navigator.of(context).pop();
-                  }
-                },
-              ),
-            ],
+                actions: [
+                  TextButton(
+                    child: const Text('Cancel'),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  ElevatedButton(
+                    child: const Text('Update'),
+                    onPressed: () {
+                      if (_formKey.currentState!.validate()) {
+                        _formKey.currentState!.save();
+                        _updateEvent(
+                            event.id,
+                            _eventName,
+                            _eventDescription,
+                            _eventDate,
+                            _selectedEventType!,
+                            _isMandatory,
+                            _selectedCollectionId,
+                            _timeSlots,
+                            _requiresForms,
+                            _formLink,
+                            Duration(hours: swapRequestDeadline),
+                            _hasDelay,
+                            _delayHours);
+                        Navigator.of(context).pop();
+                      }
+                    },
+                  ),
+                ],
+              );
+            },
           );
-        },
-      );
-    }
-    );
+        });
   }
 
 // In AdminEventsPage class - add this helper method for getting available event types
-List<String> _getAvailableEventTypes() {
-  // Get the current society
-  final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
-  if (society == null) {
-    // Default fallback types if no society is available
-    return ['Service', 'Tutoring', 'Meeting'];
-  }
-  
-  // Always include Meeting as a type
-  final types = ['Meeting'];
-  
-  // Add all active requirement types
-  for (final req in society.hourRequirements) {
-    if (req.isActive && !types.contains(req.type)) {
-      types.add(req.type);
+  List<String> _getAvailableEventTypes() {
+    // Get the current society
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    if (society == null) {
+      // Default fallback types if no society is available
+      return ['Service', 'Tutoring', 'Meeting'];
     }
-  }
-  
-  // If somehow we still don't have any types, add default ones
-  if (types.isEmpty) {
-    types.addAll(['Service', 'Tutoring', 'Meeting']);
-  }
-  
-  return types;
-}
 
+    // Always include Meeting as a type
+    final types = ['Meeting'];
 
+    // Add all active requirement types
+    for (final req in society.hourRequirements) {
+      if (req.isActive && !types.contains(req.type)) {
+        types.add(req.type);
+      }
+    }
+
+    // If somehow we still don't have any types, add default ones
+    if (types.isEmpty) {
+      types.addAll(['Service', 'Tutoring', 'Meeting']);
+    }
+
+    return types;
+  }
 
 // In AdminEventsPage class - update the _showAddEventDialog method
 
 // Update the _addEvent method to include societyId
-Future<void> _addEvent(
-  String name,
-  String description,
-  DateTime date,
-  String type,
-  bool isMandatory,
-  int? collectionId,
-  List<TimeSlot> timeSlots,
-  bool requiresForms,
-  String formLink,
-  Duration swapRequestDeadline,
-  bool hasDelay,
-  int delayHours,
-  int societyId, // Add new parameter
-) async {
-  try {
-    // Insert the event
-    final eventResponse = await Supabase.instance.client
-        .from('Events')
-        .insert({
-          'name': name,
-          'description': description,
-          'date': date.toIso8601String(),
-          'type': type,
-          'isMandatory': isMandatory,
-          'collection_id': collectionId,
-          'created_at': DateTime.now().toIso8601String(),
-          'requires_forms': requiresForms,
-          'form_link': requiresForms ? formLink : null,
-          'swap_request_deadline_hours': swapRequestDeadline.inHours,
-          'has_delay': hasDelay,
-          'delay_hours': delayHours,
-          'society_id': societyId, // Add society_id
-        })
-        .select()
-        .single();
-
-    final newEventId = eventResponse['id'];
-
-    // Insert time slots
-    for (var timeSlot in timeSlots) {
-      final timeSlotResponse = await Supabase.instance.client
-          .from('Time slots')
+  Future<void> _addEvent(
+    String name,
+    String description,
+    DateTime date,
+    String type,
+    bool isMandatory,
+    int? collectionId,
+    List<TimeSlot> timeSlots,
+    bool requiresForms,
+    String formLink,
+    Duration swapRequestDeadline,
+    bool hasDelay,
+    int delayHours,
+    int societyId, // Add new parameter
+  ) async {
+    try {
+      // Insert the event
+      final eventResponse = await Supabase.instance.client
+          .from('Events')
           .insert({
-            'event_id': newEventId,
-            'start_time': DateTime(DateTime.now().year, date.month, date.day,
-                    timeSlot.time.hour, timeSlot.time.minute)
-                .toIso8601String(),
-            'end_time': DateTime(DateTime.now().year, date.month, date.day,
-                    timeSlot.endTime.hour, timeSlot.endTime.minute)
-                .toIso8601String(),
-            'number_of_people': timeSlot.numberOfPeople,
-            'notes': timeSlot.notes,
+            'name': name,
+            'description': description,
+            'date': date.toIso8601String(),
+            'type': type,
+            'isMandatory': isMandatory,
+            'collection_id': collectionId,
             'created_at': DateTime.now().toIso8601String(),
+            'requires_forms': requiresForms,
+            'form_link': requiresForms ? formLink : null,
+            'swap_request_deadline_hours': swapRequestDeadline.inHours,
+            'has_delay': hasDelay,
+            'delay_hours': delayHours,
+            'society_id': societyId, // Add society_id
           })
           .select()
           .single();
 
-      final newTimeSlotId = timeSlotResponse['id'];
+      final newEventId = eventResponse['id'];
 
-      // If the event is mandatory, add all users of the society as attendees
-      if (isMandatory || type == "Meeting") {
-        final usersResponse = await Supabase.instance.client
-            .from('user_society_memberships')
-            .select('user_id')
-            .eq('society_id', societyId);
+      // Insert time slots
+      for (var timeSlot in timeSlots) {
+        final timeSlotResponse = await Supabase.instance.client
+            .from('Time slots')
+            .insert({
+              'event_id': newEventId,
+              'start_time': DateTime(DateTime.now().year, date.month, date.day,
+                      timeSlot.time.hour, timeSlot.time.minute)
+                  .toIso8601String(),
+              'end_time': DateTime(DateTime.now().year, date.month, date.day,
+                      timeSlot.endTime.hour, timeSlot.endTime.minute)
+                  .toIso8601String(),
+              'number_of_people': timeSlot.numberOfPeople,
+              'notes': timeSlot.notes,
+              'created_at': DateTime.now().toIso8601String(),
+            })
+            .select()
+            .single();
 
-        for (var user in usersResponse) {
-          await Supabase.instance.client.from('Attendees').insert({
-            'timeslot_id': newTimeSlotId,
-            'user_id': user['user_id'],
-            'is_present': false,
-          });
+        final newTimeSlotId = timeSlotResponse['id'];
+
+        // If the event is mandatory, add all users of the society as attendees
+        if (isMandatory || type == "Meeting") {
+          final usersResponse = await Supabase.instance.client
+              .from('user_society_memberships')
+              .select('user_id')
+              .eq('society_id', societyId);
+
+          for (var user in usersResponse) {
+            await Supabase.instance.client.from('Attendees').insert({
+              'timeslot_id': newTimeSlotId,
+              'user_id': user['user_id'],
+              'is_present': false,
+            });
+          }
         }
       }
+
+      // Refresh the events list
+      await _fetchEvents();
+
+      // Show a success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Event added successfully')),
+      );
+    } catch (e) {
+      // Show an error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error adding event: $e')),
+      );
     }
-
-    // Refresh the events list
-    await _fetchEvents();
-
-    // Show a success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Event added successfully')),
-    );
-  } catch (e) {
-    // Show an error message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error adding event: $e')),
-    );
   }
-}
+
   void _showAddCollectionDialog() async {
     String collectionName = '';
 
@@ -6324,7 +6943,6 @@ Future<void> _addEvent(
                 if (collectionName.isNotEmpty) {
                   _addCollection(collectionName);
                   Navigator.of(context).pop();
-                 
                 }
               },
             ),
@@ -6392,7 +7010,6 @@ Future<void> _addEvent(
     Duration swapRequestDeadline,
     bool hasDelay,
     int delayHours,
-
   ) async {
     try {
       // Update the event
@@ -6415,50 +7032,49 @@ Future<void> _addEvent(
           .from('Time slots')
           .select()
           .eq('event_id', eventId);
-      
 
       final existingTimeSlots = existingTimeSlotsResponse
           .map((slot) => TimeSlot.fromJson(slot))
           .toList();
 
       // Update, add, or delete time slots
-     for (var timeSlot in timeSlots) {
-  // Check if this timeSlot exists in our existingTimeSlots list
-  if (existingTimeSlots.any((slot) => slot.id == timeSlot.id)) {
-    // Update existing time slot
-    await Supabase.instance.client.from('Time slots').update({
-      'start_time': DateTime(DateTime.now().year, date.month, date.day,
-              timeSlot.time.hour, timeSlot.time.minute)
-          .toIso8601String(),
-      'end_time': DateTime(DateTime.now().year, date.month, date.day,
-              timeSlot.endTime.hour, timeSlot.endTime.minute)
-          .toIso8601String(),
-      'number_of_people': timeSlot.numberOfPeople,
-      'notes': timeSlot.notes,
-    }).eq('id', timeSlot.id ?? 0);
+      for (var timeSlot in timeSlots) {
+        // Check if this timeSlot exists in our existingTimeSlots list
+        if (existingTimeSlots.any((slot) => slot.id == timeSlot.id)) {
+          // Update existing time slot
+          await Supabase.instance.client.from('Time slots').update({
+            'start_time': DateTime(DateTime.now().year, date.month, date.day,
+                    timeSlot.time.hour, timeSlot.time.minute)
+                .toIso8601String(),
+            'end_time': DateTime(DateTime.now().year, date.month, date.day,
+                    timeSlot.endTime.hour, timeSlot.endTime.minute)
+                .toIso8601String(),
+            'number_of_people': timeSlot.numberOfPeople,
+            'notes': timeSlot.notes,
+          }).eq('id', timeSlot.id ?? 0);
 
-    // Remove from existingTimeSlots list
-    existingTimeSlots.removeWhere((slot) => slot.id == timeSlot.id);
-  } else {
-    // Add new time slot
-    final newTimeSlotResponse = await Supabase.instance.client
-        .from('Time slots')
-        .insert({
-          'event_id': eventId,
-          'start_time': DateTime(DateTime.now().year, date.month,
-                  date.day, timeSlot.time.hour, timeSlot.time.minute)
-              .toIso8601String(),
-          'end_time': DateTime(DateTime.now().year, date.month, date.day,
-                  timeSlot.endTime.hour, timeSlot.endTime.minute)
-              .toIso8601String(),
-          'number_of_people': timeSlot.numberOfPeople,
-          'notes': timeSlot.notes,
-          'created_at': DateTime.now().toIso8601String(),
-        })
-        .select()
-        .single();
+          // Remove from existingTimeSlots list
+          existingTimeSlots.removeWhere((slot) => slot.id == timeSlot.id);
+        } else {
+          // Add new time slot
+          final newTimeSlotResponse = await Supabase.instance.client
+              .from('Time slots')
+              .insert({
+                'event_id': eventId,
+                'start_time': DateTime(DateTime.now().year, date.month,
+                        date.day, timeSlot.time.hour, timeSlot.time.minute)
+                    .toIso8601String(),
+                'end_time': DateTime(DateTime.now().year, date.month, date.day,
+                        timeSlot.endTime.hour, timeSlot.endTime.minute)
+                    .toIso8601String(),
+                'number_of_people': timeSlot.numberOfPeople,
+                'notes': timeSlot.notes,
+                'created_at': DateTime.now().toIso8601String(),
+              })
+              .select()
+              .single();
 
-    final newTimeSlotId = newTimeSlotResponse['id'];
+          final newTimeSlotId = newTimeSlotResponse['id'];
 
           // If the event is mandatory, add all users as attendees for the new time slot
           if (isMandatory) {
@@ -6590,8 +7206,7 @@ Future<void> _addEvent(
                 TextFormField(
                   initialValue: _capacity.toString(),
                   decoration: const InputDecoration(labelText: 'Capacity'),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(),
+                  keyboardType: const TextInputType.numberWithOptions(),
                   validator: (value) => int.tryParse(value!) == null
                       ? 'Please enter a valid number'
                       : null,
@@ -6722,8 +7337,6 @@ Future<void> _addEvent(
     });
     await Supabase.instance.client.from('Events').delete().eq('id', event.id);
   }
-
-  
 }
 
 class TimeSlot {
@@ -6827,9 +7440,8 @@ class Event {
     List<TimeSlot>? timeSlots,
     this.requiresForms = false,
     this.formLink,
-    this.swapRequestDeadline =
-        const Duration(days: 1),
-    this.hasDelay = false, 
+    this.swapRequestDeadline = const Duration(days: 1),
+    this.hasDelay = false,
     this.delayHours = 0,
   }) : timeSlots = timeSlots ?? [];
 
@@ -6877,7 +7489,7 @@ class Event {
 
   bool canSignUpForTimeSlot(TimeSlot timeSlot) {
     if (!hasDelay) return true;
-    
+
     final now = DateTime.now();
     final eventDateTime = DateTime(
       date.year,
@@ -6886,11 +7498,10 @@ class Event {
       timeSlot.time.hour,
       timeSlot.time.minute,
     );
-    
+
     final signupDateTime = eventDateTime.subtract(Duration(hours: delayHours));
     return now.isAfter(signupDateTime);
   }
-
 
   Event copyWith({
     int? id,
@@ -6907,7 +7518,6 @@ class Event {
     Duration? swapRequestDeadline,
     bool? hasDelay,
     int? delayHours,
-
   }) {
     return Event(
         id: id ?? this.id,
@@ -6921,29 +7531,27 @@ class Event {
         timeSlots: timeSlots ?? List.from(this.timeSlots),
         requiresForms: requiresForms ?? this.requiresForms,
         formLink: formLink ?? this.formLink,
-        hasDelay : hasDelay ?? this.hasDelay,
-        delayHours : delayHours ?? this.delayHours,
+        hasDelay: hasDelay ?? this.hasDelay,
+        delayHours: delayHours ?? this.delayHours,
         swapRequestDeadline: swapRequestDeadline ?? this.swapRequestDeadline);
-        
   }
-  
 }
 
 extension UserRequirementsCheck on UserProfile {
   bool hasMetRequirements(String eventType, HonorSociety society) {
     // Map to count hours by type
     Map<String, double> hoursByType = {};
-    
+
     // Initialize with 0 for each requirement type
     for (final req in society.hourRequirements) {
       if (req.isActive) {
         hoursByType[req.type] = 0.0;
       }
     }
-    
+
     // Add special Meeting type if not already covered
     hoursByType.putIfAbsent('Meeting', () => 0.0);
-    
+
     // Tally up the completed hours by type
     for (final hour in completedHours) {
       final type = hour.type;
@@ -6951,38 +7559,38 @@ extension UserRequirementsCheck on UserProfile {
         hoursByType[type] = hoursByType[type]! + hour.hours;
       }
     }
-    
+
     // For Meeting type, we check against the meeting requirement
     if (eventType == 'Meeting') {
       return hoursByType['Meeting']! >= society.meetingRequirement;
     }
-    
+
     // For other types, find the corresponding requirement
     for (final req in society.hourRequirements) {
       if (req.isActive && req.type == eventType) {
         return hoursByType[eventType]! >= req.hoursNeeded;
       }
     }
-    
+
     // If we get here, there's no specific requirement for this event type
     return false;
   }
-  
+
   // Check if user has met all requirements for the society
   bool hasMetAllRequirements(HonorSociety society) {
     // Map to count hours by type
     Map<String, double> hoursByType = {};
-    
+
     // Initialize with 0 for each requirement type
     for (final req in society.hourRequirements) {
       if (req.isActive) {
         hoursByType[req.type] = 0.0;
       }
     }
-    
+
     // Add special Meeting type if not already covered
     hoursByType.putIfAbsent('Meeting', () => 0.0);
-    
+
     // Tally up the completed hours by type
     for (final hour in completedHours) {
       final type = hour.type;
@@ -6990,19 +7598,19 @@ extension UserRequirementsCheck on UserProfile {
         hoursByType[type] = hoursByType[type]! + hour.hours;
       }
     }
-    
+
     // Check Meeting requirement
     if (hoursByType['Meeting']! < society.meetingRequirement) {
       return false;
     }
-    
+
     // Check all other active requirements
     for (final req in society.hourRequirements) {
       if (req.isActive && hoursByType[req.type]! < req.hoursNeeded) {
         return false;
       }
     }
-    
+
     return true;
   }
 }
@@ -7092,6 +7700,10 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
   List<Event> _events = [];
   List<Collection> _collections = [];
   bool _isLoading = true;
+  String _selectedEventType = 'All'; // Added for filtering
+  DateTime? _startDate;
+  DateTime? _endDate;
+
 
   @override
   void initState() {
@@ -7111,23 +7723,1086 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
       ]);
     } catch (e) {
       print('Error fetching data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading data: $e')),
+        );
+      }
     } finally {
-      if (mounted){
+      if (mounted) {
         setState(() {
-        _isLoading = false;
-      });
+          _isLoading = false;
+        });
       }
     }
   }
 
+  // Get available requirement types from current society
+  List<String> get _availableEventTypes {
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    if (society == null)
+      return ['All', 'Service', 'Tutoring', 'Meeting']; // Default fallback
+
+    // Start with All and Meeting (special case)
+    final types = ['All', 'Meeting'];
+
+    // Add all active requirements from the society
+    for (final req in society.hourRequirements) {
+      if (req.isActive && !types.contains(req.type)) {
+        types.add(req.type);
+      }
+    }
+
+    return types;
+  }
+
+  // Add this filtered events getter
+  List<Event> get _filteredEvents {
+    if (_selectedEventType == 'All') return _events;
+
+    return _events
+        .where((event) =>
+            _normalizeType(event.type) == _normalizeType(_selectedEventType))
+        .toList();
+  }
+
+  // Helper method to normalize type strings for consistent matching
+  String _normalizeType(String type) {
+    return type
+        .trim()
+        .split(' ')
+        .map((word) => word.isNotEmpty
+            ? word[0].toUpperCase() +
+                (word.length > 1 ? word.substring(1).toLowerCase() : '')
+            : '')
+        .join(' ');
+  }
+
+  // Build event type filter chips based on society requirements
+  List<Widget> _buildEventTypeChips() {
+    return _availableEventTypes.map((type) {
+      return FilterChip(
+        label: Text(type),
+        selected: _selectedEventType == type,
+        onSelected: (selected) {
+          setState(() {
+            _selectedEventType = type;
+          });
+        },
+        backgroundColor:
+            Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+        selectedColor: Theme.of(context).colorScheme.primaryContainer,
+        checkmarkColor: Theme.of(context).colorScheme.primary,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      );
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWideScreen = screenWidth > 900;
+    
+    return Scaffold(
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
+        title: Text(
+          'Attendance',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 24.0,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: Row(
+        children: [
+          // Optional side panel for wide screens
+          if (isWideScreen)
+            Container(
+              width: 250,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                border: border.Border(
+                  right: BorderSide(
+                    color: Theme.of(context).dividerColor,
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Filters',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Date selector in sidebar for wide screens
+                    _buildDateRangeSelector(isCompact: false),
+                    const SizedBox(height: 16),
+                    // Vertical chips for wider screens
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      direction: Axis.vertical,
+                      children: _buildEventTypeChips(),
+                    ),
+                    const Spacer(),
+                  ],
+                ),
+              ),
+            ),
+            
+          // Main content area (takes full width on mobile, remaining space on web)
+          Expanded(
+            child: Column(
+              children: [
+                // Today's Events Section 
+                _buildTodaysEventsHeader(),
+                
+                // Show horizontal chips and date selector only on mobile
+                if (!isWideScreen) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Wrap(
+                        spacing: 12,
+                        children: _buildEventTypeChips(),
+                      ),
+                    ),
+                  ),
+                  
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    child: _buildDateRangeSelector(isCompact: true),
+                  ),
+                ],
+                
+                // Event Count and Loading Indicator
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _filteredEvents.isEmpty 
+                          ? 'No events found' 
+                          : '${_filteredEvents.length} ${_filteredEvents.length == 1 ? 'event' : 'events'}${_selectedEventType != 'All' ? ' - $_selectedEventType' : ''}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      if (_isLoading) 
+                        const SizedBox(
+                          width: 16, 
+                          height: 16, 
+                          child: CircularProgressIndicator(strokeWidth: 2)
+                        ),
+                    ],
+                  ),
+                ),
+                
+                // Main event list
+                Expanded(
+                  child: _filteredEvents.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.event_busy,
+                              size: 64,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No events found',
+                              style: Theme.of(context).textTheme.headlineSmall,
+                            ),
+                            if (_selectedEventType != 'All')
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: TextButton.icon(
+                                  icon: const Icon(Icons.filter_alt_off),
+                                  label: const Text('Clear filter'),
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedEventType = 'All';
+                                    });
+                                  },
+                                ),
+                              ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: _filteredEvents.length,
+                        itemBuilder: (context, index) {
+                          final event = _filteredEvents[index];
+                          return _buildEventCard(event);
+                        },
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  // Now create a date range selector widget
+  Widget _buildDateRangeSelector({required bool isCompact}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (!isCompact) 
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: Text(
+              'Date Range',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ),
+        Row(
+          children: [
+            // Start date selector
+            Expanded(
+              child: InkWell(
+                onTap: () async {
+                  final DateTime? picked = await showDatePicker(
+                    context: context,
+                    initialDate: _startDate ?? DateTime.now(),
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2030),
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      _startDate = picked;
+                    });
+                    _fetchEvents();
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(12),
+                    border: border.Border.all(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _startDate == null 
+                              ? 'Start Date' 
+                              : DateFormat('MMM d, y').format(_startDate!),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: _startDate == null 
+                                ? Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7)
+                                : Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      if (_startDate != null)
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              _startDate = null;
+                            });
+                            _fetchEvents();
+                          },
+                          child: Icon(
+                            Icons.clear,
+                            size: 18,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            
+            const SizedBox(width: 12),
+            
+            // End date selector
+            Expanded(
+              child: InkWell(
+                onTap: () async {
+                  final DateTime? picked = await showDatePicker(
+                    context: context,
+                    initialDate: _endDate ?? (_startDate != null ? _startDate! : DateTime.now()),
+                    firstDate: _startDate ?? DateTime(2020),
+                    lastDate: DateTime(2030),
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      _endDate = picked;
+                    });
+                    _fetchEvents();
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(12),
+                    border: border.Border.all(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _endDate == null 
+                              ? 'End Date' 
+                              : DateFormat('MMM d, y').format(_endDate!),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: _endDate == null 
+                                ? Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7)
+                                : Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      if (_endDate != null)
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              _endDate = null;
+                            });
+                            _fetchEvents();
+                          },
+                          child: Icon(
+                            Icons.clear,
+                            size: 18,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        
+        // Show applied filter info if dates are selected
+        if (_startDate != null || _endDate != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _getDateRangeText(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _startDate = null;
+                      _endDate = null;
+                    });
+                    _fetchEvents();
+                  },
+                  child: Text(
+                    'Clear filter',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  // Helper to generate date range description text
+  String _getDateRangeText() {
+    if (_startDate != null && _endDate != null) {
+      return 'Showing events from ${DateFormat('MMM d').format(_startDate!)} to ${DateFormat('MMM d').format(_endDate!)}';
+    } else if (_startDate != null) {
+      return 'Showing events from ${DateFormat('MMM d').format(_startDate!)} onwards';
+    } else if (_endDate != null) {
+      return 'Showing events until ${DateFormat('MMM d').format(_endDate!)}';
+    }
+    return '';
+  }
+    // Display today's events or upcoming events section
+  Widget _buildTodaysEventsHeader() {
+    // Filter today's events
+    final now = DateTime.now();
+    final todaysEvents = _events.where((event) {
+      return event.date.year == now.year &&
+          event.date.month == now.month &&
+          event.date.day == now.day;
+    }).toList();
+
+    // If no events today, don't show the section
+    if (todaysEvents.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.event_available,
+                    color: Theme.of(context).colorScheme.onPrimary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Today's Events",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                    Text(
+                      DateFormat('EEEE, MMMM d').format(now),
+                      style: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onPrimaryContainer
+                            .withOpacity(0.7),
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Chip(
+                  label: Text(
+                    '${todaysEvents.length} ${todaysEvents.length == 1 ? 'event' : 'events'}',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+              ],
+            ),
+          ),
+
+          // Today's events list
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: todaysEvents.length,
+            itemBuilder: (context, index) {
+              final event = todaysEvents[index];
+              return _buildTodaysEventItem(event);
+            },
+          ),
+
+          // Bottom padding
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  // Today's event item with attendance stats
+  Widget _buildTodaysEventItem(Event event) {
+    // Calculate attendance info
+    int totalAttendees = 0;
+    int presentAttendees = 0;
+
+    for (final timeSlot in event.timeSlots) {
+      totalAttendees += timeSlot.attendees.length;
+      presentAttendees += timeSlot.attendees.where((a) => a.isPresent).length;
+    }
+
+    // Calculate attendance percentage
+    final attendancePercentage =
+        totalAttendees > 0 ? (presentAttendees / totalAttendees) * 100 : 0.0;
+
+    // Determine if any time slots are happening now
+    final now = DateTime.now();
+    final currentHour = TimeOfDay.fromDateTime(now);
+
+    bool isHappeningNow = false;
+    TimeSlot? currentTimeSlot;
+
+    for (final timeSlot in event.timeSlots) {
+      final startMinutes = timeSlot.time.hour * 60 + timeSlot.time.minute;
+      final endMinutes = timeSlot.endTime.hour * 60 + timeSlot.endTime.minute;
+      final currentMinutes = currentHour.hour * 60 + currentHour.minute;
+
+      if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
+        isHappeningNow = true;
+        currentTimeSlot = timeSlot;
+        break;
+      }
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.shadow.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          // Navigate to attendance check page for this event/time slot
+          if (event.timeSlots.isNotEmpty) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AttendanceCheckPage(
+                  event: event,
+                  timeSlot: currentTimeSlot ?? event.timeSlots.first,
+                ),
+              ),
+            ).then((_) => _fetchData());
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Row(
+            children: [
+              // Event icon with type color
+              CircleAvatar(
+                backgroundColor: _getColorForEventType(event.type, context)
+                    .withOpacity(0.15),
+                child: Icon(
+                  _getIconForType(event.type),
+                  color: _getColorForEventType(event.type, context),
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // Event info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Event title with optional "happening now" badge
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            event.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isHappeningNow)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.green,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              'NOW',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+
+                    // Event type
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _getColorForEventType(event.type, context)
+                            .withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        event.type,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: _getColorForEventType(event.type, context),
+                        ),
+                      ),
+                    ),
+
+                    // Time slots
+                    if (event.timeSlots.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        event.timeSlots.length == 1
+                            ? _formatTimeSlot(event.timeSlots.first)
+                            : '${event.timeSlots.length} time slots',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              // Attendance ratio
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // Attendance info
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.people,
+                        size: 14,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$presentAttendees/$totalAttendees',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: presentAttendees > 0
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Progress indicator
+                  SizedBox(
+                    width: 60,
+                    height: 8,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: totalAttendees > 0
+                            ? presentAttendees / totalAttendees
+                            : 0,
+                        backgroundColor:
+                            Theme.of(context).colorScheme.surfaceVariant,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Percentage text
+                  Text(
+                    '${attendancePercentage.round()}%',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventCard(Event event) {
+    // Get color for event type
+    final Color typeColor = _getColorForEventType(event.type, context);
+
+    // Calculate attendance stats
+    int totalAttendees = 0;
+    int presentAttendees = 0;
+
+    for (final timeSlot in event.timeSlots) {
+      totalAttendees += timeSlot.attendees.length;
+      presentAttendees += timeSlot.attendees.where((a) => a.isPresent).length;
+    }
+
+    final attendancePercentage =
+        totalAttendees > 0 ? (presentAttendees / totalAttendees) * 100 : 0.0;
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          // Type indicator side bar
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 4,
+            child: Container(color: typeColor),
+          ),
+
+          // Main content with full expansion
+          Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              initiallyExpanded: false,
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: EdgeInsets.zero,
+              title: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 0, 0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Event icon with type color
+                    CircleAvatar(
+                      backgroundColor: typeColor.withOpacity(0.15),
+                      radius: 20,
+                      child: Icon(
+                        _getIconForType(event.type),
+                        color: typeColor,
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+
+                    // Event info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Event title
+                          Text(
+                            event.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16.0,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+
+                          // Date and type
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_today,
+                                size: 12,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                "${DateFormat('MMM d').format(event.date)}",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: typeColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  event.type,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    color: typeColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          // Attendance ratio
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Text(
+                                'Attendance: ',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                              ),
+                              Text(
+                                '$presentAttendees/$totalAttendees',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '(${attendancePercentage.round()}%)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Time slots as children when expanded
+              children: [
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Time Slots',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      Text(
+                        '${event.timeSlots.length} ${event.timeSlots.length == 1 ? 'slot' : 'slots'}',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ...event.timeSlots.map((timeSlot) {
+                  final timeSlotAttendees = timeSlot.attendees.length;
+                  final timeSlotPresent =
+                      timeSlot.attendees.where((a) => a.isPresent).length;
+
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceVariant
+                            .withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: border.Border.all(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .outline
+                              .withOpacity(0.1),
+                          width: 0.5,
+                        ),
+                      ),
+                      child: ListTile(
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 2),
+                        title: Row(
+                          children: [
+                            Icon(
+                              Icons.access_time,
+                              size: 14,
+                              color: typeColor,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${_formatTimeOfDay(timeSlot.time)} - ${_formatTimeOfDay(timeSlot.endTime)}',
+                              style: const TextStyle(
+                                fontSize: 13.0,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(left: 18, top: 2),
+                          child: Text(
+                            'Attendance: $timeSlotPresent/$timeSlotAttendees',
+                            style: TextStyle(
+                              fontSize: 12.0,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.checklist, size: 20),
+                          color: Theme.of(context).colorScheme.onSurface,
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AttendanceCheckPage(
+                                  event: event,
+                                  timeSlot: timeSlot,
+                                ),
+                              ),
+                            ).then((_) => _fetchData());
+                          },
+                          style: ElevatedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 0),
+                            minimumSize: const Size(0, 28),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTimeSlot(TimeSlot timeSlot) {
+    return '${_formatTimeOfDay(timeSlot.time)} - ${_formatTimeOfDay(timeSlot.endTime)}';
+  }
+
+  String _formatTimeOfDay(TimeOfDay time) {
+    final now = DateTime.now();
+    final dateTime =
+        DateTime(now.year, now.month, now.day, time.hour, time.minute);
+    return DateFormat.jm().format(dateTime);
+  }
+
+  // Helper to get appropriate icons for different event types
+  IconData _getIconForType(String type) {
+    final lowerType = type.toLowerCase();
+    if (lowerType.contains('service')) return Icons.volunteer_activism;
+    if (lowerType.contains('tutor')) return Icons.school;
+    if (lowerType.contains('meeting')) return Icons.groups;
+    if (lowerType.contains('leader')) return Icons.emoji_people;
+    return Icons.event;
+  }
+
+  // Helper method to get color based on event type
+  Color _getColorForEventType(String type, BuildContext context) {
+    final lowerType = type.toLowerCase();
+    if (lowerType.contains('service'))
+      return Theme.of(context).colorScheme.primary;
+    if (lowerType.contains('tutor'))
+      return Theme.of(context).colorScheme.secondary;
+    if (lowerType.contains('meeting'))
+      return Theme.of(context).colorScheme.tertiary;
+    if (lowerType.contains('leader')) return Colors.amber;
+    return Theme.of(context).colorScheme.primary;
+  }
+
   Future<void> _fetchEvents() async {
-    try {
+    
       setState(() {
         _isLoading = true;
       });
-
+    try {
       // Get current society
-      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
       if (society == null) {
         setState(() {
           _events = [];
@@ -7136,17 +8811,34 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
         return;
       }
 
-      // 1. Fetch all events for this society in single query
-      final eventResponse = await Supabase.instance.client
+      // 1. Start building query for events in this society
+      var query = supabase
           .from('Events')
           .select()
-          .eq('society_id', society.id)
-          .order('date');
+          .eq('society_id', society.id);
       
+      // 2. Apply date range filter if dates are selected
+      if (_startDate != null) {
+        query = query.gte('date', _startDate!.toIso8601String());
+      }
+      
+      if (_endDate != null) {
+        // Include the entire end date by setting time to end of day
+        final endOfDay = DateTime(
+          _endDate!.year, 
+          _endDate!.month, 
+          _endDate!.day, 
+          23, 59, 59
+        );
+        query = query.lte('date', endOfDay.toIso8601String());
+      }
+      
+      // 3. Order by date
+      final eventResponse = await query.order('date');
+
       // Create events map for quick lookups
       final Map<int, Event> eventsMap = {
-        for (var json in eventResponse) 
-          json['id']: Event.fromJson(json)
+        for (var json in eventResponse) json['id']: Event.fromJson(json)
       };
 
       // 2. Fetch all time slots for these events in a single query
@@ -7157,15 +8849,16 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
 
       // Create time slots map for quick lookups
       final Map<int, TimeSlot> timeSlotsMap = {
-        for (var json in timeSlotResponse) 
-          json['id']: TimeSlot.fromJson(json)
+        for (var json in timeSlotResponse) json['id']: TimeSlot.fromJson(json)
       };
 
       // Create a map of event_id to list of time slot ids
       final Map<int, List<int>> eventToTimeSlots = {};
       for (var timeSlot in timeSlotResponse) {
         final eventId = timeSlot['event_id'] as int;
-        eventToTimeSlots.putIfAbsent(eventId, () => []).add(timeSlot['id'] as int);
+        eventToTimeSlots
+            .putIfAbsent(eventId, () => [])
+            .add(timeSlot['id'] as int);
       }
 
       // 3. Fetch all attendees with their profiles in a single query
@@ -7181,7 +8874,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
           ...attendeeJson,
           'name': attendeeJson['profiles']['name'],
         });
-        
+
         if (timeSlotsMap.containsKey(timeSlotId)) {
           timeSlotsMap[timeSlotId]!.attendees.add(attendee);
         }
@@ -7192,12 +8885,10 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
       for (var entry in eventToTimeSlots.entries) {
         final eventId = entry.key;
         final timeSlotIds = entry.value;
-        
+
         if (eventsMap.containsKey(eventId)) {
           final event = eventsMap[eventId]!;
-          event.timeSlots = timeSlotIds
-              .map((id) => timeSlotsMap[id]!)
-              .toList();
+          event.timeSlots = timeSlotIds.map((id) => timeSlotsMap[id]!).toList();
           assembledEvents.add(event);
         }
       }
@@ -7224,12 +8915,13 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
   Future<void> _fetchCollections() async {
     try {
       // Get current society
-      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
       if (society == null) {
         setState(() => _collections = []);
         return;
       }
-      
+
       final collectionsResponse = await Supabase.instance.client
           .from('Collections')
           .select('*')
@@ -7245,457 +8937,108 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
     }
   }
 
- // Update the build method of AdminAttendancePage to include today's events
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      elevation: 0,
-      backgroundColor: Theme.of(context)
-          .bannerTheme
-          .backgroundColor,
-      title: Text(
-        'Attendance',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 24.0,
-          color: Theme.of(context).colorScheme.onSurface,
-        ),
-      ),
-      centerTitle: true,
-    ),
-    body: _isLoading
-        ? const Center(child: CircularProgressIndicator())
-        : RefreshIndicator(
-            onRefresh: _fetchData,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  // Today's Events Section (Only shows if there are events today)
-                  _buildTodaysEventsSection(),
-                  
-                  // Main events list or empty state
-                  _events.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.event_busy,
-                              size: 64,
-                              color: Colors.grey,
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'No events found',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Add events to take attendance',
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ],
-                        ),
-                      )
-                    : Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: _events.length,
-                          separatorBuilder: (context, index) => const SizedBox(height: 8),
-                          itemBuilder: (context, index) {
-                            final event = _events[index];
-                            return _buildEventCard(event);
-                          },
-                        ),
-                      ),
-                ],
-              ),
-            ),
-          ),
-  );
-}
-
-  /// Creates a card widget displaying event details.
-  /// Includes event information, time slots, and action buttons.
-  ///
-  /// Parameters:
-  /// - event: Event - Event to display
-  ///
-  /// Returns:
-  /// - Widget
-  Widget _buildEventCard(Event event) {
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
-      elevation: 2,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: CustomExpansionTile(
-        title: ListTile(
-          title: Text(
-            "${event.name} - ${DateFormat('MMM d, y').format(event.date)}",
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 18.0,
-            ),
-          ),
-          subtitle: Text(
-            event.description,
-            style: TextStyle(
-              fontSize: 16.0,
-              color: Colors.grey[600],
-            ),
-          ),
-        ),
-        children: event.timeSlots.map((timeSlot) {
-          
-          return ListTile(
-            title: Text(
-              'Time: ${_formatTimeOfDay(timeSlot.time)} - ${_formatTimeOfDay(timeSlot.endTime)}',
-              style: const TextStyle(
-                fontSize: 16.0,
-              ),
-            ),
-            subtitle: Text(
-              'Number of People: ${timeSlot.numberOfPeople}',
-              style: TextStyle(
-                fontSize: 14.0,
-                color: Colors.grey[600],
-              ),
-            ),
-            trailing: IconButton(
-              icon: Icon(
-                Icons.checklist_outlined,
-                color: Theme.of(context).colorScheme.secondary,
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        AttendanceCheckPage(event: event, timeSlot: timeSlot),
-                  ),
-                );
-              },
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
   // Add this to AdminAttendancePage class as a new method
-Widget _buildTodaysEventsSection() {
-  // Filter today's events
-  final now = DateTime.now();
-  final todaysEvents = _events.where((event) {
-    return event.date.year == now.year && 
-           event.date.month == now.month && 
-           event.date.day == now.day;
-  }).toList();
-  
-  // If no events today, don't show the section
-  if (todaysEvents.isEmpty) {
-    return const SizedBox.shrink();
-  }
-  
-  return Container(
-    margin: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.primaryContainer,
-      borderRadius: BorderRadius.circular(16),
-      boxShadow: [
-        BoxShadow(
-          color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
-          blurRadius: 8,
-          offset: const Offset(0, 2),
-        ),
-      ],
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.event_available,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Today's Events",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                    ),
-                  ),
-                  Text(
-                    DateFormat('EEEE, MMMM d').format(now),
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.7),
-                    ),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              Chip(
-                label: Text(
-                  '${todaysEvents.length} ${todaysEvents.length == 1 ? 'event' : 'events'}',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onPrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-              ),
-            ],
-          ),
-        ),
-        
-        // Event list
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: todaysEvents.length,
-          itemBuilder: (context, index) {
-            final event = todaysEvents[index];
-            return _buildTodaysEventItem(event);
-          },
-        ),
-        
-        // Bottom padding
-        const SizedBox(height: 8),
-      ],
-    ),
-  );
-}
+  Widget _buildTodaysEventsSection() {
+    // Filter today's events
+    final now = DateTime.now();
+    final todaysEvents = _events.where((event) {
+      return event.date.year == now.year &&
+          event.date.month == now.month &&
+          event.date.day == now.day;
+    }).toList();
 
-Widget _buildTodaysEventItem(Event event) {
-  // Count total attendees and present attendees
-  int totalAttendees = 0;
-  int presentAttendees = 0;
-  
-  for (final timeSlot in event.timeSlots) {
-    totalAttendees += timeSlot.attendees.length;
-    presentAttendees += timeSlot.attendees.where((a) => a.isPresent).length;
-  }
-  
-  // Calculate attendance percentage
-  final attendancePercentage = totalAttendees > 0 
-      ? (presentAttendees / totalAttendees) * 100 
-      : 0.0;
-  
-  // Determine if any time slots are happening now
-  final now = DateTime.now();
-  final currentHour = TimeOfDay.fromDateTime(now);
-  
-  bool isHappeningNow = false;
-  for (final timeSlot in event.timeSlots) {
-    final startMinutes = timeSlot.time.hour * 60 + timeSlot.time.minute;
-    final endMinutes = timeSlot.endTime.hour * 60 + timeSlot.endTime.minute;
-    final currentMinutes = currentHour.hour * 60 + currentHour.minute;
-    
-    if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
-      isHappeningNow = true;
-      break;
+    // If no events today, don't show the section
+    if (todaysEvents.isEmpty) {
+      return const SizedBox.shrink();
     }
-  }
-  
-  return Container(
-    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-    decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.surface,
-      borderRadius: BorderRadius.circular(12),
-      boxShadow: [
-        BoxShadow(
-          color: Theme.of(context).colorScheme.shadow.withOpacity(0.05),
-          blurRadius: 4,
-          offset: const Offset(0, 1),
-        ),
-      ],
-    ),
-    child: InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: () {
-        // Navigate to event details when tapped
-        if (event.timeSlots.isNotEmpty) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AttendanceCheckPage(
-                event: event,
-                timeSlot: event.timeSlots.first,
-              ),
-            ),
-          );
-        }
-      },
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Row(
-          children: [
-            // Event info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Event title with optional "happening now" badge
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          event.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (isHappeningNow)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Text(
-                            'NOW',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  
-                  // Event type
-                  Text(
-                    event.type,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  
-                  // Time slots
-                  if (event.timeSlots.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      event.timeSlots.length == 1
-                          ? _formatTimeSlot(event.timeSlots.first)
-                          : '${event.timeSlots.length} time slots',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            
-            // Attendance ratio
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
               children: [
-                // Attendance info
-                Row(
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.event_available,
+                    color: Theme.of(context).colorScheme.onPrimary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.people,
-                      size: 16,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 4),
                     Text(
-                      '$presentAttendees/$totalAttendees',
+                      "Today's Events",
                       style: TextStyle(
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: presentAttendees > 0
-                            ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                    Text(
+                      DateFormat('EEEE, MMMM d').format(now),
+                      style: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onPrimaryContainer
+                            .withOpacity(0.7),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                
-                // Progress indicator
-                SizedBox(
-                  width: 60,
-                  height: 8,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: totalAttendees > 0 ? presentAttendees / totalAttendees : 0,
-                      backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        _getProgressColor(attendancePercentage),
-                      ),
+                const Spacer(),
+                Chip(
+                  label: Text(
+                    '${todaysEvents.length} ${todaysEvents.length == 1 ? 'event' : 'events'}',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                
-                // Percentage text
-                Text(
-                  '${attendancePercentage.round()}%',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: _getProgressColor(attendancePercentage),
-                  ),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+
+          // Event list
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: todaysEvents.length,
+            itemBuilder: (context, index) {
+              final event = todaysEvents[index];
+              return _buildTodaysEventItem(event);
+            },
+          ),
+
+          // Bottom padding
+          const SizedBox(height: 8),
+        ],
       ),
-    ),
-  );
-}
-
-String _formatTimeSlot(TimeSlot timeSlot) {
-  return '${_formatTimeOfDay(timeSlot.time)} - ${_formatTimeOfDay(timeSlot.endTime)}';
-}
-
-Color _getProgressColor(double percentage) {
-  if (percentage >= 75) {
-    return Colors.green;
-  } else if (percentage >= 50) {
-    return Colors.orange;
-  } else {
-    return Colors.red;
-  }
-}
-
-  String _formatTimeOfDay(TimeOfDay time) {
-    final now = DateTime.now();
-    final dateTime =
-        DateTime(now.year, now.month, now.day, time.hour, time.minute);
-    return TimeOfDay.fromDateTime(dateTime).format(context);
+    );
   }
 }
 
@@ -7719,12 +9062,14 @@ enum SortOrder {
   descending,
 }
 
-class _AdminListPageState extends State<AdminListPage> {
+  class _AdminListPageState extends State<AdminListPage> {
   final List<UserProfile> _users = [];
   String _searchQuery = '';
   SortField _sortField = SortField.name;
   SortOrder _sortOrder = SortOrder.ascending;
   String? _selectedHourType;
+  bool _isLoading = false;
+  bool _isExporting = false;
 
   @override
   void initState() {
@@ -7735,10 +9080,11 @@ class _AdminListPageState extends State<AdminListPage> {
   // Helper method to get available requirement types from current society
   List<String> get _availableHourTypes {
     final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
-    if (society == null) return ['Service', 'Tutoring', 'Meeting']; // Default fallback
+    if (society == null) return ['All'];
     
-    // Start with Meeting (special case)
-    final types = ['All', 'Meeting'];
+    final types = ['All', 'Meeting']; // Always include these
+    
+
     
     // Add all active requirements from the society
     for (final req in society.hourRequirements) {
@@ -7753,13 +9099,16 @@ class _AdminListPageState extends State<AdminListPage> {
   Future<void> _fetchUsers() async {
     setState(() {
       _users.clear();
+      _isLoading = true;
     });
 
     try {
       // Get current society
       final societyId = Provider.of<SocietyProvider>(context, listen: false).currentSociety?.id;
       if (societyId == null) {
-        setState((){});
+        setState((){
+          _isLoading = false;
+        });
         return;
       }
       
@@ -7815,6 +9164,7 @@ class _AdminListPageState extends State<AdminListPage> {
       if (mounted) {
         setState(() {
           _users.addAll(users);
+          _isLoading = false;
         });
       }
     } catch (e) {
@@ -7822,7 +9172,7 @@ class _AdminListPageState extends State<AdminListPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error fetching users: $e')),
         );
-        setState((){});
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -7835,6 +9185,14 @@ class _AdminListPageState extends State<AdminListPage> {
       filteredUsers = filteredUsers.where((user) {
         final lowercaseName = user.name.toLowerCase();
         return lowercaseName.contains(lowercaseQuery);
+      }).toList();
+    }
+
+    // Filter by hour type if selected
+    if (_selectedHourType != null && _selectedHourType != 'All') {
+      filteredUsers = filteredUsers.where((user) {
+        return user.completedHours.any((hour) => 
+          _normalizeType(hour.type) == _normalizeType(_selectedHourType!));
       }).toList();
     }
 
@@ -7894,80 +9252,588 @@ class _AdminListPageState extends State<AdminListPage> {
     ).join(' ');
   }
 
-  void _showFilterOptions() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  @override
+  Widget build(BuildContext context) {
+    final filteredUsers = _getFilteredAndSortedUsers();
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWideScreen = screenWidth > 900;
+    
+    return Scaffold(
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
+        title: Text(
+          'Members',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 24.0,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          // Show bulk edit button on all screen sizes
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const BulkEditEventsPage()),
+              );
+            },
+          ),
+          // Show export button on all screen sizes
+          IconButton(
+            icon: _isExporting
+                ? SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  )
+                : Icon(
+                    Icons.file_download,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+            onPressed: _isExporting 
+                ? null 
+                : () {
+                    setState(() => _isExporting = true);
+                    exportToExcel(context, filteredUsers).then((_) {
+                      setState(() => _isExporting = false);
+                    });
+                  },
+            tooltip: 'Export to Excel',
+          ),
+        ],
       ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return Container(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Center(
-                    child: Text(
-                      'Filter by Hour Type',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Side panel for filters on wide screens
+                if (isWideScreen)
+                  Container(
+                    width: 260,
+                    height: double.infinity,
+                    decoration: BoxDecoration(
+                      border: border.Border(
+                        right: BorderSide(
+                          color: Theme.of(context).dividerColor,
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Search field
+                          TextField(
+                            onChanged: (value) {
+                              setState(() {
+                                _searchQuery = value;
+                              });
+                            },
+                            decoration: InputDecoration(
+                              labelText: 'Search',
+                              prefixIcon: const Icon(Icons.search),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10.0),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          
+                          // Sort options
+                          Text(
+                            'Sort By',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildSortOptionsList(),
+                          
+                          const SizedBox(height: 24),
+                          
+                          // Sort order
+                          Text(
+                            'Sort Order',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              _buildOrderChip(
+                                SortOrder.ascending, '↑ Ascending', (setState) {}),
+                              const SizedBox(width: 8),
+                              _buildOrderChip(
+                                SortOrder.descending, '↓ Descending', (setState) {}),
+                            ],
+                          ),
+                          
+                          const SizedBox(height: 24),
+                          
+                          // Filter by hour type
+                          Text(
+                            'Filter by Hour Type',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: _availableHourTypes.map((type) {
+                              return FilterChip(
+                                selected: _selectedHourType == type,
+                                label: Text(type),
+                                onSelected: (selected) {
+                                  setState(() {
+                                    _selectedHourType = selected ? type : null;
+                                  });
+                                },
+                              );
+                            }).toList(),
+                          ),
+                          
+                          const Spacer(),
+                          
+                          // Bulk add button at bottom of sidebar
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                _openBulkCustomEventForm(context);
+                              },
+                              icon: const Icon(Icons.add),
+                              label: const Text('Bulk Add Hours'),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Center(
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: _availableHourTypes.map((type) {
-                        return FilterChip(
-                          selected: _selectedHourType == type,
-                          label: Text(type),
-                          onSelected: (selected) {
-                            setState(() => _selectedHourType = selected ? type : null);
-                            this.setState(() {}); // Update main screen
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                
+                // Main content area
+                Expanded(
+                  child: Column(
                     children: [
-                      _buildOrderChip(
-                          SortOrder.ascending, '↑ Ascending', setState),
-                      const SizedBox(width: 8),
-                      _buildOrderChip(
-                          SortOrder.descending, '↓ Descending', setState),
+                      // Mobile top controls
+                      if (!isWideScreen)
+                        Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            children: [
+                              // Search field
+                              TextField(
+                                onChanged: (value) {
+                                  setState(() {
+                                    _searchQuery = value;
+                                  });
+                                },
+                                decoration: InputDecoration(
+                                  labelText: 'Search',
+                                  prefixIcon: const Icon(Icons.search),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10.0),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16.0),
+                              
+                              // Bulk add button
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: () {
+                                        _openBulkCustomEventForm(context);
+                                      },
+                                      icon: const Icon(Icons.add),
+                                      label: const Text('Bulk Add'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  // Filter button that shows bottom sheet
+                                  OutlinedButton.icon(
+                                    onPressed: _showFilterOptions,
+                                    icon: const Icon(Icons.filter_list),
+                                    label: const Text('Filter'),
+                                  ),
+                                ],
+                              ),
+                              
+                              // Show selected filter if any
+                              if (_selectedHourType != null && _selectedHourType != 'All')
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        'Filtered by: ',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Theme.of(context).colorScheme.primary,
+                                        ),
+                                      ),
+                                      Chip(
+                                        label: Text(_selectedHourType!),
+                                        deleteIcon: const Icon(Icons.clear, size: 18),
+                                        onDeleted: () {
+                                          setState(() {
+                                            _selectedHourType = null;
+                                          });
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      
+                      // User count info
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                        child: Row(
+                          children: [
+                            Text(
+                              '${filteredUsers.length} ${filteredUsers.length == 1 ? 'member' : 'members'}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            if (_searchQuery.isNotEmpty)
+                              Text(
+                                ' matching "${_searchQuery}"',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      
+                      // User list
+                      Expanded(
+                        child: filteredUsers.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.person_search,
+                                      size: 64,
+                                      color: Colors.grey[400],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      _searchQuery.isNotEmpty
+                                          ? 'No members match your search'
+                                          : 'No members to display',
+                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : RefreshIndicator(
+                                onRefresh: _fetchUsers,
+                                child: isWideScreen
+                                    ? _buildUserTable(filteredUsers)  // Table view for wide screens
+                                    : _buildUserCardList(filteredUsers)  // Card list for mobile
+                              ),
+                      ),
                     ],
                   ),
-                ],
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildUserTable(List<UserProfile> users) {
+    // Enhanced table for wide screens with fixed header
+    return Column(
+      children: [
+        // Table header
+        Container(
+          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          child: Row(
+            children: [
+              // Name column (wider)
+              Expanded(
+                flex: 3,
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      if (_sortField == SortField.name) {
+                        _sortOrder = _sortOrder == SortOrder.ascending
+                            ? SortOrder.descending
+                            : SortOrder.ascending;
+                      } else {
+                        _sortField = SortField.name;
+                        _sortOrder = SortOrder.ascending;
+                      }
+                    });
+                  },
+                  child: Row(
+                    children: [
+                      Text(
+                        'Name',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _sortField == SortField.name
+                              ? Theme.of(context).colorScheme.primary
+                              : null,
+                        ),
+                      ),
+                      if (_sortField == SortField.name)
+                        Icon(
+                          _sortOrder == SortOrder.ascending
+                              ? Icons.arrow_upward
+                              : Icons.arrow_downward,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                    ],
+                  ),
+                ),
               ),
-            );
-          },
-        );
-      },
+              // Total hours column
+              Expanded(
+                flex: 2,
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      if (_sortField == SortField.totalHours) {
+                        _sortOrder = _sortOrder == SortOrder.ascending
+                            ? SortOrder.descending
+                            : SortOrder.ascending;
+                      } else {
+                        _sortField = SortField.totalHours;
+                        _sortOrder = SortOrder.descending;
+                      }
+                    });
+                  },
+                  child: Row(
+                    children: [
+                      Text(
+                        'Total Hours',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _sortField == SortField.totalHours
+                              ? Theme.of(context).colorScheme.primary
+                              : null,
+                        ),
+                      ),
+                      if (_sortField == SortField.totalHours)
+                        Icon(
+                          _sortOrder == SortOrder.ascending
+                              ? Icons.arrow_upward
+                              : Icons.arrow_downward,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              // Dues paid column
+              Expanded(
+                child: Text(
+                  'Dues Paid',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              // Actions column
+              const SizedBox(
+                width: 100,
+                child: Text(
+                  'Actions',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        // Table body with scrolling
+        Expanded(
+          child: ListView.builder(
+            itemCount: users.length,
+            itemBuilder: (context, index) {
+              final user = users[index];
+              
+              // Get total hours by type for the user
+              final totalHours = _getTotalHours(user);
+              
+              // Generate hour breakdown text
+              final StringBuffer hoursText = StringBuffer();
+              if (_selectedHourType != null && _selectedHourType != 'All') {
+                // Show only selected type if filtered
+                final selectedHours = _getHoursByType(user, _selectedHourType!);
+                hoursText.write('${selectedHours.toStringAsFixed(1)} ${_selectedHourType} hrs');
+              } else {
+                // Type abbreviations
+                final meetingHours = _getHoursByType(user, 'Meeting');
+                final serviceHours = _getHoursByType(user, 'Service');
+                final tutoringHours = _getHoursByType(user, 'Tutoring');
+                
+                hoursText.write('S: ${serviceHours.toStringAsFixed(1)}, ');
+                hoursText.write('T: ${tutoringHours.toStringAsFixed(1)}, ');
+                hoursText.write('M: ${meetingHours.toStringAsFixed(1)}');
+              }
+              
+              final isEvenRow = index % 2 == 0;
+              
+              return Container(
+                color: isEvenRow 
+                    ? Theme.of(context).colorScheme.surface
+                    : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.2),
+                child: InkWell(
+                  onTap: () {
+                    // Expand to show details (maybe open in a side panel or dialog)
+                    _showUserDetailsDialog(user);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    child: Row(
+                      children: [
+                        // Name column
+                        Expanded(
+                          flex: 3,
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 16,
+                                backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                                child: Text(
+                                  user.name.isNotEmpty ? user.name[0] : '?',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  user.name,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Total hours column
+                        Expanded(
+                          flex: 2,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${totalHours.toStringAsFixed(1)} hrs',
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                hoursText.toString(),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Dues paid column
+                        Expanded(
+                          child: Center(
+                            child: IconButton(
+                              icon: Icon(
+                                user.hasPaidDues ? Icons.check_circle : Icons.cancel,
+                                color: user.hasPaidDues ? Colors.green : Theme.of(context).colorScheme.error,
+                              ),
+                              onPressed: () => _toggleDuesStatus(user),
+                            ),
+                          ),
+                        ),
+                        // Actions column
+                        SizedBox(
+                          width: 100,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.add),
+                                tooltip: 'Add Hours',
+                                onPressed: () {
+                                  _openCustomEventForm(context, user.id);
+                                },
+                                constraints: const BoxConstraints(),
+                                padding: const EdgeInsets.all(8),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.more_vert),
+                                tooltip: 'More Options',
+                                onPressed: () {
+                                  _showUserActionsMenu(context, user);
+                                },
+                                constraints: const BoxConstraints(),
+                                padding: const EdgeInsets.all(8),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildOrderChip(SortOrder order, String label, StateSetter setState) {
-    return FilterChip(
-      selected: _sortOrder == order,
-      label: Text(label),
-      onSelected: (selected) {
-        if (selected) {
-          setState(() => _sortOrder = order);
-          this.setState(() {});
-        }
+  Widget _buildUserCardList(List<UserProfile> users) {
+    // Card-based list for mobile screens
+    return ListView.separated(
+      itemCount: users.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 0),
+      itemBuilder: (context, index) {
+        final user = users[index];
+        return _buildUserCard(user);
       },
     );
   }
-
+  
+  // Existing implementation
   Widget _buildUserCard(UserProfile user) {
     // Get society requirements from provider
     final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
@@ -8109,131 +9975,425 @@ class _AdminListPageState extends State<AdminListPage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final filteredUsers = _getFilteredAndSortedUsers();
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Theme.of(context)
-            .bannerTheme
-            .backgroundColor,
-        title: Text(
-          'Members',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 24.0,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: _showFilterOptions,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const BulkEditEventsPage()),
-              );
-            },
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.file_download,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-            onPressed: () {
-              exportToExcel(context, filteredUsers);
-            },
-            tooltip: 'Export to Excel',
-          ),
+  // Helper method for sort options list in sidebar
+  Widget _buildSortOptionsList() {
+    return Column(
+      children: [
+        _buildSortOptionTile(SortField.name, 'Name'),
+        _buildSortOptionTile(SortField.totalHours, 'Total Hours'),
+        if (_selectedHourType != null && _selectedHourType != 'All')
+          _buildSortOptionTile(SortField.serviceHours, '$_selectedHourType Hours')
+        else ...[
+          _buildSortOptionTile(SortField.serviceHours, 'Service Hours'),
+          _buildSortOptionTile(SortField.tutoringHours, 'Tutoring Hours'),
+          _buildSortOptionTile(SortField.meetingHours, 'Meeting Hours'),
         ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
+      ],
+    );
+  }
+
+  // Helper method for sort option tile
+  Widget _buildSortOptionTile(SortField field, String label) {
+    return RadioListTile<SortField>(
+      title: Text(label),
+      value: field,
+      groupValue: _sortField,
+      onChanged: (value) {
+        setState(() {
+          _sortField = value!;
+        });
+      },
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+    );
+  }
+
+  // Helper to show more actions for a user
+  void _showUserActionsMenu(BuildContext context, UserProfile user) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('${user.name} - Options'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.add),
+                title: const Text('Add Hours'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _openCustomEventForm(context, user.id);
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  user.hasPaidDues ? Icons.cancel : Icons.check_circle,
+                  color: user.hasPaidDues ? Theme.of(context).colorScheme.error : Colors.green,
+                ),
+                title: Text(user.hasPaidDues ? 'Mark Dues Unpaid' : 'Mark Dues Paid'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _toggleDuesStatus(user);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.list),
+                title: const Text('View All Hours'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showUserDetailsDialog(user);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Show detailed user information
+  void _showUserDetailsDialog(UserProfile user) {
+    // Group hours by type
+    final Map<String, List<CompletedUserHour>> hoursByType = {};
+    
+    for (final hour in user.completedHours) {
+      final type = hour.type;
+      if (!hoursByType.containsKey(type)) {
+        hoursByType[type] = [];
+      }
+      hoursByType[type]!.add(hour);
+    }
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 600, maxHeight: 600),
+            child: Column(
               children: [
-                Expanded(
-                  child: TextField(
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
-                    },
-                    decoration: InputDecoration(
-                      labelText: 'Search',
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10.0),
+                // Header
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        child: Text(
+                          user.name.isNotEmpty ? user.name[0] : '?',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              user.name,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                Text(
+                                  'Dues Paid: ',
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                Icon(
+                                  user.hasPaidDues ? Icons.check_circle : Icons.cancel,
+                                  color: user.hasPaidDues ? Colors.green : Theme.of(context).colorScheme.error,
+                                  size: 16,
+                                ),
+                                Text(
+                                  user.hasPaidDues ? ' Yes' : ' No',
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const Divider(height: 1),
+                
+                // Hour summary
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildHourSummaryCard(
+                          'Total Hours',
+                          _getTotalHours(user).toStringAsFixed(1),
+                          Icons.watch_later,
+                          Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      ...hoursByType.entries.map((entry) => 
+                        Expanded(
+                          child: _buildHourSummaryCard(
+                            entry.key,
+                            entry.value.fold<double>(
+                              0, (sum, hour) => sum + hour.hours
+                            ).toStringAsFixed(1),
+                            _getIconForHourType(entry.key),
+                            _getColorForHourType(entry.key, context),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Tab navigator for different hour types
+                Expanded(
+                  child: DefaultTabController(
+                    length: hoursByType.length + 1, // All + each type
+                    child: Column(
+                      children: [
+                        TabBar(
+                          isScrollable: true,
+                          tabs: [
+                            const Tab(text: 'All'),
+                            ...hoursByType.keys.map((type) => Tab(text: type)),
+                          ],
+                        ),
+                        Expanded(
+                          child: TabBarView(
+                            children: [
+                              // All hours tab
+                              _buildHoursList(user.completedHours),
+                              // Type-specific tabs
+                              ...hoursByType.values.map((hours) => _buildHoursList(hours)),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 16.0),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    _openBulkCustomEventForm(context);
-                  },
-                  icon: const Icon(Icons.add),
-                  label: const Text('Bulk'),
+                
+                // Bottom actions
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Close'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _openCustomEventForm(context, user.id);
+                        },
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Hours'),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-          
-          // Display the current filter type if one is selected
-          if (_selectedHourType != null && _selectedHourType != 'All')
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
+        );
+      },
+    );
+  }
+
+  // Helper to build hour summary card
+  Widget _buildHourSummaryCard(String title, String hours, IconData icon, Color color) {
+    return Card(
+      elevation: 0,
+      color: color.withOpacity(0.1),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(height: 4),
+            Text(
+              hours,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                color: color,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Helper to build hours list
+  Widget _buildHoursList(List<CompletedUserHour> hours) {
+    if (hours.isEmpty) {
+      return Center(
+        child: Text(
+          'No hours recorded',
+          style: TextStyle(
+            color: Colors.grey[600],
+          ),
+        ),
+      );
+    }
+    
+    // Sort hours by type (optional)
+    hours.sort((a, b) => a.type.compareTo(b.type));
+    
+    return ListView.builder(
+      itemCount: hours.length,
+      itemBuilder: (context, index) {
+        final hour = hours[index];
+        return ListTile(
+          title: Text(hour.eventName),
+          subtitle: Text(hour.type),
+          trailing: Text(
+            '${hour.hours.toStringAsFixed(1)} hrs',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        );
+      },
+    );
+  }
+
+  // Helper to get icon for hour type
+  IconData _getIconForHourType(String type) {
+    final normalizedType = type.toLowerCase();
+    if (normalizedType.contains('service')) return Icons.volunteer_activism;
+    if (normalizedType.contains('tutor')) return Icons.school;
+    if (normalizedType.contains('meeting')) return Icons.groups;
+    if (normalizedType.contains('leader')) return Icons.emoji_people;
+    return Icons.watch_later;
+  }
+
+  // Helper to get color for hour type
+  Color _getColorForHourType(String type, BuildContext context) {
+    final normalizedType = type.toLowerCase();
+    if (normalizedType.contains('service')) return Theme.of(context).colorScheme.primary;
+    if (normalizedType.contains('tutor')) return Theme.of(context).colorScheme.secondary;
+    if (normalizedType.contains('meeting')) return Theme.of(context).colorScheme.tertiary;
+    if (normalizedType.contains('leader')) return Colors.amber;
+    return Theme.of(context).colorScheme.primary;
+  }
+  
+  // Keep existing methods: _buildSortChip, _showFilterOptions, _toggleDuesStatus,
+  // _openCustomEventForm, _deleteServiceHour, _openBulkCustomEventForm, etc.
+  
+  // Existing method for order chip
+  Widget _buildOrderChip(SortOrder order, String label, StateSetter setState) {
+    return FilterChip(
+      selected: _sortOrder == order,
+      label: Text(label),
+      onSelected: (selected) {
+        if (selected) {
+          this.setState(() => _sortOrder = order);
+        }
+      },
+    );
+  }
+
+  // Existing method for filter options
+  void _showFilterOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Container(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Filtered by: ',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
+                  const Center(
+                    child: Text(
+                      'Filter by Hour Type',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                  Chip(
-                    label: Text(_selectedHourType!),
-                    deleteIcon: const Icon(Icons.clear, size: 18),
-                    onDeleted: () {
-                      setState(() {
-                        _selectedHourType = null;
-                      });
-                    },
+                  const SizedBox(height: 16),
+                  Center(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: _availableHourTypes.map((type) {
+                        return FilterChip(
+                          selected: _selectedHourType == type,
+                          label: Text(type),
+                          onSelected: (selected) {
+                            setState(() => _selectedHourType = selected ? type : null);
+                            this.setState(() {}); // Update main screen
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildOrderChip(
+                          SortOrder.ascending, '↑ Ascending', setState),
+                      const SizedBox(width: 8),
+                      _buildOrderChip(
+                          SortOrder.descending, '↓ Descending', setState),
+                    ],
                   ),
                 ],
               ),
-            ),
-            
-          Expanded(
-            child: ListView.separated(
-              itemCount: filteredUsers.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 0),
-              itemBuilder: (context, index) {
-                final user = filteredUsers[index];
-                return _buildUserCard(user);
-              },
-            ),
-          ),
-        ],
-      ),
+            );
+          },
+        );
+      },
     );
   }
 
   Future<void> _toggleDuesStatus(UserProfile user) async {
     try {
-      final societyId = Provider.of<SocietyProvider>(context, listen: false).currentSociety?.id;
+      final societyId = Provider.of<SocietyProvider>(context, listen: false)
+          .currentSociety
+          ?.id;
       if (societyId == null) return;
-      
+
       // Update dues status in user_society_memberships table instead of profiles
       await supabase
           .from('user_society_memberships')
@@ -8244,11 +10404,13 @@ class _AdminListPageState extends State<AdminListPage> {
       // Refresh the user list to reflect the change
       await _fetchUsers();
 
-      if(mounted) { 
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              user.hasPaidDues ? 'Dues marked as unpaid' : 'Dues marked as paid',
+              user.hasPaidDues
+                  ? 'Dues marked as unpaid'
+                  : 'Dues marked as paid',
             ),
           ),
         );
@@ -8259,7 +10421,7 @@ class _AdminListPageState extends State<AdminListPage> {
       );
     }
   }
-  
+
   Future<void> _saveCustomEvent(
     String userId,
     String eventName,
@@ -8268,9 +10430,11 @@ class _AdminListPageState extends State<AdminListPage> {
     String type,
   ) async {
     try {
-      final societyId = Provider.of<SocietyProvider>(context, listen: false).currentSociety?.id;
+      final societyId = Provider.of<SocietyProvider>(context, listen: false)
+          .currentSociety
+          ?.id;
       if (societyId == null) return;
-      
+
       await supabase.from('Service hours').insert({
         'user_id': userId,
         'event_name': eventName,
@@ -8359,8 +10523,8 @@ class _AdminListPageState extends State<AdminListPage> {
                             SortField.totalHours, 'Total Hours', setState),
                         _buildSortChip(
                             SortField.serviceHours, 'Service Hours', setState),
-                        _buildSortChip(
-                            SortField.tutoringHours, 'Tutoring Hours', setState),
+                        _buildSortChip(SortField.tutoringHours,
+                            'Tutoring Hours', setState),
                         _buildSortChip(
                             SortField.meetingHours, 'Meeting Hours', setState),
                       ],
@@ -8400,37 +10564,40 @@ class _AdminListPageState extends State<AdminListPage> {
   }
 
   void _openCustomEventForm(BuildContext context, String userId,
-    {String eventName = '',
-    TimeOfDay? selectedTime,
-    double hours = 0,
-    String? type}) {
-      
-  // Get available event types from society
-  final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
-  List<String> availableTypes = ['Service', 'Tutoring', 'Meeting']; // Default fallback
-  
-  if (society != null) {
-    availableTypes = ['Meeting']; // Always include Meeting
-    
-    // Add all active requirement types
-    for (final req in society.hourRequirements) {
-      if (req.isActive && !availableTypes.contains(req.type)) {
-        availableTypes.add(req.type);
+      {String eventName = '',
+      TimeOfDay? selectedTime,
+      double hours = 0,
+      String? type}) {
+    // Get available event types from society
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    List<String> availableTypes = [
+      'Service',
+      'Tutoring',
+      'Meeting'
+    ]; // Default fallback
+
+    if (society != null) {
+      availableTypes = ['Meeting']; // Always include Meeting
+
+      // Add all active requirement types
+      for (final req in society.hourRequirements) {
+        if (req.isActive && !availableTypes.contains(req.type)) {
+          availableTypes.add(req.type);
+        }
       }
     }
-  }
-  
-  // If type is not provided or not in available types, set default
-  type ??= availableTypes.isNotEmpty ? availableTypes.first : 'Service';
-  if (!availableTypes.contains(type)) {
-    type = availableTypes.isNotEmpty ? availableTypes.first : 'Service';
-  }
 
-  showDialog(
-    context: context,
-    builder: (context) {
-      return StatefulBuilder(
-        builder: (context, setState) {
+    // If type is not provided or not in available types, set default
+    type ??= availableTypes.isNotEmpty ? availableTypes.first : 'Service';
+    if (!availableTypes.contains(type)) {
+      type = availableTypes.isNotEmpty ? availableTypes.first : 'Service';
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(builder: (context, setState) {
           return AlertDialog(
             title: const Text('Add Custom Event'),
             content: Column(
@@ -8470,8 +10637,8 @@ class _AdminListPageState extends State<AdminListPage> {
                 TextFormField(
                   initialValue: hours.toString(),
                   decoration: const InputDecoration(labelText: 'Hours'),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(signed: true, decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                      signed: true, decimal: true),
                   onChanged: (value) {
                     hours = double.tryParse(value) ?? 0.0;
                   },
@@ -8485,12 +10652,12 @@ class _AdminListPageState extends State<AdminListPage> {
                   },
                   borderRadius: BorderRadius.circular(30),
                   dropdownColor: Theme.of(context).colorScheme.primaryContainer,
-                  items: availableTypes.map((type) => 
-                    DropdownMenuItem(
-                      value: type,
-                      child: Text(type),
-                    )
-                  ).toList(),
+                  items: availableTypes
+                      .map((type) => DropdownMenuItem(
+                            value: type,
+                            child: Text(type),
+                          ))
+                      .toList(),
                   decoration: const InputDecoration(
                     labelText: 'Event Type',
                   ),
@@ -8516,20 +10683,23 @@ class _AdminListPageState extends State<AdminListPage> {
                   if (selectedTime != null && type != null) {
                     String timeSlot =
                         '${selectedTime.hour}:${selectedTime.minute}';
-                    _saveCustomEvent(userId, eventName, timeSlot,
-                        hours.toDouble(), type ?? "Meeting"); // Use selected type
+                    _saveCustomEvent(
+                        userId,
+                        eventName,
+                        timeSlot,
+                        hours.toDouble(),
+                        type ?? "Meeting"); // Use selected type
                     Navigator.of(context).pop();
                   }
                 },
               ),
             ],
           );
-        }
-      );
-    },
-  );
-}
-  
+        });
+      },
+    );
+  }
+
   /// Manually adds service hours for a specific user.
   /// Used by administrators to credit hours for external events.
   /// Used by administrators to add Penelty Hours.
@@ -8619,7 +10789,6 @@ class _AdminListPageState extends State<AdminListPage> {
     _fetchUsers();
   }
 
-
   void _openBulkCustomEventForm(BuildContext context) async {
     final result = await Navigator.push(
       context,
@@ -8633,8 +10802,6 @@ class _AdminListPageState extends State<AdminListPage> {
       _fetchUsers();
     }
   }
-
-  
 }
 
 class AttendanceCheckPage extends StatefulWidget {
@@ -9053,9 +11220,7 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Theme.of(context)
-            .bannerTheme
-            .backgroundColor,
+        backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
         title: Text(
           'Attendance: ${widget.event.name}',
           style: TextStyle(
@@ -9214,11 +11379,13 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
 
   // Get available requirement types from society
   List<String> get _availableTypes {
-    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
-    if (society == null) return ['Service', 'Tutoring', 'Meeting']; // Default fallback
-    
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    if (society == null)
+      return ['Service', 'Tutoring', 'Meeting']; // Default fallback
+
     final types = ['Meeting']; // Always include Meeting
-    
+
     // Add all active requirements from the society
     for (final req in society.hourRequirements) {
       if (req.isActive && !types.contains(req.type)) {
@@ -9226,10 +11393,10 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
       }
     }
 
-    if (types.length == 1){
+    if (types.length == 1) {
       types.add('Service');
     }
-    
+
     return types;
   }
 
@@ -9248,37 +11415,39 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
       );
       return;
     }
-    
+
     if (selectedTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a time')),
       );
       return;
     }
-    
+
     if (selectedUserIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select at least one user')),
       );
       return;
     }
-    
+
     _saveBulkCustomEvent();
   }
-  
+
   Future<void> _saveBulkCustomEvent() async {
     setState(() => _isLoading = true);
 
     try {
       // Get society
-      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
       if (society == null) {
         throw Exception('No society selected');
       }
-      
+
       final timeSlot = '${selectedTime!.hour}:${selectedTime!.minute}';
-      
-      final List<Map<String, dynamic>> bulkEvents = selectedUserIds.map((userId) {
+
+      final List<Map<String, dynamic>> bulkEvents =
+          selectedUserIds.map((userId) {
         return {
           'user_id': userId,
           'event_name': eventName,
@@ -9286,13 +11455,14 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
           'hours': hours.toDouble(),
           'type': type,
           'society_id': society.id, // Important: Include society ID
-          'date': DateTime.now().toIso8601String(), // Include date for better tracking
+          'date': DateTime.now()
+              .toIso8601String(), // Include date for better tracking
         };
       }).toList();
 
       // Insert all records in a single operation
       await supabase.from('Service hours').insert(bulkEvents);
-      
+
       // Log activity for each user
       for (final userId in selectedUserIds) {
         await _logActivity(
@@ -9337,7 +11507,7 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
   @override
   Widget build(BuildContext context) {
     final types = _availableTypes;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Bulk Custom Event'),
@@ -9408,10 +11578,12 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                                 type = value ?? "Meeting";
                               });
                             },
-                            items: types.map((type) => DropdownMenuItem(
-                              value: type,
-                              child: Text(type),
-                            )).toList(),
+                            items: types
+                                .map((type) => DropdownMenuItem(
+                                      value: type,
+                                      child: Text(type),
+                                    ))
+                                .toList(),
                             decoration: const InputDecoration(
                               labelText: 'Event Type',
                               border: OutlineInputBorder(),
@@ -9431,7 +11603,8 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                           flex: 1,
                           child: InkWell(
                             onTap: () async {
-                              final TimeOfDay? pickedTime = await showTimePicker(
+                              final TimeOfDay? pickedTime =
+                                  await showTimePicker(
                                 context: context,
                                 initialTime: selectedTime ?? TimeOfDay.now(),
                               );
@@ -9446,7 +11619,7 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                                 labelText: 'Time',
                                 border: const OutlineInputBorder(),
                                 prefixIcon: const Icon(Icons.access_time),
-                                suffixIcon: selectedTime != null 
+                                suffixIcon: selectedTime != null
                                     ? IconButton(
                                         icon: const Icon(Icons.clear),
                                         onPressed: () {
@@ -9458,11 +11631,12 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                                     : null,
                               ),
                               child: Text(
-                                selectedTime != null 
-                                    ? selectedTime!.format(context) 
+                                selectedTime != null
+                                    ? selectedTime!.format(context)
                                     : 'Select',
-                                style: selectedTime == null 
-                                    ? TextStyle(color: Theme.of(context).hintColor)
+                                style: selectedTime == null
+                                    ? TextStyle(
+                                        color: Theme.of(context).hintColor)
                                     : null,
                               ),
                             ),
@@ -9533,7 +11707,8 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                    backgroundColor:
+                        Theme.of(context).colorScheme.primaryContainer,
                     avatar: Icon(
                       Icons.people,
                       size: 18,
@@ -9550,14 +11725,13 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
               child: Row(
                 children: [
                   Checkbox(
-                    value: selectedUserIds.length == filteredUsers.length && 
-                           filteredUsers.isNotEmpty,
+                    value: selectedUserIds.length == filteredUsers.length &&
+                        filteredUsers.isNotEmpty,
                     onChanged: (bool? value) {
                       setState(() {
                         if (value ?? false) {
-                          selectedUserIds = filteredUsers
-                              .map((user) => user.id)
-                              .toList();
+                          selectedUserIds =
+                              filteredUsers.map((user) => user.id).toList();
                         } else {
                           selectedUserIds.clear();
                         }
@@ -9586,9 +11760,8 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                       label: const Text('Clear Filtered'),
                       onPressed: () {
                         setState(() {
-                          selectedUserIds.removeWhere(
-                            (id) => filteredUsers.any((user) => user.id == id)
-                          );
+                          selectedUserIds.removeWhere((id) =>
+                              filteredUsers.any((user) => user.id == id));
                         });
                       },
                     ),
@@ -9612,9 +11785,12 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                           const SizedBox(height: 16),
                           Text(
                             'No users match your search',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: Colors.grey[600],
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  color: Colors.grey[600],
+                                ),
                           ),
                         ],
                       ),
@@ -9626,18 +11802,23 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                         itemBuilder: (context, index) {
                           final user = filteredUsers[index];
                           final isSelected = selectedUserIds.contains(user.id);
-                          
+
                           return Card(
                             elevation: 0,
-                            margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                            color: isSelected 
-                                ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.7)
+                            margin: const EdgeInsets.symmetric(
+                                vertical: 4, horizontal: 8),
+                            color: isSelected
+                                ? Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer
+                                    .withOpacity(0.7)
                                 : Theme.of(context).colorScheme.surface,
                             child: CheckboxListTile(
                               title: Text(
                                 user.name,
                                 style: TextStyle(
-                                  fontWeight: isSelected ? FontWeight.bold : null,
+                                  fontWeight:
+                                      isSelected ? FontWeight.bold : null,
                                 ),
                               ),
                               value: isSelected,
@@ -9654,8 +11835,8 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                               secondary: Padding(
                                 padding: const EdgeInsets.all(4.0),
                                 child: CircleAvatar(
-                                  child: Text(user.name.isNotEmpty 
-                                      ? user.name[0].toUpperCase() 
+                                  child: Text(user.name.isNotEmpty
+                                      ? user.name[0].toUpperCase()
                                       : '?'),
                                   backgroundColor: isSelected
                                       ? Theme.of(context).colorScheme.primary
@@ -9674,7 +11855,6 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
           ],
         ),
       ),
-      
       bottomNavigationBar: BottomAppBar(
         color: Theme.of(context).colorScheme.surface,
         elevation: 8,
@@ -9750,25 +11930,22 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
 
     try {
       // Get current society
-      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
       if (society == null) {
         setState(() => _isLoading = false);
         return;
       }
-      
+
       // Get all events for this society with related profile info in a single query
-      final response = await supabase
-          .from('Service hours')
-          .select('''
+      final response = await supabase.from('Service hours').select('''
             *,
             profiles:user_id(name)
-          ''')
-          .eq('society_id', society.id)
-          .order('event_name');
+          ''').eq('society_id', society.id).order('event_name');
 
       // Process and group the events
       final Map<String, Map<String, dynamic>> groupedEvents = {};
-      
+
       for (final record in response) {
         final eventName = record['event_name'] as String;
         if (!groupedEvents.containsKey(eventName)) {
@@ -9779,7 +11956,7 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
             'timeSlot': record['timeslot'] ?? '',
           };
         }
-        
+
         groupedEvents[eventName]!['users']!.add(
           AffectedUser(
             id: record['user_id'],
@@ -9789,7 +11966,8 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
       }
 
       // Convert to CustomEventGroup objects
-      final List<CustomEventGroup> eventGroups = groupedEvents.entries.map((entry) {
+      final List<CustomEventGroup> eventGroups =
+          groupedEvents.entries.map((entry) {
         final eventData = entry.value;
         return CustomEventGroup(
           eventName: entry.key,
@@ -9816,12 +11994,13 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
 
   List<CustomEventGroup> get _filteredEventGroups {
     if (_searchQuery.isEmpty) return _eventGroups;
-    
+
     final query = _searchQuery.toLowerCase();
-    return _eventGroups.where((group) =>
-      group.eventName.toLowerCase().contains(query) ||
-      group.type.toLowerCase().contains(query)
-    ).toList();
+    return _eventGroups
+        .where((group) =>
+            group.eventName.toLowerCase().contains(query) ||
+            group.type.toLowerCase().contains(query))
+        .toList();
   }
 
   Future<void> _updateSelectedEvents() async {
@@ -9840,7 +12019,8 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
       );
 
       // Get the current society
-      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
       if (society == null) {
         Navigator.of(context).pop(); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
@@ -9848,7 +12028,7 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
         );
         return;
       }
-      
+
       // Format time for database
       String? formattedTime;
       if (_newStartTime.isNotEmpty) {
@@ -9859,10 +12039,10 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
       // For each selected event, update all associated records
       for (var eventName in _selectedEvents) {
         final group = _eventGroups.firstWhere((g) => g.eventName == eventName);
-        
+
         // Build update data
         final updateData = <String, dynamic>{};
-        
+
         if (_newEventName.isNotEmpty) {
           updateData['event_name'] = _newEventName;
         }
@@ -9872,15 +12052,16 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
         if (_newHours > 0) {
           updateData['hours'] = _newHours;
         }
-        
+
         updateData['type'] = _newType;
 
         // Update all records for this event in this society
         await supabase
-          .from('Service hours')
-          .update(updateData)
-          .eq('event_name', eventName)
-          .eq('society_id', society.id); // Important: Scope to current society
+            .from('Service hours')
+            .update(updateData)
+            .eq('event_name', eventName)
+            .eq('society_id',
+                society.id); // Important: Scope to current society
       }
 
       // Hide loading indicator
@@ -9901,9 +12082,10 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
       }
 
       // Log the bulk update activity
-      final timeSlotDisplay = _newStartTime.isNotEmpty ? _newStartTime : 'Various Times';
+      final timeSlotDisplay =
+          _newStartTime.isNotEmpty ? _newStartTime : 'Various Times';
       final userId = supabase.auth.currentUser?.id;
-      
+
       if (userId != null && society != null) {
         await _logActivity(
           _newEventName.isEmpty ? 'Multiple Events' : _newEventName,
@@ -9942,14 +12124,15 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
     if (_selectedEvents.isEmpty) return;
 
     try {
-      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
       if (society == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No society selected')),
         );
         return;
       }
-      
+
       // Delete all selected events in a single query, scoped to current society
       await supabase
           .from('Service hours')
@@ -9969,8 +12152,6 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
       );
     }
   }
-
-
 
   void _showUpdateDialog() {
     TimeOfDay? selectedTime;
@@ -10000,9 +12181,9 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
                   ElevatedButton.icon(
                     icon: const Icon(Icons.access_time),
                     label: Text(
-                      selectedTime == null 
-                        ? 'Select Time' 
-                        : selectedTime!.format(context),
+                      selectedTime == null
+                          ? 'Select Time'
+                          : selectedTime!.format(context),
                     ),
                     onPressed: () async {
                       final TimeOfDay? picked = await showTimePicker(
@@ -10020,7 +12201,8 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
                       labelText: 'New Hours (Optional)',
                       hintText: 'Leave blank to keep current hours',
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return null; // Optional field
@@ -10040,7 +12222,8 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
                   DropdownButtonFormField<String>(
                     value: tempType,
                     items: ['Service', 'Tutoring', 'Meeting']
-                        .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                        .map((type) =>
+                            DropdownMenuItem(value: type, child: Text(type)))
                         .toList(),
                     onChanged: (value) => setState(() => tempType = value!),
                     decoration: const InputDecoration(labelText: 'Event Type'),
@@ -10058,13 +12241,14 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
               onPressed: () {
                 if (_formKey.currentState!.validate()) {
                   _formKey.currentState!.save();
-                  
+
                   // Update values
                   _newEventName = tempEventName;
-                  _newStartTime = '${selectedTime!.hour}:${selectedTime!.minute}';
+                  _newStartTime =
+                      '${selectedTime!.hour}:${selectedTime!.minute}';
                   _newHours = double.tryParse(tempHours) ?? 0;
                   _newType = tempType;
-                  
+
                   Navigator.pop(context);
                   _updateSelectedEvents();
                 }
@@ -10147,8 +12331,9 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
                   child: Row(
                     children: [
                       Checkbox(
-                        value: _selectedEvents.length == _filteredEventGroups.length && 
-                               _filteredEventGroups.isNotEmpty,
+                        value: _selectedEvents.length ==
+                                _filteredEventGroups.length &&
+                            _filteredEventGroups.isNotEmpty,
                         onChanged: (bool? value) {
                           setState(() {
                             if (value ?? false) {
@@ -10286,7 +12471,8 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
                     children: group.affectedUsers.map((user) {
                       return Chip(
                         label: Text(user.name),
-                        backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                        backgroundColor:
+                            Theme.of(context).colorScheme.surfaceVariant,
                       );
                     }).toList(),
                   ),
@@ -10651,7 +12837,7 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
   }
 
   @override
-   Widget build(BuildContext context) {
+  Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isWideScreen = screenWidth > 900;
 
@@ -10681,13 +12867,10 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
             // Main content area
             Padding(
               padding: EdgeInsets.all(isWideScreen ? 24.0 : 16.0),
-              child: isWideScreen
-                  ? _buildWideLayout()
-                  : _buildCompactLayout(),
+              child: isWideScreen ? _buildWideLayout() : _buildCompactLayout(),
             ),
-            
+
             // Quick Actions Panel
-            
           ],
         ),
       ),
@@ -10853,7 +13036,9 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
     );
   }
 
-  Widget _buildCategoryCard(String title, double hours, IconData icon, Color color, {required bool isCompact}) {
+  Widget _buildCategoryCard(
+      String title, double hours, IconData icon, Color color,
+      {required bool isCompact}) {
     return Container(
       width: isCompact ? 120 : null,
       padding: EdgeInsets.all(isCompact ? 12 : 16),
@@ -10893,20 +13078,88 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
   }
 
   Widget _buildQuickActionsPanel(bool isWideScreen) {
-  if (isWideScreen) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Container(
-        width: double.infinity,
+    if (isWideScreen) {
+      return Padding(
         padding: const EdgeInsets.all(24.0),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24.0),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.bolt,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Quick Actions',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Expanded(
+                      child: _buildActionButton(
+                          'Add Notes', Icons.note_add, _showAddNotesDialog)),
+                  const SizedBox(width: 16),
+                  Expanded(
+                      child: _buildActionButton(
+                          'View Notes', Icons.notes, _showMeetingNotesDialog)),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildActionButton(
+                      'Activity Log',
+                      Icons.history,
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const ActivityLogPage()),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    } else {
+      // Mobile version remains attached to bottom
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16.0),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(20),
+          ),
           boxShadow: [
             BoxShadow(
               color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
               blurRadius: 10,
-              offset: const Offset(0, 4),
+              offset: const Offset(0, -4),
             ),
           ],
         ),
@@ -10914,38 +13167,38 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.bolt,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Quick Actions',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  ),
-                ),
-              ],
+            Text(
+              'Quick Actions',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
+              ),
             ),
             const SizedBox(height: 16),
             Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Expanded(child: _buildActionButton('Add Notes', Icons.note_add, _showAddNotesDialog)),
-                const SizedBox(width: 16),
-                Expanded(child: _buildActionButton('View Notes', Icons.notes, _showMeetingNotesDialog)),
-                const SizedBox(width: 16),
                 Expanded(
-                  child: _buildActionButton(
-                    'Activity Log',
-                    Icons.history,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ActivityLogPage()),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.vertical,
+                    child: Column(
+                      children: [
+                        _buildActionButton(
+                            'Add Notes', Icons.note_add, _showAddNotesDialog),
+                        const SizedBox(height: 8),
+                        _buildActionButton(
+                            'View Notes', Icons.notes, _showMeetingNotesDialog),
+                        const SizedBox(height: 8),
+                        _buildActionButton(
+                          'Activity Log',
+                          Icons.history,
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const ActivityLogPage()),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -10953,127 +13206,70 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
             ),
           ],
         ),
-      ),
-    );
-  } else {
-    // Mobile version remains attached to bottom
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(20),
+      );
+    }
+  }
+
+  Widget _buildActionButton(
+      String label, IconData icon, VoidCallback onPressed) {
+    final bool isWideScreen = MediaQuery.of(context).size.width > 900;
+
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        padding: EdgeInsets.symmetric(
+          vertical: 16,
+          horizontal: isWideScreen ? 32 : 24,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -4),
-          ),
-        ],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        elevation: isWideScreen ? 2 : 0,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Quick Actions',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
-                  child: Column(
-                    children: [
-                      _buildActionButton('Add Notes', Icons.note_add, _showAddNotesDialog),
-                      const SizedBox(height: 8),
-                      _buildActionButton('View Notes', Icons.notes, _showMeetingNotesDialog),
-                      const SizedBox(height: 8),
-                      _buildActionButton(
-                        'Activity Log',
-                        Icons.history,
-                        () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const ActivityLogPage()),
-                        ),
-                      ),
-                    ],
+      child: isWideScreen
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: isWideScreen ? 16 : 14,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-            ],
-          ),
-        ],
-      ),
+              ],
+            )
+          : Row(
+              mainAxisSize: MainAxisSize.max,
+              children: [
+                Icon(icon),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: isWideScreen ? 16 : 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
     );
   }
-}
-
-Widget _buildActionButton(String label, IconData icon, VoidCallback onPressed) {
-  final bool isWideScreen = MediaQuery.of(context).size.width > 900;
-  
-  return ElevatedButton(
-    onPressed: onPressed,
-    style: ElevatedButton.styleFrom(
-      padding: EdgeInsets.symmetric(
-        vertical: 16,
-        horizontal: isWideScreen ? 32 : 24,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      elevation: isWideScreen ? 2 : 0,
-    ),
-    child: isWideScreen ? Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: isWideScreen ? 16 : 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    ) : Row(
-      mainAxisSize: MainAxisSize.max,
-      children: [
-        Icon(icon),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: isWideScreen ? 16 : 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    ),
-  );
-}
 }
 
 class UserProfile {
   final String name;
   final String id;
   final List<CompletedUserHour> completedHours;
-  final bool hasPaidDues;  // New field
+  final bool hasPaidDues; // New field
 
   UserProfile({
     required this.name,
     required this.completedHours,
     required this.id,
-    this.hasPaidDues = false,  // Default to false
+    this.hasPaidDues = false, // Default to false
   });
 
   bool hasCompletedHours() {
@@ -11327,7 +13523,9 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
     });
 
     try {
-      final societyId = Provider.of<SocietyProvider>(context, listen: false).currentSociety?.id;
+      final societyId = Provider.of<SocietyProvider>(context, listen: false)
+          .currentSociety
+          ?.id;
       if (societyId == null) {
         setState(() {
           _logs = [];
@@ -11335,7 +13533,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
         });
         return;
       }
-      
+
       final response = await supabase
           .from('activity_logs')
           .select('*, profiles:user_id(name)')
@@ -11378,78 +13576,81 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
       body: Column(
         children: [
           Container(
-  padding: const EdgeInsets.symmetric(vertical: 16),
-  child: Center(
-    child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Previous Day Button
-                      IconButton(
-                        icon: const Icon(Icons.chevron_left),
-                        onPressed: () {
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Previous Day Button
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left),
+                      onPressed: () {
+                        setState(() {
+                          _selectedDate =
+                              _selectedDate.subtract(const Duration(days: 1));
+                        });
+                        _fetchLogs();
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.calendar_today),
+                      onPressed: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: _selectedDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2025),
+                        );
+                        if (picked != null && picked != _selectedDate) {
                           setState(() {
-                            _selectedDate = _selectedDate.subtract(const Duration(days: 1));
+                            _selectedDate = picked;
                           });
                           _fetchLogs();
-                        },
+                        }
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      DateFormat('MMMM d, y').format(_selectedDate),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.calendar_today),
-                        onPressed: () async {
-                          final DateTime? picked = await showDatePicker(
-                            context: context,
-                            initialDate: _selectedDate,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(2025),
-                          );
-                          if (picked != null && picked != _selectedDate) {
-                            setState(() {
-                              _selectedDate = picked;
-                            });
-                            _fetchLogs();
-                          }
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        DateFormat('MMMM d, y').format(_selectedDate),
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
-                        ),
-                      ),
-                      // Next Day Button
-                      IconButton(
-                        icon: const Icon(Icons.chevron_right),
-                        onPressed: _selectedDate.year == DateTime.now().year &&
-                                _selectedDate.month == DateTime.now().month &&
-                                _selectedDate.day == DateTime.now().day
-                            ? null
-                            : () {
-                                setState(() {
-                                  _selectedDate = _selectedDate.add(const Duration(days: 1));
-                                });
-                                _fetchLogs();
-                              },
-                        // Gray out the icon when on current day
-                        color: _selectedDate.year == DateTime.now().year &&
-                                _selectedDate.month == DateTime.now().month &&
-                                _selectedDate.day == DateTime.now().day
-                            ? Colors.grey
-                            : Theme.of(context).colorScheme.onPrimaryContainer,
-                      ),
-                    ],
-                  ),
+                    ),
+                    // Next Day Button
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right),
+                      onPressed: _selectedDate.year == DateTime.now().year &&
+                              _selectedDate.month == DateTime.now().month &&
+                              _selectedDate.day == DateTime.now().day
+                          ? null
+                          : () {
+                              setState(() {
+                                _selectedDate =
+                                    _selectedDate.add(const Duration(days: 1));
+                              });
+                              _fetchLogs();
+                            },
+                      // Gray out the icon when on current day
+                      color: _selectedDate.year == DateTime.now().year &&
+                              _selectedDate.month == DateTime.now().month &&
+                              _selectedDate.day == DateTime.now().day
+                          ? Colors.grey
+                          : Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  ],
                 ),
               ),
             ),
+          ),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -11537,7 +13738,9 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
         ),
         title: RichText(
           text: textspan.TextSpan(
-            style: TextStyle(fontSize: 15, color: Theme.of(context).colorScheme.onSecondaryContainer),
+            style: TextStyle(
+                fontSize: 15,
+                color: Theme.of(context).colorScheme.onSecondaryContainer),
             children: [
               textspan.TextSpan(
                 text: log.userName,
@@ -11626,9 +13829,16 @@ class ActivityLog {
 ///
 /// Returns:
 /// - Future<void>
-Future<void> _logActivity(String eventName, String timeslot, double hours,
-    String actionType, String userId,
-    {String? oldUserId, String? newUserId, int? societyId,}) async {
+Future<void> _logActivity(
+  String eventName,
+  String timeslot,
+  double hours,
+  String actionType,
+  String userId, {
+  String? oldUserId,
+  String? newUserId,
+  int? societyId,
+}) async {
   try {
     await supabase.from('activity_logs').insert({
       'event_name': eventName,
@@ -11649,7 +13859,8 @@ Future<void> _logActivity(String eventName, String timeslot, double hours,
 class HourRequirementsPage extends StatefulWidget {
   final HonorSociety society;
 
-  const HourRequirementsPage({Key? key, required this.society}) : super(key: key);
+  const HourRequirementsPage({Key? key, required this.society})
+      : super(key: key);
 
   @override
   _HourRequirementsPageState createState() => _HourRequirementsPageState();
@@ -11705,13 +13916,15 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                   border: OutlineInputBorder(),
                 ),
                 controller: TextEditingController(text: hours.toString()),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 onChanged: (value) => hours = double.tryParse(value) ?? hours,
               ),
               const SizedBox(height: 16),
               SwitchListTile(
                 title: const Text('Active'),
-                subtitle: const Text('Inactive requirements won\'t be counted or displayed'),
+                subtitle: const Text(
+                    'Inactive requirements won\'t be counted or displayed'),
                 value: isActive,
                 onChanged: (value) => setState(() => isActive = value),
               ),
@@ -11737,18 +13950,16 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
               if (type.isNotEmpty && hours > 0) {
                 setState(() => _isLoading = true);
                 try {
-                  await supabase
-                      .from('hour_requirements')
-                      .update({
-                        'type': type,
-                        'description': description,
-                        'hours_needed': hours,
-                        'is_active': isActive,
-                      })
-                      .eq('id', requirement.id);
+                  await supabase.from('hour_requirements').update({
+                    'type': type,
+                    'description': description,
+                    'hours_needed': hours,
+                    'is_active': isActive,
+                  }).eq('id', requirement.id);
 
                   setState(() {
-                    final index = _requirements.indexWhere((r) => r.id == requirement.id);
+                    final index =
+                        _requirements.indexWhere((r) => r.id == requirement.id);
                     if (index != -1) {
                       _requirements[index] = HourRequirement(
                         id: requirement.id,
@@ -11760,10 +13971,11 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                     }
                     _hasChanges = true;
                   });
-                  
+
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Requirement updated successfully')),
+                      const SnackBar(
+                          content: Text('Requirement updated successfully')),
                     );
                     Navigator.pop(context);
                   }
@@ -11812,10 +14024,11 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                   _requirements.removeWhere((r) => r.id == requirement.id);
                   _hasChanges = true;
                 });
-                
+
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Requirement deleted successfully')),
+                    const SnackBar(
+                        content: Text('Requirement deleted successfully')),
                   );
                   Navigator.pop(context); // Close delete confirmation
                   Navigator.pop(context); // Close edit dialog
@@ -11878,7 +14091,8 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                   hintText: 'E.g., 10.0',
                   border: OutlineInputBorder(),
                 ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 onChanged: (value) => hours = double.tryParse(value) ?? 0,
               ),
             ],
@@ -11910,10 +14124,11 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                     _requirements.add(HourRequirement.fromJson(response));
                     _hasChanges = true;
                   });
-                  
+
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Requirement added successfully')),
+                      const SnackBar(
+                          content: Text('Requirement added successfully')),
                     );
                     Navigator.pop(context);
                   }
@@ -11947,10 +14162,11 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                     .from('hour_requirements')
                     .select()
                     .eq('society_id', widget.society.id);
-                
+
                 setState(() {
                   _requirements = requirementsResponse
-                      .map<HourRequirement>((json) => HourRequirement.fromJson(json))
+                      .map<HourRequirement>(
+                          (json) => HourRequirement.fromJson(json))
                       .toList();
                 });
               },
@@ -11959,7 +14175,8 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.playlist_add, size: 64, color: Colors.grey),
+                          const Icon(Icons.playlist_add,
+                              size: 64, color: Colors.grey),
                           const SizedBox(height: 16),
                           Text(
                             'No requirements defined',
@@ -11968,9 +14185,12 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                           const SizedBox(height: 8),
                           Text(
                             'Tap the + button to add requirements',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Colors.grey,
+                                ),
                           ),
                         ],
                       ),
@@ -11980,7 +14200,8 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                       itemBuilder: (context, index) {
                         final requirement = _requirements[index];
                         return Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
                           child: ListTile(
                             leading: CircleAvatar(
                               backgroundColor: requirement.isActive
@@ -11993,9 +14214,8 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                               requirement.type,
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: requirement.isActive
-                                    ? null
-                                    : Colors.grey,
+                                color:
+                                    requirement.isActive ? null : Colors.grey,
                               ),
                             ),
                             subtitle: Column(
@@ -12016,9 +14236,11 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                             ),
                             trailing: IconButton(
                               icon: const Icon(Icons.edit),
-                              onPressed: () => _showEditRequirementDialog(requirement),
+                              onPressed: () =>
+                                  _showEditRequirementDialog(requirement),
                             ),
-                            onTap: () => _showEditRequirementDialog(requirement),
+                            onTap: () =>
+                                _showEditRequirementDialog(requirement),
                           ),
                         );
                       },
@@ -12031,7 +14253,7 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
       ),
     );
   }
-  
+
   @override
   void dispose() {
     // Notify parent if changes were made
@@ -12050,11 +14272,10 @@ class SocietyJoinRequestPage extends StatefulWidget {
   _SocietyJoinRequestPageState createState() => _SocietyJoinRequestPageState();
 }
 
-// In main.dart - SocietyJoinRequestPage class
-
 class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
   List<HonorSociety> _availableSocieties = [];
-  Map<int, String> _requestStatuses = {}; // Track status: 'pending', 'approved', 'rejected'
+  Map<int, String> _requestStatuses =
+      {}; // Track status: 'pending', 'approved', 'rejected'
   bool _isLoading = true;
 
   @override
@@ -12081,9 +14302,7 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
 
       // Fetch all societies (not just ones they're not a member of)
       // We'll filter the display based on membership and request status
-      final societies = await supabase
-          .from('honor_societies')
-          .select('''
+      final societies = await supabase.from('honor_societies').select('''
             id,
             name,
             description,
@@ -12117,8 +14336,9 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
         }).toList();
 
         // Filter out societies the user is already a member of
-        _availableSocieties = _availableSocieties.where((society) => 
-          !memberSocietyIds.contains(society.id)).toList();
+        _availableSocieties = _availableSocieties
+            .where((society) => !memberSocietyIds.contains(society.id))
+            .toList();
       });
     } catch (e) {
       print('Error loading societies: $e');
@@ -12216,7 +14436,8 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
                   size: 64,
                 ),
                 const SizedBox(height: 16),
-                Text('Your request to join ${society.name} has been sent successfully.'),
+                Text(
+                    'Your request to join ${society.name} has been sent successfully.'),
                 const SizedBox(height: 8),
                 const Text(
                   'An administrator will review your request soon.',
@@ -12321,13 +14542,14 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
                       final status = _requestStatuses[society.id];
                       final hasPendingRequest = status == 'pending';
                       final hasRejectedRequest = status == 'rejected';
-                      
+
                       return Card(
                         margin: const EdgeInsets.all(8),
                         child: ListTile(
                           leading: society.imageUrl != null
                               ? CircleAvatar(
-                                  backgroundImage: NetworkImage(society.imageUrl!),
+                                  backgroundImage:
+                                      NetworkImage(society.imageUrl!),
                                 )
                               : CircleAvatar(
                                   child: Text(society.name[0]),
@@ -12367,8 +14589,8 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
                                 )
                               : hasRejectedRequest
                                   ? ElevatedButton(
-                                      onPressed: () => _resubmitRequest(society),
-
+                                      onPressed: () =>
+                                          _resubmitRequest(society),
                                       child: const Text('Resubmit Request'),
                                     )
                                   : ElevatedButton(
@@ -12406,20 +14628,28 @@ class SocietySelectionPage extends StatelessWidget {
           if (societyProvider.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
-          
+
           final societies = societyProvider.userSocieties;
-          
+
           if (societies.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  Icon(
+                    Icons.group_off,
+                    size: 80,
+                    color:
+                        Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                  ),
+                  const SizedBox(height: 24),
                   Text(
                     'You are not a member of any honor societies',
                     style: Theme.of(context).textTheme.titleLarge,
+                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
-                  ElevatedButton(
+                  ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -12428,38 +14658,60 @@ class SocietySelectionPage extends StatelessWidget {
                         ),
                       );
                     },
-                    child: const Text('Request to Join'),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Request to Join'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
                 ],
               ),
             );
           }
-          
-          return GridView.builder(
+
+          // Use ResponsiveGridView for better layout on different screen sizes
+          return Padding(
             padding: const EdgeInsets.all(16),
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 300,
-              childAspectRatio: 0.8,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
+            child: GridView.builder(
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 300,
+                childAspectRatio: 0.8,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+              ),
+              itemCount: societies.length,
+              itemBuilder: (context, index) {
+                final society = societies[index];
+                // Get a different but subtle color for each card based on index
+                return _buildSocietyCard(context, society, index);
+              },
             ),
-            itemCount: societies.length,
-            itemBuilder: (context, index) {
-              final society = societies[index];
-              return _buildSocietyCard(context, society);
-            },
           );
         },
       ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          boxShadow: [
+            BoxShadow(
+              color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+              blurRadius: 4,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ElevatedButton.icon(
               onPressed: () {
                 Navigator.push(
-                  context, 
+                  context,
                   MaterialPageRoute(
                     builder: (context) => const SocietyJoinRequestPage(),
                   ),
@@ -12470,6 +14722,9 @@ class SocietySelectionPage extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 minimumSize: const Size(double.infinity, 0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -12480,6 +14735,9 @@ class SocietySelectionPage extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 minimumSize: const Size(double.infinity, 0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],
@@ -12488,13 +14746,51 @@ class SocietySelectionPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSocietyCard(BuildContext context, HonorSociety society) {
+  Widget _buildSocietyCard(
+      BuildContext context, HonorSociety society, int index) {
+    // Use a list of complementary but subtle colors for each card
+    final List<Color> cardColors = [
+      Theme.of(context).colorScheme.primary,
+      Theme.of(context).colorScheme.secondary,
+      Theme.of(context).colorScheme.tertiary,
+      Colors.amber,
+      Colors.teal,
+      Colors.indigo,
+      Colors.purple,
+      Colors.green,
+    ];
+
+    // Use a matching but slightly deeper color for the image placeholder background
+    final List<Color> imageColors = [
+      Theme.of(context).colorScheme.primary.withOpacity(0.2),
+      Theme.of(context).colorScheme.secondary.withOpacity(0.2),
+      Theme.of(context).colorScheme.tertiary.withOpacity(0.2),
+      Colors.amber.withOpacity(0.2),
+      Colors.teal.withOpacity(0.2),
+      Colors.indigo.withOpacity(0.2),
+      Colors.purple.withOpacity(0.2),
+      Colors.green.withOpacity(0.2),
+    ];
+
+    // Get the color for this card based on index, cycling through the list
+    final cardColor = cardColors[index % cardColors.length];
+    final imageColor = imageColors[index % imageColors.length];
+
+    // Also vary the border slightly based on index for a subtle effect
+    final borderColor = (index % 3 == 0)
+        ? Theme.of(context).colorScheme.primary
+        : Theme.of(context).colorScheme.outline;
+
     return Card(
       clipBehavior: Clip.antiAlias,
-      elevation: 4,
+      elevation: 3,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: borderColor,
+        ),
       ),
+      color: cardColor.withOpacity(0.5),
       child: InkWell(
         onTap: () {
           _selectSociety(context, society);
@@ -12503,41 +14799,83 @@ class SocietySelectionPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
+              flex: 3,
               child: society.imageUrl != null
                   ? Image.network(
                       society.imageUrl!,
                       fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: imageColor,
+                        child: Center(
+                          child: Icon(
+                            Icons.school,
+                            size: 64,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(0.4),
+                          ),
+                        ),
+                      ),
                     )
                   : Container(
-                      color: Theme.of(context).colorScheme.primaryContainer,
+                      color: imageColor,
                       child: Center(
                         child: Icon(
                           Icons.school,
                           size: 64,
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.4),
                         ),
                       ),
                     ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    society.name,
-                    style: Theme.of(context).textTheme.titleLarge,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    society.description,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+            Expanded(
+              flex: 1,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          child: Text(
+                            society.name,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        // Select button
+                        Container(
+                          decoration: BoxDecoration(
+                            color: cardColor.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.arrow_forward_ios,
+                              size: 16,
+                              weight: 10,
+                            ),
+                            color: cardColor,
+                            onPressed: () => _selectSociety(context, society),
+                            tooltip: 'Select',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -12548,10 +14886,10 @@ class SocietySelectionPage extends StatelessWidget {
 
   void _selectSociety(BuildContext context, HonorSociety society) async {
     final provider = Provider.of<SocietyProvider>(context, listen: false);
-    
+
     // Save the navigator state before any async operations
     final NavigatorState navigator = Navigator.of(context);
-    
+
     // Show loading indicator
     showDialog(
       context: context,
@@ -12564,11 +14902,11 @@ class SocietySelectionPage extends StatelessWidget {
     try {
       // Set the current society
       await provider.setCurrentSociety(society.id);
-      
+
       // We can use the saved navigator regardless of if the original context is mounted
       // First close the dialog
       navigator.pop();
-      
+
       // Then navigate to MainScreen
       navigator.pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const MainScreen()),
@@ -12578,7 +14916,7 @@ class SocietySelectionPage extends StatelessWidget {
       // Make sure to close loading dialog on error
       try {
         navigator.pop(); // Close the dialog
-        
+
         // Show error message if possible
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error selecting society: $e')),
@@ -12590,7 +14928,7 @@ class SocietySelectionPage extends StatelessWidget {
       }
     }
   }
-  
+
   void _confirmLogout(BuildContext context) {
     showDialog(
       context: context,
@@ -12606,7 +14944,7 @@ class SocietySelectionPage extends StatelessWidget {
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(context); // Close dialog
-                
+
                 // Show loading indicator
                 showDialog(
                   context: context,
@@ -12615,7 +14953,7 @@ class SocietySelectionPage extends StatelessWidget {
                     child: CircularProgressIndicator(),
                   ),
                 );
-                
+
                 // Sign out the user
                 await _signOut(context);
               },
@@ -12633,14 +14971,14 @@ class SocietySelectionPage extends StatelessWidget {
 
   Future<void> _signOut(BuildContext context) async {
     final navigatorState = Navigator.of(context);
-    
+
     // Clear any cached data
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('sessionData');
-    
+
     // Sign out from Supabase
     await supabase.auth.signOut();
-    
+
     // Navigate to login page and remove all routes
     navigatorState.pushNamedAndRemoveUntil('/', (route) => false);
   }
