@@ -625,7 +625,7 @@ class _HomePageState extends State<HomePage> {
               dateString != null ? DateTime.parse(dateString) : DateTime.now();
 
           // Use normalized type for consistent matching
-          final normalizedType = _normalizeType(eventType);
+          final normalizedType = normalizeType(eventType);
 
           if (completedHoursMap.containsKey(normalizedType)) {
             completedHoursMap[normalizedType] =
@@ -655,7 +655,7 @@ class _HomePageState extends State<HomePage> {
                   _calculateDuration(timeSlot.time, timeSlot.endTime);
 
               // Use normalized type for consistent matching
-              final normalizedType = _normalizeType(event.type);
+              final normalizedType = normalizeType(event.type);
 
               if (potentialHoursMap.containsKey(normalizedType)) {
                 potentialHoursMap[normalizedType] =
@@ -674,19 +674,6 @@ class _HomePageState extends State<HomePage> {
         }
       }
     }
-  }
-
-  // Helper method to normalize type strings for consistent matching
-  String _normalizeType(String type) {
-    // Convert to title case for consistent comparison
-    return type
-        .trim()
-        .split(' ')
-        .map((word) => word.isNotEmpty
-            ? word[0].toUpperCase() +
-                (word.length > 1 ? word.substring(1).toLowerCase() : '')
-            : '')
-        .join(' ');
   }
 
   // Build event type filter chips based on society requirements
@@ -711,7 +698,7 @@ class _HomePageState extends State<HomePage> {
     } else {
       return _events
           .where((event) =>
-              _normalizeType(event.type) == _normalizeType(_selectedEventType))
+              normalizeType(event.type) == normalizeType(_selectedEventType))
           .toList();
     }
   }
@@ -838,7 +825,7 @@ class _HomePageState extends State<HomePage> {
                 Row(
                   children: [
                     Icon(
-                      _getIconForType(title),
+                      getIconForType(title, context),
                       size: 18,
                       color: isComplete
                           ? Theme.of(context).colorScheme.primary
@@ -1232,7 +1219,7 @@ class _HomePageState extends State<HomePage> {
                           _getColorForEventType(event.type, context)
                               .withOpacity(0.15),
                       child: Icon(
-                        _getIconForType(event.type),
+                        getIconForType(event.type, context),
                         color: _getColorForEventType(event.type, context),
                         size: 16,
                       ),
@@ -1365,7 +1352,7 @@ class _HomePageState extends State<HomePage> {
         } else {
           // For other types, find the matching requirement in the society
           final matchingRequirement = society.hourRequirements.firstWhere(
-            (req) => _normalizeType(req.type) == _normalizeType(event.type),
+            (req) => normalizeType(req.type) == normalizeType(event.type),
             orElse: () => HourRequirement(
               id: -1,
               type: event.type,
@@ -1377,7 +1364,7 @@ class _HomePageState extends State<HomePage> {
 
           // Check if user has completed the required hours for this type
           final completedHours =
-              _completedHoursMap[_normalizeType(event.type)] ?? 0.0;
+              _completedHoursMap[normalizeType(event.type)] ?? 0.0;
           hasCompletedRequirements =
               completedHours >= matchingRequirement.hoursNeeded;
         }
@@ -2348,7 +2335,7 @@ class _HomePageState extends State<HomePage> {
         } else {
           // For other types, find the matching requirement in the society
           final matchingRequirement = society.hourRequirements.firstWhere(
-            (req) => _normalizeType(req.type) == _normalizeType(event.type),
+            (req) => normalizeType(req.type) == normalizeType(event.type),
             orElse: () => HourRequirement(
               id: -1,
               type: event.type,
@@ -2360,7 +2347,7 @@ class _HomePageState extends State<HomePage> {
 
           // Check if user has completed the required hours for this type
           final completedHours =
-              _completedHoursMap[_normalizeType(event.type)] ?? 0.0;
+              _completedHoursMap[normalizeType(event.type)] ?? 0.0;
           hasCompletedRequirements =
               completedHours >= matchingRequirement.hoursNeeded;
         }
@@ -2773,7 +2760,7 @@ Future<void> exportToExcel(
         final hours = (entry['hours'] as num?)?.toDouble() ?? 0.0;
         final type = entry['type']?.toString() ?? 'Unknown Type';
         final normalizedType =
-            _normalizeType(type); // Normalize for consistent comparison
+            normalizeType(type); // Normalize for consistent comparison
         final eventName = entry['event_name']?.toString() ?? 'Unnamed Event';
 
         // Parse date safely
@@ -2794,7 +2781,7 @@ Future<void> exportToExcel(
             userServiceData[userId] = {
               'eventsList': <String>[],
               'hoursByType': {
-                for (var type in requirementTypes) _normalizeType(type): 0.0
+                for (var type in requirementTypes) normalizeType(type): 0.0
               },
               'meetingsAttended': 0,
               'totalHours': 0.0,
@@ -2807,11 +2794,11 @@ Future<void> exportToExcel(
           // Use normalized comparison to match requirement types
           bool typeMatched = false;
           for (var reqType in requirementTypes) {
-            if (_normalizeType(reqType) == normalizedType) {
+            if (normalizeType(reqType) == normalizedType) {
               if (reqType == 'Meeting') {
                 userData['meetingsAttended'] += 1; // Count meetings
               } else {
-                userData['hoursByType'][_normalizeType(reqType)] += hours;
+                userData['hoursByType'][normalizeType(reqType)] += hours;
               }
               typeMatched = true;
               break;
@@ -2884,7 +2871,7 @@ Future<void> exportToExcel(
       final userData = userServiceData[user.id] ??
           {
             'hoursByType': {
-              for (var type in requirementTypes) _normalizeType(type): 0.0
+              for (var type in requirementTypes) normalizeType(type): 0.0
             },
             'meetingsAttended': 0,
             'totalHours': 0.0,
@@ -2924,7 +2911,7 @@ Future<void> exportToExcel(
       for (var type in requirementTypes) {
         if (type == 'Meeting') continue; // Skip Meeting (already added)
 
-        final hours = userData['hoursByType'][_normalizeType(type)] ?? 0.0;
+        final hours = userData['hoursByType'][normalizeType(type)] ?? 0.0;
         sheetObject
             .cell(CellIndex.indexByColumnRow(
                 columnIndex: colIndex++, rowIndex: rowIndex))
@@ -2972,18 +2959,6 @@ Future<void> exportToExcel(
       SnackBar(content: Text('Error generating report: $e')),
     );
   }
-}
-
-// Helper function to normalize type strings for consistent matching
-String _normalizeType(String type) {
-  return type
-      .trim()
-      .split(' ')
-      .map((word) => word.isNotEmpty
-          ? word[0].toUpperCase() +
-              (word.length > 1 ? word.substring(1).toLowerCase() : '')
-          : '')
-      .join(' ');
 }
 
 /// Helper class to store processed user data
@@ -3423,20 +3398,6 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   }
 }
 
-// Helper to get appropriate icons for different hour types
-IconData _getIconForType(String type) {
-  switch (type.toLowerCase()) {
-    case 'service':
-      return Icons.volunteer_activism;
-    case 'tutoring':
-      return Icons.school;
-    case 'leadership':
-      return Icons.emoji_people;
-    default:
-      return Icons.workspaces;
-  }
-}
-
 // Helper method to get color based on event type
 Color _getColorForEventType(String type, BuildContext context) {
   return Theme.of(context).colorScheme.primary;
@@ -3560,7 +3521,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
             dateString != null ? DateTime.parse(dateString) : DateTime.now();
 
         // Use normalized type for consistent matching
-        final normalizedType = _normalizeType(eventType);
+        final normalizedType = normalizeType(eventType);
 
         if (hoursMap.containsKey(normalizedType)) {
           hoursMap[normalizedType] = hoursMap[normalizedType]! + hours;
@@ -3579,19 +3540,6 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
         _hoursByTypeMap = hoursByType;
       });
     }
-  }
-
-  // Helper method to normalize type strings for consistent matching
-  String _normalizeType(String type) {
-    // Convert to title case for consistent comparison
-    return type
-        .trim()
-        .split(' ')
-        .map((word) => word.isNotEmpty
-            ? word[0].toUpperCase() +
-                (word.length > 1 ? word.substring(1).toLowerCase() : '')
-            : '')
-        .join(' ');
   }
 
   void _showMeetingNotesDialog() {
@@ -3824,7 +3772,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
               Row(
                 children: [
                   Icon(
-                    isMeeting ? Icons.groups_rounded : _getIconForType(title),
+                    isMeeting ? Icons.groups_rounded : getIconForType(title, context),
                     color: color,
                   ),
                   const SizedBox(width: 8),
@@ -4881,20 +4829,8 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
 
     return _events
         .where((event) =>
-            _normalizeType(event.type) == _normalizeType(_selectedEventType))
+            normalizeType(event.type) == normalizeType(_selectedEventType))
         .toList();
-  }
-
-  // Helper method to normalize type strings for consistent matching
-  String _normalizeType(String type) {
-    return type
-        .trim()
-        .split(' ')
-        .map((word) => word.isNotEmpty
-            ? word[0].toUpperCase() +
-                (word.length > 1 ? word.substring(1).toLowerCase() : '')
-            : '')
-        .join(' ');
   }
 
   // Build event type filter chips based on society requirements
@@ -5166,7 +5102,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                       backgroundColor: typeColor.withOpacity(0.15),
                       radius: 16,
                       child: Icon(
-                        _getIconForType(event.type),
+                        getIconForType(event.type, context),
                         color: typeColor,
                         size: 16,
                       ),
@@ -5260,7 +5196,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                         backgroundColor: typeColor.withOpacity(0.15),
                         radius: 20,
                         child: Icon(
-                          _getIconForType(event.type),
+                          getIconForType(event.type, context),
                           color: typeColor,
                           size: 18,
                         ),
@@ -5639,16 +5575,6 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
         );
       },
     );
-  }
-
-  // Helper to get appropriate icons for different event types
-  IconData _getIconForType(String type) {
-    final lowerType = type.toLowerCase();
-    if (lowerType.contains('service')) return Icons.volunteer_activism;
-    if (lowerType.contains('tutor')) return Icons.school;
-    if (lowerType.contains('meeting')) return Icons.groups;
-    if (lowerType.contains('leader')) return Icons.emoji_people;
-    return Icons.event;
   }
 
   // Helper method to get color based on event type
@@ -7763,20 +7689,8 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
 
     return _events
         .where((event) =>
-            _normalizeType(event.type) == _normalizeType(_selectedEventType))
+            normalizeType(event.type) == normalizeType(_selectedEventType))
         .toList();
-  }
-
-  // Helper method to normalize type strings for consistent matching
-  String _normalizeType(String type) {
-    return type
-        .trim()
-        .split(' ')
-        .map((word) => word.isNotEmpty
-            ? word[0].toUpperCase() +
-                (word.length > 1 ? word.substring(1).toLowerCase() : '')
-            : '')
-        .join(' ');
   }
 
   // Build event type filter chips based on society requirements
@@ -8347,7 +8261,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                 backgroundColor: _getColorForEventType(event.type, context)
                     .withOpacity(0.15),
                 child: Icon(
-                  _getIconForType(event.type),
+                  getIconForType(event.type, context),
                   color: _getColorForEventType(event.type, context),
                 ),
               ),
@@ -8541,7 +8455,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                       backgroundColor: typeColor.withOpacity(0.15),
                       radius: 20,
                       child: Icon(
-                        _getIconForType(event.type),
+                        getIconForType(event.type, context),
                         color: typeColor,
                         size: 18,
                       ),
@@ -8771,16 +8685,6 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
     return DateFormat.jm().format(dateTime);
   }
 
-  // Helper to get appropriate icons for different event types
-  IconData _getIconForType(String type) {
-    final lowerType = type.toLowerCase();
-    if (lowerType.contains('service')) return Icons.volunteer_activism;
-    if (lowerType.contains('tutor')) return Icons.school;
-    if (lowerType.contains('meeting')) return Icons.groups;
-    if (lowerType.contains('leader')) return Icons.emoji_people;
-    return Icons.event;
-  }
-
   // Helper method to get color based on event type
   Color _getColorForEventType(String type, BuildContext context) {
     final lowerType = type.toLowerCase();
@@ -8936,110 +8840,6 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
       print('Error fetching collections: $e');
     }
   }
-
-  // Add this to AdminAttendancePage class as a new method
-  Widget _buildTodaysEventsSection() {
-    // Filter today's events
-    final now = DateTime.now();
-    final todaysEvents = _events.where((event) {
-      return event.date.year == now.year &&
-          event.date.month == now.month &&
-          event.date.day == now.day;
-    }).toList();
-
-    // If no events today, don't show the section
-    if (todaysEvents.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.event_available,
-                    color: Theme.of(context).colorScheme.onPrimary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Today's Events",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                    Text(
-                      DateFormat('EEEE, MMMM d').format(now),
-                      style: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onPrimaryContainer
-                            .withOpacity(0.7),
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                Chip(
-                  label: Text(
-                    '${todaysEvents.length} ${todaysEvents.length == 1 ? 'event' : 'events'}',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                ),
-              ],
-            ),
-          ),
-
-          // Event list
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: todaysEvents.length,
-            itemBuilder: (context, index) {
-              final event = todaysEvents[index];
-              return _buildTodaysEventItem(event);
-            },
-          ),
-
-          // Bottom padding
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
 }
 
 class AdminListPage extends StatefulWidget {
@@ -9192,7 +8992,7 @@ enum SortOrder {
     if (_selectedHourType != null && _selectedHourType != 'All') {
       filteredUsers = filteredUsers.where((user) {
         return user.completedHours.any((hour) => 
-          _normalizeType(hour.type) == _normalizeType(_selectedHourType!));
+          normalizeType(hour.type) == normalizeType(_selectedHourType!));
       }).toList();
     }
 
@@ -9238,18 +9038,99 @@ enum SortOrder {
 
   double _getHoursByType(UserProfile user, String type) {
     return user.completedHours
-        .where((hour) => _normalizeType(hour.type) == _normalizeType(type))
+        .where((hour) => normalizeType(hour.type) == normalizeType(type))
         .fold(0.0, (sum, hour) => sum + hour.hours);
   }
 
-  // Helper method to normalize type strings for consistent matching
-  String _normalizeType(String type) {
-    // Convert to title case for consistent comparison
-    return type.trim().split(' ').map((word) => 
-      word.isNotEmpty ? 
-        word[0].toUpperCase() + (word.length > 1 ? word.substring(1).toLowerCase() : '') : 
-        ''
-    ).join(' ');
+  // Helper to build hour summary card in user details dialog
+  Widget _buildHourTypeCards(UserProfile user) {
+    final List<Widget> cards = [];
+    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    
+    // Total hours card (always show)
+    cards.add(
+      Expanded(
+        child: _buildHourSummaryCard(
+          'Total',
+          _getTotalHours(user).toStringAsFixed(1),
+          Icons.watch_later,
+          Theme.of(context).colorScheme.primary,
+        ),
+      )
+    );
+    
+    // Meeting hours (always include)
+    cards.add(
+      Expanded(
+        child: _buildHourSummaryCard(
+          'Meeting',
+          _getHoursByType(user, 'Meeting').toStringAsFixed(1),
+          Icons.groups,
+          Theme.of(context).colorScheme.tertiary,
+        ),
+      )
+    );
+    
+    // Add cards for each active requirement type
+    if (society != null) {
+      for (final req in society.hourRequirements) {
+        if (req.isActive && req.type != 'Meeting') {
+          cards.add(
+            Expanded(
+              child: _buildHourSummaryCard(
+                req.type,
+                _getHoursByType(user, req.type).toStringAsFixed(1),
+                _getIconForHourType(req.type),
+                _getColorForHourType(req.type, context),
+              ),
+            )
+          );
+        }
+      }
+    }
+    
+    return Row(
+      children: cards,
+    );
+  }
+
+  // Helper to generate hour breakdown text based on society requirements
+  String _generateHoursBreakdownText(UserProfile user) {
+    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    if (society == null) return '';
+    
+    // If filtered by specific type
+    if (_selectedHourType != null && _selectedHourType != 'All') {
+      final selectedHours = _getHoursByType(user, _selectedHourType!);
+      return '${selectedHours.toStringAsFixed(1)} ${_selectedHourType} hrs';
+    }
+    
+    // Type abbreviations
+    final StringBuffer text = StringBuffer();
+    
+    // Always include Meeting (special case)
+    final meetingHours = _getHoursByType(user, 'Meeting');
+    text.write('M: ${meetingHours.toStringAsFixed(1)}');
+    
+    // Add each active requirement type
+    for (final req in society.hourRequirements) {
+      if (req.isActive && req.type != 'Meeting') {
+        // Create abbreviation from first letter or first two letters
+        String abbr;
+        if (req.type.isEmpty) {
+          abbr = '?';
+        } else if (req.type.length == 1) {
+          abbr = req.type;
+        } else {
+          abbr = req.type.substring(0, 1);
+        }
+        
+        final hours = _getHoursByType(user, req.type);
+        text.write(', $abbr: ${hours.toStringAsFixed(1)}');
+      }
+    }
+    
+    return text.toString();
   }
 
   @override
@@ -9373,15 +9254,16 @@ enum SortOrder {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              _buildOrderChip(
+                           Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                children: [
+                                  _buildOrderChip(
                                 SortOrder.ascending, '↑ Ascending', (setState) {}),
-                              const SizedBox(width: 8),
                               _buildOrderChip(
                                 SortOrder.descending, '↓ Descending', (setState) {}),
-                            ],
-                          ),
+                            ]
+                              ),
                           
                           const SizedBox(height: 24),
                           
@@ -9688,89 +9570,71 @@ enum SortOrder {
             itemCount: users.length,
             itemBuilder: (context, index) {
               final user = users[index];
-              
-              // Get total hours by type for the user
               final totalHours = _getTotalHours(user);
-              
-              // Generate hour breakdown text
-              final StringBuffer hoursText = StringBuffer();
-              if (_selectedHourType != null && _selectedHourType != 'All') {
-                // Show only selected type if filtered
-                final selectedHours = _getHoursByType(user, _selectedHourType!);
-                hoursText.write('${selectedHours.toStringAsFixed(1)} ${_selectedHourType} hrs');
-              } else {
-                // Type abbreviations
-                final meetingHours = _getHoursByType(user, 'Meeting');
-                final serviceHours = _getHoursByType(user, 'Service');
-                final tutoringHours = _getHoursByType(user, 'Tutoring');
-                
-                hoursText.write('S: ${serviceHours.toStringAsFixed(1)}, ');
-                hoursText.write('T: ${tutoringHours.toStringAsFixed(1)}, ');
-                hoursText.write('M: ${meetingHours.toStringAsFixed(1)}');
-              }
-              
-              final isEvenRow = index % 2 == 0;
-              
-              return Container(
-                color: isEvenRow 
-                    ? Theme.of(context).colorScheme.surface
-                    : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.2),
-                child: InkWell(
-                  onTap: () {
-                    // Expand to show details (maybe open in a side panel or dialog)
-                    _showUserDetailsDialog(user);
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                    child: Row(
-                      children: [
-                        // Name column
-                        Expanded(
-                          flex: 3,
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 16,
-                                backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                                child: Text(
-                                  user.name.isNotEmpty ? user.name[0] : '?',
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.primary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  user.name,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
+    
+    // Generate hour breakdown text
+    final hoursText = _generateHoursBreakdownText(user);
+    
+    final isEvenRow = index % 2 == 0;
+    
+    return Container(
+      color: isEvenRow 
+          ? Theme.of(context).colorScheme.surface
+          : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.2),
+      child: InkWell(
+        onTap: () {
+          _showUserDetailsDialog(user);
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          child: Row(
+            children: [
+              // Name column
+              Expanded(
+                flex: 3,
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                      child: Text(
+                        user.name.isNotEmpty ? user.name[0] : '?',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold,
                         ),
-                        // Total hours column
-                        Expanded(
-                          flex: 2,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${totalHours.toStringAsFixed(1)} hrs',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              Text(
-                                hoursText.toString(),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Dues paid column
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        user.name,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Total hours column
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${totalHours.toStringAsFixed(1)} hrs',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      hoursText,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
                         Expanded(
                           child: Center(
                             child: IconButton(
@@ -9820,6 +9684,7 @@ enum SortOrder {
       ],
     );
   }
+  
 
   Widget _buildUserCardList(List<UserProfile> users) {
     // Card-based list for mobile screens
@@ -9876,14 +9741,14 @@ enum SortOrder {
     
     // Sum hours by type
     for (final hour in user.completedHours) {
-      final normalizedType = _normalizeType(hour.type);
+      final normalizedType = normalizeType(hour.type);
       if (hoursByType.containsKey(normalizedType)) {
         hoursByType[normalizedType] = (hoursByType[normalizedType] ?? 0) + hour.hours;
         totalHours += hour.hours;
-      } else if (typeAbbreviations.keys.any((k) => _normalizeType(k) == normalizedType)) {
+      } else if (typeAbbreviations.keys.any((k) => normalizeType(k) == normalizedType)) {
         // Try to find a matching type with different capitalization
         final matchingType = typeAbbreviations.keys.firstWhere(
-          (k) => _normalizeType(k) == normalizedType,
+          (k) => normalizeType(k) == normalizedType,
           orElse: () => normalizedType,
         );
         hoursByType[matchingType] = (hoursByType[matchingType] ?? 0) + hour.hours;
@@ -9906,7 +9771,7 @@ enum SortOrder {
     // Filter hours by selected type if needed
     final List<CompletedUserHour> filteredHours = _selectedHourType != null && _selectedHourType != 'All'
         ? user.completedHours.where((hour) => 
-            _normalizeType(hour.type) == _normalizeType(_selectedHourType!)).toList()
+            normalizeType(hour.type) == normalizeType(_selectedHourType!)).toList()
         : user.completedHours;
 
     return Card(
@@ -9975,21 +9840,42 @@ enum SortOrder {
     );
   }
 
-  // Helper method for sort options list in sidebar
+  // Update the sort options list to be dynamic
   Widget _buildSortOptionsList() {
-    return Column(
-      children: [
-        _buildSortOptionTile(SortField.name, 'Name'),
-        _buildSortOptionTile(SortField.totalHours, 'Total Hours'),
-        if (_selectedHourType != null && _selectedHourType != 'All')
-          _buildSortOptionTile(SortField.serviceHours, '$_selectedHourType Hours')
-        else ...[
-          _buildSortOptionTile(SortField.serviceHours, 'Service Hours'),
-          _buildSortOptionTile(SortField.tutoringHours, 'Tutoring Hours'),
-          _buildSortOptionTile(SortField.meetingHours, 'Meeting Hours'),
-        ],
-      ],
-    );
+    // Always include these basic sort options
+    final List<Widget> options = [
+      _buildSortOptionTile(SortField.name, 'Name'),
+      _buildSortOptionTile(SortField.totalHours, 'Total Hours'),
+    ];
+    
+    // Get society to determine which hour types to include
+    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    if (society != null) {
+      // If a specific type is selected, only show that one
+      if (_selectedHourType != null && _selectedHourType != 'All') {
+        options.add(_buildSortOptionTile(SortField.serviceHours, '$_selectedHourType Hours'));
+      } else {
+        // Otherwise show for each active requirement type
+        // Always include Meeting hours
+        options.add(_buildSortOptionTile(SortField.meetingHours, 'Meeting Hours'));
+        
+        // Add option for each active requirement type
+        for (final req in society.hourRequirements) {
+          if (req.isActive && req.type != 'Meeting') {
+            options.add(_buildSortOptionTile(
+              // We'll still use serviceHours or tutoringHours as the enum value,
+              // but the display name will match the requirement type
+              req.type.toLowerCase().contains('tutor') 
+                  ? SortField.tutoringHours 
+                  : SortField.serviceHours,
+              '${req.type} Hours'
+            ));
+          }
+        }
+      }
+    }
+    
+    return Column(children: options);
   }
 
   // Helper method for sort option tile
@@ -10060,15 +9946,38 @@ enum SortOrder {
 
   // Show detailed user information
   void _showUserDetailsDialog(UserProfile user) {
+    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    if (society == null) return;
+
     // Group hours by type
     final Map<String, List<CompletedUserHour>> hoursByType = {};
     
+    // Initialize with empty lists for all society requirement types
+    hoursByType['Meeting'] = [];
+
+    for (final req in society.hourRequirements) {
+      if (req.isActive) {
+        hoursByType[req.type] = [];
+      }
+    }
+
+    // Categorize hours
     for (final hour in user.completedHours) {
       final type = hour.type;
-      if (!hoursByType.containsKey(type)) {
-        hoursByType[type] = [];
+      if (hoursByType.containsKey(type)) {
+        hoursByType[type]!.add(hour);
+      } else {
+        // Try to find a matching type with different capitalization
+        final matchingType = hoursByType.keys.firstWhere(
+          (k) => normalizeType(k) == normalizeType(type),
+          orElse: () => 'Other',
+        );
+        
+        if (!hoursByType.containsKey(matchingType)) {
+          hoursByType[matchingType] = [];
+        }
+        hoursByType[matchingType]!.add(hour);
       }
-      hoursByType[type]!.add(hour);
     }
     
     showDialog(
@@ -10140,30 +10049,7 @@ enum SortOrder {
                 // Hour summary
                 Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _buildHourSummaryCard(
-                          'Total Hours',
-                          _getTotalHours(user).toStringAsFixed(1),
-                          Icons.watch_later,
-                          Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                      ...hoursByType.entries.map((entry) => 
-                        Expanded(
-                          child: _buildHourSummaryCard(
-                            entry.key,
-                            entry.value.fold<double>(
-                              0, (sum, hour) => sum + hour.hours
-                            ).toStringAsFixed(1),
-                            _getIconForHourType(entry.key),
-                            _getColorForHourType(entry.key, context),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  child:_buildHourTypeCards(user),
                 ),
                 
                 // Tab navigator for different hour types
@@ -10290,27 +10176,59 @@ enum SortOrder {
   }
 
   // Helper to get icon for hour type
+  // Helper to get icon for hour type - dynamic based on type name
   IconData _getIconForHourType(String type) {
     final normalizedType = type.toLowerCase();
-    if (normalizedType.contains('service')) return Icons.volunteer_activism;
-    if (normalizedType.contains('tutor')) return Icons.school;
-    if (normalizedType.contains('meeting')) return Icons.groups;
-    if (normalizedType.contains('leader')) return Icons.emoji_people;
+    if (normalizedType.contains('service') || normalizedType.contains('volunteer')) 
+      return Icons.volunteer_activism;
+    if (normalizedType.contains('tutor') || normalizedType.contains('teach')) 
+      return Icons.school;
+    if (normalizedType.contains('meet')) 
+      return Icons.groups;
+    if (normalizedType.contains('lead') || normalizedType.contains('officer')) 
+      return Icons.emoji_people;
+    if (normalizedType.contains('fund') || normalizedType.contains('donat')) 
+      return Icons.attach_money;
+    
+    // Default icon if no match
     return Icons.watch_later;
   }
 
   // Helper to get color for hour type
   Color _getColorForHourType(String type, BuildContext context) {
+    // Use the society's categories to determine colors systematically
+    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    if (society == null) return Theme.of(context).colorScheme.primary;
+    
     final normalizedType = type.toLowerCase();
-    if (normalizedType.contains('service')) return Theme.of(context).colorScheme.primary;
-    if (normalizedType.contains('tutor')) return Theme.of(context).colorScheme.secondary;
-    if (normalizedType.contains('meeting')) return Theme.of(context).colorScheme.tertiary;
-    if (normalizedType.contains('leader')) return Colors.amber;
-    return Theme.of(context).colorScheme.primary;
+    
+    // Meeting is special
+    if (normalizedType.contains('meet')) 
+      return Theme.of(context).colorScheme.tertiary;
+    
+    // Build color palette based on requirement index
+    final List<Color> palette = [
+      Theme.of(context).colorScheme.primary,
+      Theme.of(context).colorScheme.secondary,
+      Colors.amber,
+      Colors.teal,
+      Colors.purple,
+      Colors.orange,
+      Colors.pink,
+      Colors.cyan,
+    ];
+    
+    // Find index of requirement
+    int index = society.hourRequirements.indexWhere(
+      (req) => normalizeType(req.type) == normalizeType(type)
+    );
+    
+    // Default to primary if not found
+    if (index == -1) return Theme.of(context).colorScheme.primary;
+    
+    // Return color from palette, wrapping around if needed
+    return palette[index % palette.length];
   }
-  
-  // Keep existing methods: _buildSortChip, _showFilterOptions, _toggleDuesStatus,
-  // _openCustomEventForm, _deleteServiceHour, _openBulkCustomEventForm, etc.
   
   // Existing method for order chip
   Widget _buildOrderChip(SortOrder order, String label, StateSetter setState) {
@@ -12554,6 +12472,7 @@ class HourRequirement {
   final double hoursNeeded;
   final String description;
   final bool isActive;
+  final String iconName;
 
   HourRequirement({
     required this.id,
@@ -12561,6 +12480,7 @@ class HourRequirement {
     required this.hoursNeeded,
     required this.description,
     this.isActive = true,
+    this.iconName = 'workspaces',
   });
 
   factory HourRequirement.fromJson(Map<String, dynamic> json) {
@@ -12570,6 +12490,171 @@ class HourRequirement {
       hoursNeeded: json['hours_needed'].toDouble(),
       description: json['description'],
       isActive: json['is_active'] ?? true,
+      iconName: json['icon_name'] ?? 'workspaces',
+    );
+  }
+}
+
+const Map<String, IconData> _kAppIcons = {
+  // Original Icons
+  'work': Icons.work_outline,
+  'service': Icons.volunteer_activism_outlined,
+  'tutoring': Icons.school_outlined,
+  'leadership': Icons.group_outlined,
+  'event': Icons.event_outlined,
+  'meeting': Icons.groups_outlined,
+  'fundraising': Icons.monetization_on_outlined,
+  'sports': Icons.sports_soccer_outlined,
+  'art': Icons.palette_outlined,
+  'music': Icons.music_note_outlined,
+
+  // Added Icons
+  'science': Icons.science_outlined,
+  'tech': Icons.computer_outlined,
+  'environment': Icons.eco_outlined,
+  'health': Icons.local_hospital_outlined,
+  'community': Icons.people_alt_outlined,
+  'culture': Icons.museum_outlined,
+  'writing': Icons.edit_note_outlined,
+  'reading': Icons.menu_book_outlined,
+  'debate': Icons.record_voice_over_outlined,
+  'chess': Icons.grid_view_outlined, // Using grid icon as placeholder
+  'robotics': Icons.precision_manufacturing_outlined,
+  'gardening': Icons.yard_outlined,
+  'cooking': Icons.soup_kitchen_outlined,
+  'construction': Icons.construction_outlined,
+  'photography': Icons.camera_alt_outlined,
+  'film': Icons.movie_outlined,
+  'volunteer': Icons.volunteer_activism, // Filled version for emphasis
+  'charity': Icons.favorite_border_outlined,
+  'mentoring': Icons.supervisor_account_outlined,
+  'research': Icons.biotech_outlined,
+  'travel': Icons.explore_outlined,
+  'language': Icons.translate_outlined,
+  'code': Icons.code_outlined,
+  'design': Icons.design_services_outlined,
+  'agriculture': Icons.agriculture_outlined,
+  'workspaces': Icons.workspaces,
+
+  // Default/Fallback
+  'default': Icons.help_outline,
+};
+
+// Helper function to get IconData from name, with a fallback
+IconData getIconDataByName(String? name) {
+  return _kAppIcons[name] ?? _kAppIcons['default']!;
+}
+
+class IconSelector extends StatefulWidget {
+  final String initialValue; // The initial icon name (e.g., 'service')
+  final ValueChanged<String> onChanged; // Callback when icon changes
+
+  const IconSelector({
+    Key? key,
+    required this.initialValue,
+    required this.onChanged,
+  }) : super(key: key);
+
+  @override
+  _IconSelectorState createState() => _IconSelectorState();
+}
+
+class _IconSelectorState extends State<IconSelector> {
+  late String _selectedIconName;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIconName = widget.initialValue;
+    // Ensure the initial value exists in our map, otherwise use default
+    if (!_kAppIcons.containsKey(_selectedIconName)) {
+      _selectedIconName = 'default';
+    }
+  }
+
+  // Function to show the icon selection bottom sheet
+  void _showIconSelectionSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder( // Optional: nice rounded corners
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) {
+        // Use a GridView to display icons
+        return GridView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: _kAppIcons.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 5, // Adjust column count as needed
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+          ),
+          itemBuilder: (context, index) {
+            final iconName = _kAppIcons.keys.elementAt(index);
+            final iconData = _kAppIcons.values.elementAt(index);
+            final isSelected = iconName == _selectedIconName;
+
+            return InkWell(
+              onTap: () {
+                // Update state and call callback
+                setState(() {
+                  _selectedIconName = iconName;
+                });
+                widget.onChanged(_selectedIconName);
+                Navigator.pop(sheetContext); // Close the bottom sheet
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isSelected ? Theme.of(context).primaryColorLight.withOpacity(0.3) : Colors.transparent,
+                  border: border.Border.all(
+                    color: isSelected ? Theme.of(context).primaryColor : Colors.grey.shade300,
+                    width: isSelected ? 2 : 1,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Tooltip(
+                  message: iconName, // Show name on hover/long press
+                  child: Icon(
+                    iconData,
+                    size: 30,
+                    color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).iconTheme.color,
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Display the currently selected icon and a button to change it
+    return InputDecorator(
+      decoration: const InputDecoration(
+        labelText: 'Icon',
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      child: InkWell(
+         // Use InkWell for tap feedback
+        onTap: () => _showIconSelectionSheet(context),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(getIconDataByName(_selectedIconName)),
+                const SizedBox(width: 12),
+                Text(_selectedIconName),
+              ],
+            ),
+            const Icon(Icons.arrow_drop_down, color: Colors.grey), // Indicator
+          ],
+        ),
+      ),
     );
   }
 }
@@ -14982,4 +15067,135 @@ class SocietySelectionPage extends StatelessWidget {
     // Navigate to login page and remove all routes
     navigatorState.pushNamedAndRemoveUntil('/', (route) => false);
   }
+}
+
+// Helper method to normalize type strings for consistent matching
+String normalizeType(String type) {
+    // Convert to title case for consistent comparison
+    return type.trim().split(' ').map((word) => 
+      word.isNotEmpty ? 
+        word[0].toUpperCase() + (word.length > 1 ? word.substring(1).toLowerCase() : '') : 
+        ''
+    ).join(' ');
+  }
+
+/// Gets the appropriate icon name for an event type based on society requirements
+/// 
+/// This function looks up the matching requirement in the honor society
+/// and returns its configured icon name. Falls back to defaults if no match is found.
+/// 
+/// Parameters:
+/// - context: BuildContext - Required for provider access
+/// - eventType: String - The type of event to find an icon for
+/// 
+/// Returns:
+/// - String - The icon name to use
+String getIconNameForEventType(BuildContext context, String eventType) {
+  // Early exit if no event type provided
+  if (eventType.isEmpty) return 'workspaces';
+  // Get the current society from provider
+  final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+  if (society == null) {
+    // Fallback if no society is available
+    return _getDefaultIconNameForType(eventType);
+  }
+  
+  // Special case for Meeting type (often doesn't have a requirement object)
+  if (eventType.toLowerCase() == 'meeting') {
+    // Check if there's a custom Meeting requirement first
+    final meetingReq = society.hourRequirements.firstWhere(
+      (req) => req.type.toLowerCase() == 'meeting',
+      orElse: () => HourRequirement(
+        id: -1, 
+        type: 'Meeting', 
+        hoursNeeded: 0, 
+        description: '',
+        iconName: 'leadership', // Default meeting icon
+      ),
+    );
+    return meetingReq.iconName;
+  }
+  
+  // Find the requirement that matches this event type (case-insensitive)
+  // Use normalizeType extension for consistent matching
+  final normalizedEventType = normalizeType(eventType);
+  
+  // First try exact match
+  for (final req in society.hourRequirements) {
+    if (normalizeType(req.type) == normalizedEventType && req.isActive) {
+      return req.iconName;
+    }
+  }
+  
+  // Try partial match if no exact match found
+  for (final req in society.hourRequirements) {
+    if (req.isActive && 
+        (normalizedEventType.contains(normalizeType(req.type)) || 
+         normalizeType(req.type).contains(normalizedEventType))) {
+      return req.iconName;
+    }
+  }
+  
+  // No matching requirement found, fall back to default
+  return _getDefaultIconNameForType(eventType);
+}
+
+IconData getIconForType(String type, BuildContext context) {
+  final iconName = getIconNameForEventType(context, type);
+ return getIconDataByName(iconName);
+}
+
+/// Helper function to get a default icon name based on event type
+/// Used as fallback when no matching requirement is found
+String _getDefaultIconNameForType(String eventType) {
+  final lowerType = eventType.toLowerCase();
+  
+  if (lowerType.contains('service') || lowerType.contains('volunteer')) {
+    return 'volunteer_activism';
+  }
+  if (lowerType.contains('tutor') || lowerType.contains('teach')) {
+    return 'school';
+  }
+  if (lowerType.contains('meeting')) {
+    return 'groups';
+  }
+  if (lowerType.contains('leader') || lowerType.contains('officer')) {
+    return 'emoji_people';
+  }
+  if (lowerType.contains('fundrais') || lowerType.contains('donat')) {
+    return 'attach_money';
+  }
+  if (lowerType.contains('communit')) {
+    return 'public';
+  }
+  if (lowerType.contains('environment') || lowerType.contains('garden')) {
+    return 'nature';
+  }
+  if (lowerType.contains('health') || lowerType.contains('medical')) {
+    return 'health_and_safety';
+  }
+  if (lowerType.contains('tech') || lowerType.contains('computer')) {
+    return 'computer';
+  }
+  if (lowerType.contains('art')) {
+    return 'palette';
+  }
+  if (lowerType.contains('music')) {
+    return 'music_note';
+  }
+  if (lowerType.contains('sport') || lowerType.contains('athletic')) {
+    return 'sports';
+  }
+  if (lowerType.contains('research') || lowerType.contains('science')) {
+    return 'science';
+  }
+  if (lowerType.contains('writing') || lowerType.contains('essay')) {
+    return 'edit_note';
+  }
+  if (lowerType.contains('mentor')) {
+    return 'psychology';
+  }
+  
+  // Default icon if no match
+  return 'workspaces';
 }

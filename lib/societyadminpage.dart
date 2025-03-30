@@ -352,6 +352,7 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
   List<HourRequirement> _requirements = [];
   bool _isLoading = false;
   bool _hasChanges = false;
+  
 
   @override
   void initState() {
@@ -360,8 +361,7 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
   }
 
   void _loadRequirements() {
-    final society =
-        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     if (society != null) {
       setState(() {
         _requirements = List.from(society.hourRequirements);
@@ -370,14 +370,16 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
   }
 
   void _showEditRequirementDialog(HourRequirement requirement) {
-    String type = requirement.type;
-    String description = requirement.description;
-    double hours = requirement.hoursNeeded;
-    bool isActive = requirement.isActive;
+  String type = requirement.type;
+  String description = requirement.description;
+  double hours = requirement.hoursNeeded;
+  bool isActive = requirement.isActive;
+  String iconName = requirement.iconName; // New field for icon
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
+  showDialog(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
         title: const Text('Edit Hour Requirement'),
         content: SingleChildScrollView(
           child: Column(
@@ -408,15 +410,23 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                   border: OutlineInputBorder(),
                 ),
                 controller: TextEditingController(text: hours.toString()),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 onChanged: (value) => hours = double.tryParse(value) ?? hours,
+              ),
+              const SizedBox(height: 16),
+              // New icon selector component
+              IconSelector(
+                initialValue: iconName,
+                onChanged: (value) {
+                  setState(() {
+                    iconName = value;
+                  });
+                },
               ),
               const SizedBox(height: 16),
               SwitchListTile(
                 title: const Text('Active'),
-                subtitle: const Text(
-                    'Inactive requirements won\'t be counted or displayed'),
+                subtitle: const Text('Inactive requirements won\'t be counted or displayed'),
                 value: isActive,
                 onChanged: (value) => setState(() => isActive = value),
               ),
@@ -442,25 +452,16 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
               if (type.isNotEmpty && hours > 0) {
                 setState(() => _isLoading = true);
                 try {
-                  final societyId =
-                      Provider.of<SocietyProvider>(context, listen: false)
-                          .currentSociety
-                          ?.id;
-
-                  if (societyId == null) throw Exception('No society selected');
-
-                  await Supabase.instance.client
-                      .from('hour_requirements')
-                      .update({
+                  await supabase.from('hour_requirements').update({
                     'type': type,
                     'description': description,
                     'hours_needed': hours,
                     'is_active': isActive,
+                    'icon_name': iconName, // Update the icon name
                   }).eq('id', requirement.id);
 
                   setState(() {
-                    final index =
-                        _requirements.indexWhere((r) => r.id == requirement.id);
+                    final index = _requirements.indexWhere((r) => r.id == requirement.id);
                     if (index != -1) {
                       _requirements[index] = HourRequirement(
                         id: requirement.id,
@@ -468,19 +469,15 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                         description: description,
                         hoursNeeded: hours,
                         isActive: isActive,
+                        iconName: iconName, // Include the icon name
                       );
                     }
                     _hasChanges = true;
                   });
 
-                  // Refresh the society provider
-                  await Provider.of<SocietyProvider>(context, listen: false)
-                      .refreshCurrentSociety();
-
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Requirement updated successfully')),
+                      const SnackBar(content: Text('Requirement updated successfully')),
                     );
                     Navigator.pop(context);
                   }
@@ -499,9 +496,10 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
           ),
         ],
       ),
-    );
-  }
-
+    ),
+  );
+}
+  
   void _showDeleteConfirmation(HourRequirement requirement) {
     showDialog(
       context: context,
@@ -563,13 +561,16 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
   }
 
   void _showAddRequirementDialog() {
-    String type = '';
-    String description = '';
-    double hours = 0;
+  String type = '';
+  String description = '';
+  double hours = 0;
+  String iconName = 'workspaces'; // Default icon
+  final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
+  showDialog(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
         title: const Text('Add Hour Requirement'),
         content: SingleChildScrollView(
           child: Column(
@@ -600,9 +601,18 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                   hintText: 'E.g., 10.0',
                   border: OutlineInputBorder(),
                 ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 onChanged: (value) => hours = double.tryParse(value) ?? 0,
+              ),
+              const SizedBox(height: 16),
+              // New icon selector component
+              IconSelector(
+                initialValue: iconName,
+                onChanged: (value) {
+                  setState(() {
+                    iconName = value;
+                  });
+                },
               ),
             ],
           ),
@@ -617,38 +627,23 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
               if (type.isNotEmpty && hours > 0) {
                 setState(() => _isLoading = true);
                 try {
-                  final societyId =
-                      Provider.of<SocietyProvider>(context, listen: false)
-                          .currentSociety
-                          ?.id;
-
-                  if (societyId == null) throw Exception('No society selected');
-
-                  final response = await Supabase.instance.client
-                      .from('hour_requirements')
-                      .insert({
-                        'society_id': societyId,
-                        'type': type,
-                        'description': description,
-                        'hours_needed': hours,
-                        'is_active': true,
-                      })
-                      .select()
-                      .single();
+                  final response = await supabase.from('hour_requirements').insert({
+                    'society_id': society!.id,
+                    'type': type,
+                    'description': description,
+                    'hours_needed': hours,
+                    'is_active': true,
+                    'icon_name': iconName, // Include the icon name
+                  }).select().single();
 
                   setState(() {
                     _requirements.add(HourRequirement.fromJson(response));
                     _hasChanges = true;
                   });
 
-                  // Refresh the society provider
-                  await Provider.of<SocietyProvider>(context, listen: false)
-                      .refreshCurrentSociety();
-
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Requirement added successfully')),
+                      const SnackBar(content: Text('Requirement added successfully')),
                     );
                     Navigator.pop(context);
                   }
@@ -667,9 +662,11 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
+  
   @override
   Widget build(BuildContext context) {
     return Consumer<SocietyProvider>(builder: (context, provider, _) {

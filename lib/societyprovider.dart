@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import 'main.dart';
-import 'package:flutter/material.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 
 /// Provider for managing honor society data and state throughout the app
 class SocietyProvider extends ChangeNotifier {
@@ -81,7 +79,8 @@ class SocietyProvider extends ChangeNotifier {
                 type,
                 description,
                 hours_needed,
-                is_active
+                is_active,
+                icon_name
               )
             ),
             is_admin
@@ -194,7 +193,8 @@ class SocietyProvider extends ChangeNotifier {
                 type,
                 description,
                 hours_needed,
-                is_active
+                is_active,
+                icon_name
               )
             ),
             is_admin
@@ -258,7 +258,8 @@ class SocietyProvider extends ChangeNotifier {
             type,
             description,
             hours_needed,
-            is_active
+            is_active,
+            icon_name
           )
         ''').eq('id', societyId).single();
 
@@ -364,6 +365,79 @@ class SocietyProvider extends ChangeNotifier {
       return false;
     } catch (e) {
       print('Error creating society: $e');
+      return false;
+    }
+  }
+
+  /// Create a new hour requirement with icon
+  Future<bool> createHourRequirement(
+      String type, 
+      String description, 
+      double hoursNeeded,
+      String iconName) async {
+    if (_currentSociety == null) return false;
+    
+    try {
+      final response = await Supabase.instance.client.from('hour_requirements').insert({
+        'society_id': _currentSociety!.id,
+        'type': type,
+        'description': description,
+        'hours_needed': hoursNeeded,
+        'is_active': true,
+        'icon_name': iconName,
+      }).select().single();
+      
+      if (response != null) {
+        // Add to local data
+        final newRequirement = HourRequirement.fromJson(response);
+        _currentSociety!.hourRequirements.add(newRequirement);
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('Error creating hour requirement: $e');
+      return false;
+    }
+  }
+  
+  /// Update an hour requirement including its icon
+  Future<bool> updateHourRequirement(
+      int requirementId,
+      String type, 
+      String description, 
+      double hoursNeeded,
+      bool isActive,
+      String iconName) async {
+    if (_currentSociety == null) return false;
+    
+    try {
+      await Supabase.instance.client.from('hour_requirements').update({
+        'type': type,
+        'description': description,
+        'hours_needed': hoursNeeded,
+        'is_active': isActive,
+        'icon_name': iconName,
+      }).eq('id', requirementId);
+      
+      // Update local data
+      if (_currentSociety != null) {
+        final index = _currentSociety!.hourRequirements.indexWhere((r) => r.id == requirementId);
+        if (index != -1) {
+          _currentSociety!.hourRequirements[index] = HourRequirement(
+            id: requirementId,
+            type: type,
+            description: description,
+            hoursNeeded: hoursNeeded,
+            isActive: isActive,
+            iconName: iconName,
+          );
+          notifyListeners();
+        }
+      }
+      return true;
+    } catch (e) {
+      print('Error updating hour requirement: $e');
       return false;
     }
   }
