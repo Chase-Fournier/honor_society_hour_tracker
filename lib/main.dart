@@ -23,6 +23,7 @@ import 'snake.dart';
 import 'societyadminpage.dart';
 import 'societyprovider.dart';
 import 'societyadmindashboard.dart';
+import 'accountsettingspage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -652,7 +653,7 @@ class _HomePageState extends State<HomePage> {
 
             if (isSignedUp && isNotPresent) {
               final duration =
-                  _calculateDuration(timeSlot.time, timeSlot.endTime);
+                  NhsFormatUtils.calculateDuration(timeSlot.time, timeSlot.endTime);
 
               // Use normalized type for consistent matching
               final normalizedType = normalizeType(event.type);
@@ -770,13 +771,6 @@ class _HomePageState extends State<HomePage> {
         _collections = data.map((json) => Collection.fromJson(json)).toList();
       });
     }
-  }
-
-  double _calculateDuration(TimeOfDay startTime, TimeOfDay endTime) {
-    final startMinutes = startTime.hour * 60 + startTime.minute;
-    final endMinutes = endTime.hour * 60 + endTime.minute;
-    final duration = (endMinutes - startMinutes) / 60;
-    return duration;
   }
 
   // Updated method to create better looking progress bars with Material You styling
@@ -2295,7 +2289,7 @@ class _HomePageState extends State<HomePage> {
       await _logActivity(
         event.name,
         '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
-        _calculateDuration(timeSlot.time, timeSlot.endTime),
+        NhsFormatUtils.calculateDuration(timeSlot.time, timeSlot.endTime),
         'unsignup',
         userId,
       );
@@ -2392,7 +2386,7 @@ class _HomePageState extends State<HomePage> {
         await _logActivity(
           event.name,
           '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
-          _calculateDuration(timeSlot.time, timeSlot.endTime),
+          NhsFormatUtils.calculateDuration(timeSlot.time, timeSlot.endTime),
           'signup',
           userId,
         );
@@ -2639,7 +2633,7 @@ class _HomePageState extends State<HomePage> {
       await _logActivity(
         eventData['name'],
         '${formatter.format(swapRequest.startTime)} - ${formatter.format(swapRequest.endTime)}',
-        _calculateDuration(TimeOfDay.fromDateTime(swapRequest.startTime),
+        NhsFormatUtils.calculateDuration(TimeOfDay.fromDateTime(swapRequest.startTime),
             TimeOfDay.fromDateTime(swapRequest.endTime)),
         'swap',
         currentAttendeeId,
@@ -4421,6 +4415,13 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  void _navigateToAccountSettings() {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => const AccountSettingsPage()),
+  );
+}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -4618,6 +4619,25 @@ class _SettingsPageState extends State<SettingsPage> {
                     },
                     child: const Text('Update'),
                   ),
+                  // Then in the build method of SettingsPage, add this card somewhere appropriate:
+                  const SizedBox(height: 24.0),
+                    Card(
+                      elevation: 0,
+                      margin: const EdgeInsets.all(16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.account_circle,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        title: const Text('Account Settings'),
+                        subtitle: const Text('Update email and password'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _navigateToAccountSettings,
+                      ),
+                    ),
                   const SizedBox(height: 24.0),
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -8331,7 +8351,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                       const SizedBox(height: 4),
                       Text(
                         event.timeSlots.length == 1
-                            ? _formatTimeSlot(event.timeSlots.first)
+                            ? NhsFormatUtils.formatTimeSlot(event.timeSlots.first, context)
                             : '${event.timeSlots.length} time slots',
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -8618,7 +8638,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              '${_formatTimeOfDay(timeSlot.time)} - ${_formatTimeOfDay(timeSlot.endTime)}',
+                              '${NhsFormatUtils.formatTimeOfDay(timeSlot.time, context)} - ${NhsFormatUtils.formatTimeOfDay(timeSlot.endTime, context)}',
                               style: const TextStyle(
                                 fontSize: 13.0,
                                 fontWeight: FontWeight.w500,
@@ -8672,17 +8692,6 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
         ],
       ),
     );
-  }
-
-  String _formatTimeSlot(TimeSlot timeSlot) {
-    return '${_formatTimeOfDay(timeSlot.time)} - ${_formatTimeOfDay(timeSlot.endTime)}';
-  }
-
-  String _formatTimeOfDay(TimeOfDay time) {
-    final now = DateTime.now();
-    final dateTime =
-        DateTime(now.year, now.month, now.day, time.hour, time.minute);
-    return DateFormat.jm().format(dateTime);
   }
 
   // Helper method to get color based on event type
@@ -13347,7 +13356,7 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
 class UserProfile {
   final String name;
   final String id;
-  final List<CompletedUserHour> completedHours;
+  List<CompletedUserHour> completedHours;
   final bool hasPaidDues; // New field
 
   UserProfile({
@@ -15143,6 +15152,25 @@ String getIconNameForEventType(BuildContext context, String eventType) {
 IconData getIconForType(String type, BuildContext context) {
   final iconName = getIconNameForEventType(context, type);
  return getIconDataByName(iconName);
+}
+
+class NhsFormatUtils {
+  static String formatTimeSlot(TimeSlot timeSlot, BuildContext context) {
+    return '${formatTimeOfDay(timeSlot.time, context)} - ${formatTimeOfDay(timeSlot.endTime, context)}';
+  }
+  
+  static String formatTimeOfDay(TimeOfDay time, BuildContext context) {
+    final now = DateTime.now();
+    final dateTime = DateTime(now.year, now.month, now.day, time.hour, time.minute);
+    return DateFormat.jm().format(dateTime);
+  }
+  
+  static double calculateDuration(TimeOfDay startTime, TimeOfDay endTime) {
+    final startMinutes = startTime.hour * 60 + startTime.minute;
+    final endMinutes = endTime.hour * 60 + endTime.minute;
+    final difference = endMinutes - startMinutes;
+    return difference / 60.0;
+  }
 }
 
 /// Helper function to get a default icon name based on event type
