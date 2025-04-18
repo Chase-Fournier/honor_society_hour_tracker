@@ -9,6 +9,8 @@ import 'main.dart';
 import 'JoinRequestsAdmin.dart';
 import 'societyprovider.dart';
 import 'package:provider/provider.dart';
+import 'hourrequirement.dart';
+import 'iconselector.dart';
 
 class SocietyAdminPage extends StatefulWidget {
   const SocietyAdminPage({Key? key}) : super(key: key);

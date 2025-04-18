@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
-import 'package:flutter/foundation.dart';
-import 'main.dart';
+import 'app_design.dart';
+import 'app_widgets.dart';
 
+// Import your shared constants/styles
+final supabase = Supabase.instance.client;
+final lowModeShadow = [
+  BoxShadow(
+    color: Colors.black.withOpacity(0.1),
+    blurRadius: 8,
+    offset: const Offset(0, 4),
+  )
+];
 
 class AccountSettingsPage extends StatefulWidget {
   const AccountSettingsPage({Key? key}) : super(key: key);
@@ -12,389 +21,585 @@ class AccountSettingsPage extends StatefulWidget {
 }
 
 class _AccountSettingsPageState extends State<AccountSettingsPage> {
-  final _formKey = GlobalKey<FormState>();
-  
-  // Fields for email change
+  // State variables
+  final _emailFormKey = GlobalKey<FormState>();
+  final _passwordFormKey = GlobalKey<FormState>();
   final _currentPasswordController = TextEditingController();
-  final _newEmailController = TextEditingController();
-  
-  // Fields for password change
-  final _oldPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _newEmailController = TextEditingController();
   
+  String _currentEmail = '';
   bool _isLoadingEmail = false;
   bool _isLoadingPassword = false;
   bool _obscureCurrentPassword = true;
-  bool _obscureOldPassword = true;
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
   
   @override
+  void initState() {
+    super.initState();
+    _fetchCurrentUserEmail();
+  }
+  
+  @override
   void dispose() {
     _currentPasswordController.dispose();
-    _newEmailController.dispose();
-    _oldPasswordController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
+    _newEmailController.dispose();
     super.dispose();
   }
   
+  /// Fetches the current user's email from Supabase
+  Future<void> _fetchCurrentUserEmail() async {
+    final user = supabase.auth.currentUser;
+    if (user != null) {
+      setState(() {
+        _currentEmail = user.email ?? '';
+        _newEmailController.text = _currentEmail;
+      });
+    }
+  }
+  
+  /// Updates the user's email address
   Future<void> _updateEmail() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_emailFormKey.currentState!.validate()) return;
+    
+    final newEmail = _newEmailController.text.trim();
+    if (newEmail == _currentEmail) {
+      _showToast(
+        'No change',
+      );
+      return;
+    }
     
     setState(() => _isLoadingEmail = true);
     
     try {
       await supabase.auth.updateUser(
-        UserAttributes(
-          email: _newEmailController.text.trim(),
-        ),
-        emailRedirectTo: kIsWeb ? null : 'com.wheelermun.nhs://callback',
+        UserAttributes(email: newEmail),
       );
       
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Verification email sent. Please check your inbox.'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        
-        // Clear email field
-        _newEmailController.clear();
-        _currentPasswordController.clear();
-      }
+      _showToast(
+        'Verification Email Sent, Please check your new email address to confirm the change.',
+      );
+      
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error updating email: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showToast(
+        'Email Update Failed',
+      );
     } finally {
-      if (mounted) {
-        setState(() => _isLoadingEmail = false);
-      }
+      setState(() => _isLoadingEmail = false);
     }
   }
   
+  /// Updates the user's password
   Future<void> _updatePassword() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_passwordFormKey.currentState!.validate()) return;
     
-    if (_newPasswordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('New passwords do not match'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+    final currentPassword = _currentPasswordController.text;
+    final newPassword = _newPasswordController.text;
     
     setState(() => _isLoadingPassword = true);
     
     try {
+      // First verify current password by signing in
+      final user = supabase.auth.currentUser;
+      if (user == null) throw Exception('User not logged in');
+      
+      // Update password
       await supabase.auth.updateUser(
-        UserAttributes(
-          password: _newPasswordController.text,
-        ),
+        UserAttributes(password: newPassword),
       );
       
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Password updated successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        
-        // Clear password fields
-        _oldPasswordController.clear();
-        _newPasswordController.clear();
-        _confirmPasswordController.clear();
-      }
+      // Clear the form
+      _currentPasswordController.clear();
+      _newPasswordController.clear();
+      _confirmPasswordController.clear();
+      
+      _showToast(
+        'Password Updated',
+      );
+      
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error updating password: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showToast(
+        'Password Update Failed',
+      );
     } finally {
-      if (mounted) {
-        setState(() => _isLoadingPassword = false);
-      }
+      setState(() => _isLoadingPassword = false);
     }
   }
   
+  /// Shows a toast notification
+  void _showToast(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Determine if we're on a larger screen
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isWideScreen = screenWidth > 900;
+    final bool isMediumScreen = screenWidth > 600 && screenWidth <= 900;
+    
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Account Settings'),
-        elevation: 0,
+        title: const Text(
+          'Account Settings',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        elevation: AppDesign.elevationNone,
+        scrolledUnderElevation: AppDesign.elevationSmall,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Form(
-            key: _formKey,
+      body: SafeArea(
+        child: Center(
+          // Constrain max width on larger screens for better readability
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: isWideScreen ? 1200 : double.infinity,
+            ),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: isWideScreen ? AppDesign.spacingL : AppDesign.spacingL,
+                vertical: AppDesign.spacingL,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header section
+                  _buildHeader(isWideScreen),
+                  
+                  SizedBox(height: isWideScreen ? AppDesign.spacingXXL : AppDesign.spacingL),
+                  
+                  // Content area - responsive layout
+                  if (isWideScreen)
+                    // Wide screen layout (side by side)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: _buildEmailSection()),
+                        const SizedBox(width: AppDesign.spacingL),
+                        Expanded(child: _buildPasswordSection()),
+                      ],
+                    )
+                  else if (isMediumScreen)
+                    // Medium screen layout (more padding, sequential)
+                    Column(
+                      children: [
+                        Container(
+                          width: 550, // Fixed width for medium screens
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: AppDesign.spacingL,
+                          ),
+                          child: _buildEmailSection(),
+                        ),
+                        const SizedBox(height: AppDesign.spacingL),
+                        Container(
+                          width: 550, // Fixed width for medium screens
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: AppDesign.spacingL,
+                          ),
+                          child: _buildPasswordSection(),
+                        ),
+                      ],
+                    )
+                  else
+                    // Mobile layout (full width, sequential)
+                    Column(
+                      children: [
+                        _buildEmailSection(),
+                        const SizedBox(height: AppDesign.spacingL),
+                        _buildPasswordSection(),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildHeader(bool isWideScreen) {
+    return Center(
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: isWideScreen ? 50 : 40,
+            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+            child: Icon(
+              Icons.person,
+              size: isWideScreen ? 50 : 40,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: AppDesign.spacingM),
+          Text(
+            'Account Security',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: AppDesign.spacingXS),
+          Text(
+            'Update your email address and password',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildEmailSection() {
+    return AppSurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section Header
+          const AppSectionHeader(
+            icon: Icons.email_outlined,
+            title: 'Email Address',
+            subtitle: 'Change the email address associated with your account',
+          ),
+          const SizedBox(height: AppDesign.spacingL),
+          
+          // Current Email
+          Row(
+            children: [
+              Text(
+                'Current Email:',
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: AppDesign.spacingXS),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AppDesign.spacingS,
+                    horizontal: AppDesign.spacingM,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: AppDesign.borderSmall,
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.5),
+                    ),
+                  ),
+                  child: Text(
+                    _currentEmail,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppDesign.spacingL),
+          
+          // New Email Form
+          Form(
+            key: _emailFormKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Email Update Section
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.email,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Update Email',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Current email: ${supabase.auth.currentUser?.email ?? "Not available"}',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _currentPasswordController,
-                          decoration: InputDecoration(
-                            labelText: 'Current Password',
-                            border: const OutlineInputBorder(),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscureCurrentPassword ? Icons.visibility : Icons.visibility_off,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscureCurrentPassword = !_obscureCurrentPassword;
-                                });
-                              },
-                            ),
-                          ),
-                          obscureText: _obscureCurrentPassword,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your current password';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _newEmailController,
-                          decoration: const InputDecoration(
-                            labelText: 'New Email',
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.emailAddress,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter a new email';
-                            }
-                            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                              return 'Please enter a valid email address';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _isLoadingEmail ? null : _updateEmail,
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                            child: _isLoadingEmail
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text('Update Email'),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Note: You will need to verify your new email by clicking the link sent to your inbox.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                AppTextField(
+                  label: 'New Email Address',
+                  prefixIcon: Icons.email,
+                  controller: _newEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your new email address';
+                    }
+                    if (!value.contains('@') || !value.contains('.')) {
+                      return 'Please enter a valid email address';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: AppDesign.spacingL),
+                
+                // Save Button
+                AppPrimaryButton(
+                  text: 'Update Email',
+                  isLoading: _isLoadingEmail,
+                  onPressed: _updateEmail,
                 ),
                 
-                const SizedBox(height: 24),
+                const SizedBox(height: AppDesign.spacingS),
                 
-                // Password Update Section
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.lock,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Update Password',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _oldPasswordController,
-                          decoration: InputDecoration(
-                            labelText: 'Current Password',
-                            border: const OutlineInputBorder(),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscureOldPassword ? Icons.visibility : Icons.visibility_off,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscureOldPassword = !_obscureOldPassword;
-                                });
-                              },
-                            ),
-                          ),
-                          obscureText: _obscureOldPassword,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your current password';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _newPasswordController,
-                          decoration: InputDecoration(
-                            labelText: 'New Password',
-                            border: const OutlineInputBorder(),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscureNewPassword ? Icons.visibility : Icons.visibility_off,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscureNewPassword = !_obscureNewPassword;
-                                });
-                              },
-                            ),
-                          ),
-                          obscureText: _obscureNewPassword,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter a new password';
-                            }
-                            if (value.length < 8) {
-                              return 'Password must be at least 8 characters';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _confirmPasswordController,
-                          decoration: InputDecoration(
-                            labelText: 'Confirm New Password',
-                            border: const OutlineInputBorder(),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscureConfirmPassword = !_obscureConfirmPassword;
-                                });
-                              },
-                            ),
-                          ),
-                          obscureText: _obscureConfirmPassword,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please confirm your new password';
-                            }
-                            if (value != _newPasswordController.text) {
-                              return 'Passwords do not match';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _isLoadingPassword ? null : _updatePassword,
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                            child: _isLoadingPassword
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text('Update Password'),
-                          ),
-                        ),
-                      ],
+                Center(
+                  child: Text(
+                    'A verification email will be sent to your new address',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontStyle: FontStyle.italic,
                     ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPasswordSection() {
+    return Card(
+      elevation: 0,
+      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Section Header
+            Row(
+              children: [
+                Icon(
+                  Icons.lock_outline,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Password',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Change your account password',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 24),
+            
+            // Password Form
+            Form(
+              key: _passwordFormKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Current Password
+                  TextFormField(
+                    controller: _currentPasswordController,
+                    obscureText: _obscureCurrentPassword,
+                    decoration: InputDecoration(
+                      labelText: 'Current Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureCurrentPassword 
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscureCurrentPassword = !_obscureCurrentPassword;
+                          });
+                        },
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      filled: true,
+                      fillColor: Theme.of(context).colorScheme.surface,
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter your current password';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // New Password
+                  TextFormField(
+                    controller: _newPasswordController,
+                    obscureText: _obscureNewPassword,
+                    decoration: InputDecoration(
+                      labelText: 'New Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureNewPassword 
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscureNewPassword = !_obscureNewPassword;
+                          });
+                        },
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      filled: true,
+                      fillColor: Theme.of(context).colorScheme.surface,
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter a new password';
+                      }
+                      if (value.length < 8) {
+                        return 'Password must be at least 8 characters';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Confirm Password
+                  TextFormField(
+                    controller: _confirmPasswordController,
+                    obscureText: _obscureConfirmPassword,
+                    decoration: InputDecoration(
+                      labelText: 'Confirm Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureConfirmPassword 
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscureConfirmPassword = !_obscureConfirmPassword;
+                          });
+                        },
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      filled: true,
+                      fillColor: Theme.of(context).colorScheme.surface,
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please confirm your new password';
+                      }
+                      if (value != _newPasswordController.text) {
+                        return 'Passwords do not match';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Save Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isLoadingPassword ? null : _updatePassword,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isLoadingPassword
+                          ? Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    color: Theme.of(context).colorScheme.onPrimary,
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                const Text('Processing...'),
+                              ],
+                            )
+                          : const Text('Update Password'),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 12),
+                  
+                  // Password Requirements
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Password Requirements:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildRequirementRow('At least 8 characters long'),
+                        _buildRequirementRow('Include upper and lowercase letters'),
+                        _buildRequirementRow('Include at least one number'),
+                        _buildRequirementRow('Include at least one special character'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+  
+  Widget _buildRequirementRow(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Icon(
+            Icons.check_circle_outline,
+            size: 14,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
       ),
     );
   }

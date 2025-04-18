@@ -19,7 +19,6 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
   List<JoinRequest> _processedRequests = [];
   bool _isLoading = true;
   late TabController _tabController;
-  final DateFormat _dateFormat = DateFormat('MMM d, yyyy · h:mm a');
 
   @override
   void initState() {
@@ -323,7 +322,6 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
     );
   }
 
-  // In JoinRequestsAdmin.dart - replace the _processRequest method
 }
 
 /// Model class for join requests

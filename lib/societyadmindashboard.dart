@@ -7,7 +7,12 @@ import 'JoinRequestsAdmin.dart';
 import 'societyadminpage.dart';
 import 'societyprovider.dart';
 import 'package:provider/provider.dart';
+import 'honorsociety.dart';
+import 'meetingnote.dart';
+import 'admineventspage.dart';
+import 'activitylogpage.dart';
 
+final supabase = Supabase.instance.client;
 /// Dashboard for society administrators showing statistics and quick access to management features
 class SocietyAdminDashboard extends StatefulWidget {
   const SocietyAdminDashboard({Key? key}) : super(key: key);

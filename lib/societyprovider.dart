@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import 'main.dart';
+import 'honorsociety.dart';
+import 'hourrequirement.dart';
 
 /// Provider for managing honor society data and state throughout the app
 class SocietyProvider extends ChangeNotifier {
