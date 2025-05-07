@@ -1000,6 +1000,21 @@ class _HomePageState extends State<HomePage> {
                   ),
 
                   const Spacer(),
+                  
+                  // Add to Calendar icon for signed up users
+                  if (isSignedUp)
+                    IconButton(
+                      icon: Icon(
+                        Icons.calendar_today,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(),
+                      tooltip: 'Add to Calendar',
+                      onPressed: () => _addEventToCalendar(event, timeSlot),
+                    ),
 
                   // Capacity info
                   if (!(event.type == 'Meeting'))
@@ -1053,18 +1068,6 @@ class _HomePageState extends State<HomePage> {
                       alignment: WrapAlignment.center,
                       spacing: 8,
                       children: [
-                        OutlinedButton.icon(
-                          icon: Icon(Icons.calendar_today, size: 14),
-                          label:
-                              Text('Calendar', style: TextStyle(fontSize: 12)),
-                          style: OutlinedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            minimumSize: Size(0, 28),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          onPressed: () => _addEventToCalendar(event, timeSlot),
-                        ),
                         if (canRequestSwap &&
                             event.type != 'Meeting' &&
                             !isMandatory)

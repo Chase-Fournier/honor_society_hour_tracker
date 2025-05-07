@@ -5,6 +5,7 @@ import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import 'package:intl/intl.dart';
 import '../providers/societyprovider.dart';
 import '../common/app_design.dart';
+import 'dart:ui';
 import '../models/activitylog.dart';
 
 final supabase = Supabase.instance.client;
@@ -85,82 +86,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
       ),
       body: Column(
         children: [
-          Container(
-            padding: AppDesign.paddingMedium,
-            child: Center(
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: AppDesign.borderXLarge,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Previous Day Button
-                    IconButton(
-                      icon: const Icon(Icons.chevron_left),
-                      onPressed: () {
-                        setState(() {
-                          _selectedDate =
-                              _selectedDate.subtract(const Duration(days: 1));
-                        });
-                        _fetchLogs();
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.calendar_today),
-                      onPressed: () async {
-                        final DateTime? picked = await showDatePicker(
-                          context: context,
-                          initialDate: _selectedDate,
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime(2025),
-                        );
-                        if (picked != null && picked != _selectedDate) {
-                          setState(() {
-                            _selectedDate = picked;
-                          });
-                          _fetchLogs();
-                        }
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      DateFormat('MMMM d, y').format(_selectedDate),
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                    // Next Day Button
-                    IconButton(
-                      icon: const Icon(Icons.chevron_right),
-                      onPressed: _selectedDate.year == DateTime.now().year &&
-                              _selectedDate.month == DateTime.now().month &&
-                              _selectedDate.day == DateTime.now().day
-                          ? null
-                          : () {
-                              setState(() {
-                                _selectedDate =
-                                    _selectedDate.add(const Duration(days: 1));
-                              });
-                              _fetchLogs();
-                            },
-                      // Gray out the icon when on current day
-                      color: _selectedDate.year == DateTime.now().year &&
-                              _selectedDate.month == DateTime.now().month &&
-                              _selectedDate.day == DateTime.now().day
-                          ? Colors.grey
-                          : Theme.of(context).colorScheme.onPrimaryContainer,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          _buildDateSelector(),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -183,6 +109,190 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
       ),
     );
   }
+  // In activitylogpage.dart - Replace the date selection UI
+// Create a new expressive date selector component
+Widget _buildDateSelector() {
+  final now = DateTime.now();
+  final isCurrentDate = _selectedDate.year == now.year && 
+                       _selectedDate.month == now.month && 
+                       _selectedDate.day == now.day;
+  final weekday = DateFormat('EEEE').format(_selectedDate);
+  
+  return Container(
+    margin: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: [
+          Theme.of(context).colorScheme.primaryContainer.withOpacity(0.9),
+          Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.9),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      borderRadius: BorderRadius.circular(24),
+    ),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: Column(
+            children: [
+              // Date display
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    weekday,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.7),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    DateFormat('MMMM d, y').format(_selectedDate),
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                  if (isCurrentDate)
+                    Container(
+                      margin: const EdgeInsets.only(left: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Today',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Date controls
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Previous day button
+                  _buildDateButton(
+                    icon: Icons.chevron_left,
+                    onPressed: () {
+                      setState(() {
+                        _selectedDate = _selectedDate.subtract(const Duration(days: 1));
+                      });
+                      _fetchLogs();
+                    },
+                  ),
+                  
+                  // Calendar button
+                  Expanded(
+                    child: TextButton.icon(
+                      onPressed: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: _selectedDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                          builder: (context, child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: ColorScheme.light(
+                                  primary: Theme.of(context).colorScheme.primary,
+                                  onPrimary: Theme.of(context).colorScheme.onPrimary,
+                                  surface: Theme.of(context).colorScheme.surface,
+                                  onSurface: Theme.of(context).colorScheme.onSurface,
+                                ),
+                                dialogBackgroundColor: Theme.of(context).colorScheme.surface,
+                                dialogTheme: DialogTheme(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(24),
+                                  ),
+                                ),
+                              ),
+                              child: child!,
+                            );
+                          },
+                        );
+                        
+                        if (picked != null && picked != _selectedDate) {
+                          setState(() {
+                            _selectedDate = picked;
+                          });
+                          _fetchLogs();
+                        }
+                      },
+                      icon: const Icon(Icons.calendar_month),
+                      label: const Text('Select Date'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+                        backgroundColor: Colors.white.withOpacity(0.15),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  // Next day button (disabled if current date)
+                  _buildDateButton(
+                    icon: Icons.chevron_right,
+                    onPressed: isCurrentDate
+                        ? null
+                        : () {
+                            setState(() {
+                              _selectedDate = _selectedDate.add(const Duration(days: 1));
+                            });
+                            _fetchLogs();
+                          },
+                    disabled: isCurrentDate,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _buildDateButton({
+  required IconData icon,
+  required VoidCallback? onPressed,
+  bool disabled = false,
+}) {
+  return Container(
+    margin: const EdgeInsets.symmetric(horizontal: 8),
+    decoration: BoxDecoration(
+      color: disabled 
+          ? Colors.white.withOpacity(0.05)
+          : Colors.white.withOpacity(0.15),
+      shape: BoxShape.circle,
+    ),
+    child: IconButton(
+      icon: Icon(icon),
+      onPressed: onPressed,
+      color: disabled
+          ? Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.3)
+          : Theme.of(context).colorScheme.onPrimaryContainer,
+      iconSize: 28,
+    ),
+  );
+}
 
   /// Creates a card widget displaying activity log entry.
   ///

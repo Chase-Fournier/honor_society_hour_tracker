@@ -363,12 +363,8 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
     final percentage =
         ((completedHours / hoursNeeded) * 100).clamp(0, 100).toInt();
     final isComplete = completedHours >= hoursNeeded;
-    final color = isMeeting
-        ? Theme.of(context).colorScheme.tertiary
-        : Theme.of(context).colorScheme.primary;
-    final backgroundColor = isMeeting
-        ? Theme.of(context).colorScheme.tertiaryContainer
-        : Theme.of(context).colorScheme.primaryContainer;
+    final color = Theme.of(context).colorScheme.primary;
+    final backgroundColor = Theme.of(context).colorScheme.primaryContainer;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 8, 20, 8),
@@ -413,9 +409,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: isComplete
-                        ? (isMeeting
-                            ? Theme.of(context).colorScheme.onTertiary
-                            : Theme.of(context).colorScheme.onPrimary)
+                        ? (Theme.of(context).colorScheme.onPrimary)
                         : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),

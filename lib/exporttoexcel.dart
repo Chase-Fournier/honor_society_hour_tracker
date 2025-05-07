@@ -32,14 +32,19 @@ Future<void> exportToExcel(
     final userIds = users.map((u) => u.id).toList();
 
     // Get email addresses
-    final emailsResponse = await Supabase.instance.client
+    final profilesResponse = await Supabase.instance.client
         .from('profiles')
-        .select('user_id, email')
+        .select('user_id, email, graduation_year')
         .inFilter('user_id', userIds);
 
     final emailMap = {
-      for (var item in emailsResponse)
+      for (var item in profilesResponse)
         item['user_id'] as String: item['email'] as String
+    };
+
+    final graduationYearMap = {
+      for (var item in profilesResponse)
+        item['user_id'] as String: item['graduation_year']?.toString() ?? ''
     };
 
     // Get service hours for current society only
@@ -148,6 +153,7 @@ Future<void> exportToExcel(
     final baseHeaders = [
       'Name',
       'Email',
+      'Graduation Year',
       'Dues Paid',
       'Total Hours',
       'Meetings Attended',
@@ -199,6 +205,11 @@ Future<void> exportToExcel(
           .cell(CellIndex.indexByColumnRow(
               columnIndex: colIndex++, rowIndex: rowIndex))
           .value = TextCellValue(emailMap[user.id] ?? '');
+          
+      sheetObject
+          .cell(CellIndex.indexByColumnRow(
+              columnIndex: colIndex++, rowIndex: rowIndex))
+          .value = TextCellValue(graduationYearMap[user.id] ?? "0000");
 
       sheetObject
           .cell(CellIndex.indexByColumnRow(

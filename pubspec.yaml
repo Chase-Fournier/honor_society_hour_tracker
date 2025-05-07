@@ -34,6 +34,7 @@ dependencies:
   path_provider: ^2.1.1
   image_picker: ^1.1.2
   supabase_auth_ui: ^0.5.4
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:
@@ -46,12 +47,20 @@ dev_dependencies:
 
 
 flutter_native_splash:
+  color: "#ffffff"
   image: assets/nhs-logo-simple.png
-  color: "#7434eb"
-
+  color_dark: "#121212"
+  image_dark: assets/nhs-logo-simple.png
+  
   android_12:
     image: assets/nhs-logo-simple.png
-    color: "#7434eb"
+    icon_background_color: "#ffffff"
+    image_dark: assets/nhs-logo-simple.png
+    icon_background_color_dark: "#121212"
+    
+  web: true
+  android: true
+  ios: true
 
 flutter_launcher_icons:
   android: "launcher_icon"

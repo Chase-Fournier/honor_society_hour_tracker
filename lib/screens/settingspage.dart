@@ -645,10 +645,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 // Add more game cards in the future
                 _buildGameCard(
                   'Coming Soon',
-                  Icons.pending,
+                  Icons.airplanemode_active,
                   Colors.amber,
                   () {},
-                  enabled: false,
+                  enabled: false
                 ),
                 _buildGameCard(
                   'Coming Soon',
@@ -712,35 +712,28 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Future<void> _signOut() async {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.remove('sessionData');
-              await supabase.auth.signOut();
-              if (mounted) {
-                Navigator.pushNamedAndRemoveUntil(context, '/',  (route) => false);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-            ),
-            child: const Text('Sign Out'),
-          ),
-        ],
-      ),
+Future<void> _signOut() async {
+  final navigationState = Navigator.of(context);
+  
+  try {
+    // Clear provider data
+    Provider.of<SocietyProvider>(context, listen: false).handleLogout();
+    
+    // Clear preferences
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('sessionData');
+    await prefs.remove('lastSocietyId');
+    
+    // Sign out from Supabase
+    await supabase.auth.signOut();
+    
+    // Navigate to login page
+    navigationState.pushNamedAndRemoveUntil('/', (route) => false);
+  } catch (e) {
+    print('Error during logout: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error during logout: $e')),
     );
   }
+}
 }

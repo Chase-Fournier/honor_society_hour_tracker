@@ -69,33 +69,68 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   }
 
   Future<void> _fetchUserProfileDetails() async {
-     setState(() => _isLoadingProfile = true);
-     final userId = supabase.auth.currentUser?.id;
-     if (userId == null) {
-        setState(() => _isLoadingProfile = false);
-       return;
-     }
+  setState(() => _isLoadingProfile = true);
+  
+  final user = supabase.auth.currentUser;
+  if (user == null) {
+    setState(() => _isLoadingProfile = false);
+    return;
+  }
 
-     try {
-       final response = await supabase
-           .from('profiles')
-           .select('graduation_year')
-           .eq('user_id', userId)
-           .single();
+  try {
+    // Get graduation year from user metadata
+    final userMetadata = user.userMetadata;
+    
+    if (mounted) {
+      setState(() {
+        _graduationYearController.text = userMetadata?['graduation_year']?.toString() ?? '';
+        _isLoadingProfile = false;
+      });
+    }
+  } catch (e) {
+    if (mounted) {
+      _showToast('Error fetching profile details');
+      setState(() => _isLoadingProfile = false);
+    }
+  }
+}
 
-       if (mounted) {
-         setState(() {
-           _graduationYearController.text = response['graduation_year']?.toString() ?? '';
-           _isLoadingProfile = false;
-         });
-       }
-     } catch (e) {
-       if (mounted) {
-         _showToast('Error fetching profile details');
-         setState(() => _isLoadingProfile = false);
-       }
-     }
-   }
+// Replace _updateProfileDetails method with:
+Future<void> _updateProfileDetails() async {
+  if (!_profileFormKey.currentState!.validate()) return;
+  setState(() => _isLoadingProfile = true);
+  final user = supabase.auth.currentUser;
+  if (user == null) {
+    setState(() => _isLoadingProfile = false);
+    return;
+  }
+
+  try {
+    final gradYear = int.tryParse(_graduationYearController.text.trim());
+    
+    // Update user metadata
+    await supabase.auth.updateUser(
+      UserAttributes(
+        data: {
+          ...user.userMetadata ?? {}, // Preserve existing metadata
+          'graduation_year': gradYear
+        },
+      ),
+    );
+
+    if (mounted) {
+      _showToast('Profile Updated Successfully!');
+    }
+  } catch (e) {
+    if (mounted) {
+      _showToast('Profile Update Failed: $e');
+    }
+  }finally {
+    if (mounted) {
+      setState(() => _isLoadingProfile = false);
+    }
+  }
+}
   
   /// Updates the user's email address
   Future<void> _updateEmail() async {
@@ -175,38 +210,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       ),
     );
   }
-
-  Future<void> _updateProfileDetails() async {
-     if (!_profileFormKey.currentState!.validate()) return;
-
-     setState(() => _isLoadingProfile = true);
-     final userId = supabase.auth.currentUser?.id;
-     if (userId == null) {
-        setState(() => _isLoadingProfile = false);
-       return;
-     }
-
-     try {
-       final gradYear = int.tryParse(_graduationYearController.text.trim());
-       await supabase
-           .from('profiles')
-           .update({'graduation_year': gradYear})
-           .eq('user_id', userId);
-
-       if (mounted) {
-         _showToast('Profile Updated Successfully!');
-       }
-
-     } catch (e) {
-       if (mounted) {
-         _showToast('Profile Update Failed');
-       }
-     } finally {
-       if (mounted) {
-         setState(() => _isLoadingProfile = false);
-       }
-     }
-   }
 
   @override
   Widget build(BuildContext context) {
@@ -309,6 +312,9 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   }
 
    Widget _buildProfileSection() {
+    final currentYear = DateTime.now().year;
+    final List<String> graduationYears = 
+    List.generate(4, (i) => (currentYear + i).toString());
      return AppSurfaceCard(
        child: Form(
          key: _profileFormKey,
@@ -323,22 +329,34 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
              ),
              const SizedBox(height: AppDesign.spacingL),
 
-             // Graduation Year Field
-             AppTextField(
-               label: 'Graduation Year',
-               prefixIcon: Icons.calendar_today,
-               controller: _graduationYearController,
-               keyboardType: TextInputType.number,
-               validator: (value) {
-                 if (value == null || value.isEmpty) {
-                   return 'Please enter your graduation year';
-                 }
-                 if (int.tryParse(value) == null || value.length != 4) {
-                     return 'Enter a valid 4-digit year';
-                 }
-                 return null;
-               },
-             ),
+             
+              DropdownButtonFormField<String>(
+                value: _graduationYearController.text.isEmpty 
+                    ? null 
+                    : (_graduationYearController.text.length == 4 && int.tryParse(_graduationYearController.text) != null)
+                        ? _graduationYearController.text
+                        : null,
+                decoration: const InputDecoration(
+                  labelText: 'Graduation Year',
+                  prefixIcon: Icon(Icons.school),
+                  border: OutlineInputBorder(),
+                ),
+                items: graduationYears.map((year) => DropdownMenuItem(
+                  value: year,
+                  child: Text(year),
+                )).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _graduationYearController.text = value ?? '';
+                  });
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please select your graduation year';
+                  }
+                  return null;
+                },
+              ),
              const SizedBox(height: AppDesign.spacingL),
 
              // Save Button

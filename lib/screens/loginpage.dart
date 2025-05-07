@@ -287,6 +287,15 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     return val == null || val.isEmpty ? 'Please enter your name' : null;
                   },
                 ),
+                // Add graduation year dropdown field
+                MetaDataField(
+                  prefixIcon: const Icon(Icons.school),
+                  label: 'Graduation Year',
+                  key: 'graduation_year',
+                  validator: (val) {
+                    return val == null || val.isEmpty ? 'Please enter your graduation year' : null;
+                  },
+                ),
               ],
             ),
           ),
