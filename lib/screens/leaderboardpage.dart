@@ -100,13 +100,13 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       appBar: AppBar(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: Theme.of(context).colorScheme.surface,
+        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
         title: Text(
           'Leaderboard',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 24.0,
-            color: Theme.of(context).colorScheme.onSurface,
+            color: Theme.of(context).colorScheme.onPrimaryContainer,
           ),
         ),
         centerTitle: true,
@@ -127,8 +127,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                       decoration: BoxDecoration(
                         color: Theme.of(context)
                             .colorScheme
-                            .primaryContainer
-                            .withOpacity(0.5),
+                            .primaryContainer,
+                          
                         borderRadius: const BorderRadius.only(
                           bottomLeft: Radius.circular(AppDesign.radiusXLarge),
                           bottomRight: Radius.circular(AppDesign.radiusXLarge),
@@ -136,26 +136,6 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                       ),
                       child: Column(
                         children: [
-                          Text(
-                            'Top Contributors',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onPrimaryContainer,
-                            ),
-                          ),
-                          Text(
-                            'Service Hour Champions',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onPrimaryContainer
-                                  .withOpacity(0.8),
-                            ),
-                          ),
                           const SizedBox(height: 20),
                           if (_rankings.isNotEmpty) _buildTopThree(),
                         ],

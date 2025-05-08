@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class ThemeNotifier with ChangeNotifier {
-  Color _themeColor = Colors.blue;
+  Color _themeColor = Colors.purple;
 
   Color get themeColor => _themeColor;
 

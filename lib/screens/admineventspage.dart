@@ -36,8 +36,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   @override
   void initState() {
     super.initState();
-    _fetchEvents();
-    _fetchCollections();
+    _fetchDataOptimized();
   }
 
   // Get available requirement types from current society
@@ -310,7 +309,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
     final bool isMandatory = event.isMandatory;
 
     // Get color for event type
-    final Color typeColor = _getColorForEventType(event.type, context);
+    final Color typeColor = Theme.of(context).colorScheme.primary;
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: AppDesign.borderMedium),
@@ -814,18 +813,6 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
     );
   }
 
-  // Helper method to get color based on event type
-  Color _getColorForEventType(String type, BuildContext context) {
-    final lowerType = type.toLowerCase();
-    if (lowerType.contains('service'))
-      return Theme.of(context).colorScheme.primary;
-    if (lowerType.contains('tutor'))
-      return Theme.of(context).colorScheme.secondary;
-    if (lowerType.contains('meeting'))
-      return Theme.of(context).colorScheme.tertiary;
-    if (lowerType.contains('leader')) return Colors.amber;
-    return Theme.of(context).colorScheme.primary;
-  }
 
   void _showAddEventDialog() {
     final _formKey = GlobalKey<FormState>();
@@ -1190,8 +1177,117 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
     }
   }
 
-// Update _fetchEvents to filter by society if specified
-// In AdminEventsPage class - replace the current _fetchEvents method
+  Future<void> _fetchDataOptimized() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      // Get current society
+      final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      if (society == null) {
+        setState(() {
+          _events = [];
+          _collections = [];
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Execute both queries in parallel using Future.wait
+      final [eventsResponse, collectionsResponse] = await Future.wait([
+        // Optimized events query with nested selects
+        supabase
+            .from('Events')
+            .select('''
+              id,
+              name,
+              description,
+              date,
+              type,
+              isMandatory,
+              created_at,
+              collection_id,
+              requires_forms,
+              form_link,
+              swap_request_deadline_hours,
+              has_delay,
+              delay_hours,
+              society_id,
+              "Time slots"!inner(
+                id,
+                start_time,
+                end_time,
+                number_of_people,
+                notes,
+                created_at,
+                event_id,
+                Attendees!left(
+                  id,
+                  timeslot_id,
+                  user_id,
+                  is_present,
+                  forms_completed,
+                  profiles!inner(
+                    name
+                  )
+                )
+              )
+            ''')
+            .eq('society_id', society.id)
+            .order('date'),
+        
+        // Collections query
+        supabase
+            .from('Collections')
+            .select('*')
+            .eq('society_id', society.id)
+      ]);
+
+
+      // Process events with nested data
+      final List<Event> events = eventsResponse.map<Event>((eventData) {
+        // Process time slots with attendees
+        final timeSlots = (eventData['Time slots'] as List).map<TimeSlot>((timeSlotData) {
+          // Process attendees
+          final attendees = (timeSlotData['Attendees'] as List? ?? []).map<Attendee>((attendeeData) {
+            return Attendee(
+              id: attendeeData['id'],
+              timeSlotId: attendeeData['timeslot_id'],
+              userId: attendeeData['user_id'],
+              name: attendeeData['profiles']['name'],
+              isPresent: attendeeData['is_present'] ?? false,
+              formsCompleted: attendeeData['forms_completed'] ?? false,
+            );
+          }).where((attendee) => attendee != null).cast<Attendee>().toList();
+
+          // Create time slot with attendees
+          return TimeSlot.fromJson({
+            ...timeSlotData,
+            'attendees': attendees,
+          })..attendees = attendees;
+        }).toList();
+
+        // Create event with time slots
+        return Event.fromJson(eventData)..timeSlots = timeSlots;
+      }).toList();
+
+      // Process collections
+      final collections = collectionsResponse
+          .map<Collection>((json) => Collection.fromJson(json))
+          .toList();
+
+      if (mounted) {
+        setState(() {
+          _events = events;
+          _collections = collections;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error in optimized fetch: $e');
+    }
+  }
+  
 
   Future<void> _fetchEvents() async {
     setState(() {
@@ -1352,7 +1448,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
               Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
+              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
             ),
             child: const Text('Delete'),
           ),
@@ -2042,7 +2138,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   Future<void> _addCollection(String name) async {
     final response = await Supabase.instance.client
         .from('Collections')
-        .insert({'name': name, 'event_ids': []});
+        .insert({'name': name, 'event_ids': [], 'society_id': Provider.of<SocietyProvider>(context, listen: false).currentSociety!.id});
 
     if (response != null) {
       final newCollection = Collection.fromJson(response[0]);

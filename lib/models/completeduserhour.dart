@@ -1,9 +1,12 @@
+// lib/models/completeduserhour.dart
 class CompletedUserHour {
+  final int? id; // <-- Add this ID field
   final String eventName;
   final double hours;
   final String type;
 
   CompletedUserHour({
+    this.id, // <-- Add to constructor
     required this.eventName,
     required this.hours,
     required this.type,
@@ -17,13 +20,17 @@ class CompletedUserHour {
     } else if (hoursValue is double) {
       hours = hoursValue;
     } else {
-      throw FormatException('Invalid hours value: $hoursValue');
+      // Provide a default or handle the error differently if needed
+      print('Warning: Invalid hours value received: $hoursValue. Defaulting to 0.');
+      hours = 0.0;
+      // Optionally: throw FormatException('Invalid hours value: $hoursValue');
     }
 
     return CompletedUserHour(
-      eventName: json['event_name'] ?? '',
+      id: json['id'] as int, // <-- Parse the ID
+      eventName: json['event_name'] as String? ?? 'Unnamed Event', // Handle potential null
       hours: hours,
-      type: json['type'] ?? '',
+      type: json['type'] as String? ?? 'Unknown Type', // Handle potential null
     );
   }
 }

@@ -6,15 +6,13 @@ import '../providers/societyprovider.dart';
 import '../common/app_design.dart';
 import '../models/completeduserhour.dart';
 import '../models/userprofile.dart';
-import '../main.dart';
 import 'bulkediteventspage.dart';
 import 'customeventformpage.dart';
 import '../common/customexpansiontile.dart';
 import '../models/logactivity.dart';
 import '../exporttoexcel.dart';
 import '../common/normalizetype.dart';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'package:flutter/services.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -130,7 +128,7 @@ class _AdminListPageState extends State<AdminListPage> {
         // 2. Get all service hours for this society at once
         supabase
           .from('Service hours')
-          .select('user_id, event_name, hours, type')
+          .select('id, user_id, event_name, hours, type')
           .eq('society_id', societyId)
       ]);
       
@@ -1927,10 +1925,11 @@ class _AdminListPageState extends State<AdminListPage> {
         : user.completedHours;
 
     return Card(
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(
         borderRadius: AppDesign.borderXLarge,
       ),
-      elevation: 2,
+      elevation:  _isMultiSelectMode && _selectedUserIds.contains(user.id) ? 4 : 2,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: CustomExpansionTile(
         title: ListTile(
@@ -1980,29 +1979,83 @@ class _AdminListPageState extends State<AdminListPage> {
           return ListTile(
             title: Text(
               hour.eventName,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16.0,
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
               ),
             ),
             subtitle: Text(
               '${hour.hours} hours - ${hour.type}',
               style: TextStyle(
                 fontSize: 14.0,
-                color: Colors.grey[600],
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete),
-              color: Theme.of(context).colorScheme.onSurface,
-              onPressed: () {
-                _deleteServiceHour(hour, user.id);
-              },
-            ),
-          );
+              trailing: Row( // Use Row for multiple trailing icons
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 25), // Edit Icon
+                      tooltip: 'Edit Hour',
+                      color: Theme.of(context).colorScheme.primary,
+                      onPressed: () {
+                        // Show the edit dialog
+                        _showEditHourDialog(context, user, hour);
+                      },
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.delete, size: 25), // Keep delete icon
+                      color: Theme.of(context).colorScheme.primary,
+                      tooltip: 'Delete Hour',
+                      onPressed: () {
+                        _deleteServiceHour(hour, user.id); // Keep existing delete logic
+                      },
+                       padding: EdgeInsets.zero,
+                       constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              );
         }).toList(),
       ),
     );
   }
+
+  void _showEditHourDialog(BuildContext context, UserProfile user, CompletedUserHour hour) {
+  showDialog(
+    context: context,
+    builder: (BuildContext dialogContext) {
+      // Use a Builder to get a context that is under the Dialog's context
+      return Builder(
+        builder: (builderContext) {
+          return AlertDialog(
+            title: Text('Edit Service Hour for ${user.name}'),
+            content: _EditHourDialogContent(
+              hour: hour,
+              availableTypes: _availableHourTypes, // Pass available types
+              onSave: () {
+                Navigator.of(builderContext).pop(); // Close dialog first
+                _fetchUsers(); // Then refresh data
+              },
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('Cancel'),
+                onPressed: () {
+                  Navigator.of(builderContext).pop();
+                },
+              ),
+              // The save button is now inside the dialog content
+            ],
+          );
+        }
+      );
+    },
+  );
+}
 
   // Update the sort options list to be dynamic
   Widget _buildSortOptionsList() {
@@ -2744,5 +2797,213 @@ class _AdminListPageState extends State<AdminListPage> {
       // Refresh the user list if the bulk custom event was saved successfully
       _fetchUsers();
     }
+  }
+}
+
+class _EditHourDialogContent extends StatefulWidget {
+  final CompletedUserHour hour;
+  final List<String> availableTypes;
+  final VoidCallback onSave;
+
+  const _EditHourDialogContent({
+    Key? key,
+    required this.hour,
+    required this.availableTypes,
+    required this.onSave,
+  }) : super(key: key);
+
+  @override
+  _EditHourDialogContentState createState() => _EditHourDialogContentState();
+}
+
+class _EditHourDialogContentState extends State<_EditHourDialogContent> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _eventNameController;
+  late TextEditingController _hoursController;
+  late String _selectedType;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _eventNameController = TextEditingController(text: widget.hour.eventName);
+    _hoursController = TextEditingController(text: widget.hour.hours.toString());
+    _selectedType = widget.hour.type;
+
+    // Ensure the current type is available, otherwise default to the first available
+    if (!widget.availableTypes.contains(_selectedType)) {
+      _selectedType = widget.availableTypes.isNotEmpty ? widget.availableTypes.firstWhere((t) => t != 'All', orElse: () => 'Service') : 'Service';
+    }
+  }
+
+  @override
+  void dispose() {
+    _eventNameController.dispose();
+    _hoursController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveHourChanges() async {
+    if (!_formKey.currentState!.validate()) {
+      return; // Don't proceed if form is invalid
+    }
+    if (_isSaving) return; // Prevent double submission
+
+    setState(() => _isSaving = true);
+
+    final newEventName = _eventNameController.text.trim();
+    final newHours = double.tryParse(_hoursController.text.trim()) ?? 0.0;
+    final newType = _selectedType;
+
+    try {
+      await supabase
+          .from('Service hours')
+          .update({
+            'event_name': newEventName,
+            'hours': newHours,
+            'type': newType,
+          })
+          .eq('id', widget.hour.id ?? 0); // Use the hour's ID to update
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Hour updated successfully!'),
+          ),
+        );
+        widget.onSave(); // Call the callback to close dialog and refresh list
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating hour: $e'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Filter out 'All' from dropdown types
+    final dropdownTypes = widget.availableTypes.where((t) => t != 'All').toList();
+    // Ensure the selected type is still valid after filtering
+    if (!dropdownTypes.contains(_selectedType) && dropdownTypes.isNotEmpty) {
+       _selectedType = dropdownTypes.first;
+    } else if (dropdownTypes.isEmpty){
+      // Handle case where no types are available (should ideally not happen if 'Service' is default)
+      _selectedType = 'Service';
+      if(!dropdownTypes.contains('Service')) dropdownTypes.add('Service'); // Add Service if missing
+    }
+
+
+    return Form(
+      key: _formKey,
+      child: SingleChildScrollView( // Make content scrollable if needed
+        child: Column(
+          mainAxisSize: MainAxisSize.min, // Important for dialog content
+          children: <Widget>[
+            TextFormField(
+              controller: _eventNameController,
+              decoration: const InputDecoration(
+                labelText: 'Event Name',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.event),
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter an event name';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _hoursController,
+              decoration: const InputDecoration(
+                labelText: 'Hours',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.timer),
+              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')), // Allow numbers and decimal
+              ],
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter hours';
+                }
+                final hours = double.tryParse(value.trim());
+                if (hours == null || hours <= 0) {
+                  return 'Please enter a valid positive number for hours';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+             if (dropdownTypes.isNotEmpty) // Only show dropdown if there are types
+              DropdownButtonFormField<String>(
+                value: _selectedType,
+                items: dropdownTypes.map((String type) {
+                  return DropdownMenuItem<String>(
+                    value: type,
+                    child: Text(type),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  if (newValue != null) {
+                    setState(() {
+                      _selectedType = newValue;
+                    });
+                  }
+                },
+                decoration: const InputDecoration(
+                  labelText: 'Type',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.category),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please select an event type';
+                  }
+                  return null;
+                },
+              )
+            else // Show a disabled field or message if no types available
+              TextFormField(
+                initialValue: _selectedType, // Show current type
+                enabled: false, // Disable editing
+                decoration: const InputDecoration(
+                  labelText: 'Type',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.category),
+                ),
+              ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _isSaving ? null : _saveHourChanges,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 48), // Make button larger
+              ),
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text('Save Changes'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
