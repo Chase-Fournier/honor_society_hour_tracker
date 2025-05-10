@@ -250,240 +250,271 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
           : RefreshIndicator(
               color: Theme.of(context).colorScheme.primary,
               onRefresh: _fetchData,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
-                  children: [
-                    // Header with meeting notes button
-                    Card(
-                      margin: AppDesign.paddingMedium,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: AppDesign.borderLarge,
-                      ),
-                      color: Theme.of(context).colorScheme.secondaryContainer,
-                      child: InkWell(
-                        onTap: _showMeetingNotesDialog,
-                        borderRadius: AppDesign.borderLarge,
-                        child: Padding(
-                          padding: AppDesign.paddingMedium,
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                backgroundColor:
-                                    Theme.of(context).colorScheme.secondary,
-                                child: Icon(
-                                  Icons.notes,
-                                  color:
-                                      Theme.of(context).colorScheme.onSecondary,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Meeting Notes',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSecondaryContainer,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'View important information from previous meetings',
-                                      style: TextStyle(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSecondaryContainer
-                                            .withOpacity(0.8),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const Icon(Icons.arrow_forward_ios, size: 16),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+              child: CustomScrollView(
+                slivers: [
+                  // Meeting Notes Header
+                  SliverToBoxAdapter(
+                    child: _buildMeetingNotesHeader(),
+                  ),
 
-                    // Hour requirements sections
-                    ..._buildRequirementsList(),
-                  ],
-                ),
+                  // Summary Cards
+                  SliverPadding(
+                    padding: const EdgeInsets.all(AppDesign.spacingM),
+                    sliver: SliverGrid(
+                      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 300,
+                        childAspectRatio: MediaQuery.of(context).size.width > 600 ? 2.2 : 1.8,
+                        crossAxisSpacing: AppDesign.spacingM,
+                        mainAxisSpacing: AppDesign.spacingM,
+                      ),
+                      delegate: SliverChildListDelegate([
+                        _buildSummaryCard(
+                          title: 'Total Hours',
+                          value: _calculateTotalHours().toStringAsFixed(1),
+                          subtitle: 'All activities',
+                          icon: Icons.timer,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        _buildSummaryCard(
+                          title: 'Requirements',
+                          value: '${_countCompletedRequirements()}/${_requirementMap.length + 1}',
+                          subtitle: 'Completed',
+                          icon: Icons.check_circle,
+                          color: Theme.of(context).colorScheme.tertiary,
+                        ),
+                      ]),
+                    ),
+                  ),
+
+                  // Requirements List
+                  SliverToBoxAdapter(
+                    child: _buildSectionHeader(
+                      title: 'Your Requirements',
+                      subtitle: 'Track your progress towards graduation',
+                    ),
+                  ),
+
+                  // Hour Requirements
+                  SliverList(
+                    delegate: SliverChildListDelegate([
+                      ..._buildRequirementsList(),
+                    ]),
+                  ),
+
+                  // Report Issue Button
+                  SliverPadding(
+                    padding: const EdgeInsets.all(AppDesign.spacingXL),
+                    sliver: SliverToBoxAdapter(
+                      child: _buildReportIssueButton(),
+                    ),
+                  ),
+                ],
               ),
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openWebsite,
-        icon: const Icon(Icons.report_problem),
-        label: const Text('Report Issue'),
-        elevation: 4,
-      ),
     );
   }
 
-// Build list of requirements with progress and details
-  List<Widget> _buildRequirementsList() {
+ 
+List<Widget> _buildRequirementsList() {
     List<Widget> widgets = [];
 
     // First build standard hour requirements
     _requirementMap.forEach((type, hoursNeeded) {
       final completedHours = _completedHoursMap[type] ?? 0.0;
-
-      widgets.add(_buildProgressBar(
-          context, type, completedHours, hoursNeeded.floor()));
-
-      widgets.add(_buildCompletedHoursList(type, _hoursByTypeMap[type] ?? []));
-
-      widgets.add(const SizedBox(height: 20));
+      widgets.add(_buildModernRequirementCard(
+        type: type,
+        completedHours: completedHours,
+        requiredHours: hoursNeeded.floor(),
+        hours: _hoursByTypeMap[type] ?? [],
+      ));
     });
 
     // Then add the special meeting requirement
     final meetingHours = _completedHoursMap['Meeting'] ?? 0.0;
-    widgets.add(_buildProgressBar(
-        context, 'Meeting', meetingHours, _meetingRequirement,
-        isMeeting: true));
-
-    widgets.add(
-        _buildCompletedHoursList('Meeting', _hoursByTypeMap['Meeting'] ?? []));
+    widgets.add(_buildModernRequirementCard(
+      type: 'Meeting',
+      completedHours: meetingHours,
+      requiredHours: _meetingRequirement,
+      hours: _hoursByTypeMap['Meeting'] ?? [],
+      isMeeting: true,
+    ));
 
     return widgets;
   }
 
-  Widget _buildProgressBar(BuildContext context, String title,
-      double completedHours, int hoursNeeded,
-      {bool isMeeting = false}) {
-    // Calculate percentage for display
-    final percentage =
-        ((completedHours / hoursNeeded) * 100).clamp(0, 100).toInt();
-    final isComplete = completedHours >= hoursNeeded;
-    final color = Theme.of(context).colorScheme.primary;
-    final backgroundColor = Theme.of(context).colorScheme.primaryContainer;
+  // Calculate total hours across all requirements
+  double _calculateTotalHours() {
+    return _completedHoursMap.values.fold(0.0, (sum, hours) => sum + hours);
+  }
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+  Widget _buildSectionHeader({required String title, required String subtitle}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppDesign.spacingM, AppDesign.spacingL, AppDesign.spacingM, AppDesign.spacingM),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Type with icon
-              Row(
-                children: [
-                  Icon(
-                    isMeeting ? Icons.groups_rounded : getIconForType(title, context),
-                    color: color,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    isMeeting ? 'Meeting Attendance' : '$title Hours',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                ],
-              ),
-
-              // Completion percentage
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isComplete
-                      ? color
-                      : Theme.of(context).colorScheme.surfaceVariant,
-                  borderRadius: AppDesign.borderLarge,
-                ),
-                child: Text(
-                  isComplete ? 'Complete!' : '$percentage%',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: isComplete
-                        ? (Theme.of(context).colorScheme.onPrimary)
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 10),
-
-          // Hours text and progress
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '${completedHours.toStringAsFixed(1)} / $hoursNeeded ${isMeeting ? 'meetings' : 'hours'}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              Text(
-                isMeeting
-                    ? '$completedHours of $hoursNeeded required'
-                    : '${(completedHours / hoursNeeded * 100).toStringAsFixed(0)}% complete',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: color,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 8),
-
-          // Progress bar with animation
-          TweenAnimationBuilder<double>(
-            duration: const Duration(milliseconds: 1000),
-            curve: Curves.easeOutQuart,
-            tween: Tween<double>(
-              begin: 0,
-              end: (completedHours / hoursNeeded).clamp(0.0, 1.0),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
             ),
-            builder: (context, value, _) {
-              return Stack(
-                children: [
-                  // Background track
-                  Container(
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: backgroundColor.withOpacity(0.3),
-                      borderRadius: AppDesign.borderSmall,
-                    ),
-                  ),
-
-                  // Progress
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 500),
-                    height: 12,
-                    width: MediaQuery.of(context).size.width * value * 0.89,
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: AppDesign.borderSmall,
-                    ),
-                  ),
-                ],
-              );
-            },
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildSummaryCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+        borderRadius: AppDesign.borderLarge,
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant,
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: AppDesign.paddingMedium,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color, size: 20),
+                const SizedBox(width: AppDesign.spacingS),
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMeetingNotesHeader() {
+    return Container(
+      margin: AppDesign.paddingMedium,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Theme.of(context).colorScheme.primaryContainer,
+            Theme.of(context).colorScheme.primaryContainer.withOpacity(0.8),
+          ],
+        ),
+        borderRadius: AppDesign.borderLarge,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _showMeetingNotesDialog,
+          borderRadius: AppDesign.borderLarge,
+          child: Padding(
+            padding: AppDesign.paddingLarge,
+            child: Row(
+              children: [
+                Container(
+                  padding: AppDesign.paddingMedium,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary,
+                    borderRadius: AppDesign.borderMedium,
+                  ),
+                  child: Icon(
+                    Icons.notes,
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: AppDesign.spacingM),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Meeting Notes',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Review important information from previous meetings',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Count completed requirements
+  int _countCompletedRequirements() {
+    int completed = 0;
+    
+    // Check hour requirements
+    for (final entry in _requirementMap.entries) {
+      if ((_completedHoursMap[entry.key] ?? 0.0) >= entry.value) {
+        completed++;
+      }
+    }
+    
+    // Check meeting requirement
+    final meetingHours = _completedHoursMap['Meeting'] ?? 0.0;
+    if (meetingHours >= _meetingRequirement) {
+      completed++;
+    }
+    
+    return completed;
+  }
+
 
   Widget _buildCompletedHoursList(String type, List<CompletedHour> hours) {
     if (hours.isEmpty) {
@@ -623,6 +654,268 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
             },
           ),
         ],
+      ),
+    );
+  }
+
+  
+
+  Widget _buildModernRequirementCard({
+    required String type,
+    required double completedHours,
+    required int requiredHours,
+    required List<CompletedHour> hours,
+    bool isMeeting = false,
+  }) {
+    final percentage = ((completedHours / requiredHours) * 100).clamp(0, 100);
+    final isComplete = completedHours >= requiredHours;
+    final icon = isMeeting ? Icons.groups_rounded : getIconForType(type, context);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(AppDesign.spacingM, 0, AppDesign.spacingM, AppDesign.spacingM),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: AppDesign.borderLarge,
+        border: Border.all(
+          color: isComplete 
+            ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
+            : Theme.of(context).colorScheme.outlineVariant,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Padding(
+            padding: AppDesign.paddingMedium,
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    borderRadius: AppDesign.borderMedium,
+                  ),
+                  child: Icon(
+                    icon,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: AppDesign.spacingM),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isMeeting ? 'Meeting Attendance' : '$type Hours',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${completedHours.toStringAsFixed(1)} / $requiredHours ${isMeeting ? 'meetings' : 'hours'}',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Status chip
+                AnimatedContainer(
+                  duration: AppDesign.animationShort,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isComplete
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.surfaceVariant,
+                    borderRadius: AppDesign.borderRound,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isComplete)
+                        Icon(
+                          Icons.check,
+                          size: 14,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        )
+                      else
+                        SizedBox(width: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        isComplete ? 'Complete' : '${percentage.round()}%',
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: isComplete
+                              ? Theme.of(context).colorScheme.onPrimary
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Progress bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppDesign.spacingM),
+            child: ClipRRect(
+              borderRadius: AppDesign.borderLarge,
+              child: TweenAnimationBuilder<double>(
+                duration: const Duration(milliseconds: 800),
+                curve: Curves.easeOutCubic,
+                tween: Tween<double>(
+                  begin: 0,
+                  end: (completedHours / requiredHours).clamp(0.0, 1.0),
+                ),
+                builder: (context, value, _) {
+                  return LinearProgressIndicator(
+                    value: value,
+                    minHeight: 12,
+                    backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Theme.of(context).colorScheme.primary,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+
+          // Event list or empty state
+          Padding(
+            padding: AppDesign.paddingMedium,
+            child: hours.isEmpty 
+              ? _buildEmptyState(type)
+              : _buildEventList(hours),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+ Widget _buildEmptyState(String type) {
+    return Container(
+      width: double.infinity,
+      padding: AppDesign.paddingLarge,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+        borderRadius: AppDesign.borderMedium,
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.event_busy,
+            size: 32,
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+          ),
+          const SizedBox(height: AppDesign.spacingS),
+          Text(
+            'No ${type.toLowerCase()} hours recorded yet',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.8),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEventList(List<CompletedHour> hours) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${hours.length} ${hours.length == 1 ? 'Event' : 'Events'}',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: AppDesign.spacingS),
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: hours.length,
+          separatorBuilder: (context, index) => const SizedBox(height: AppDesign.spacingS),
+          itemBuilder: (context, index) {
+            final hour = hours[index];
+            return Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                borderRadius: AppDesign.borderMedium,
+              ),
+              child: ListTile(
+                dense: true,
+                leading: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  child: Text(
+                    hour.title.substring(0, 1).toUpperCase(),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                title: Text(
+                  hour.title,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                subtitle: Text(
+                  hour.date.year == 0
+                      ? 'Date not recorded'
+                      : '${hour.date.month}-${hour.date.day}-${hour.date.year}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    borderRadius: AppDesign.borderMedium,
+                  ),
+                  child: Text(
+                    '${hour.hours.toStringAsFixed(1)}h',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReportIssueButton() {
+    return OutlinedButton.icon(
+      onPressed: _openWebsite,
+      icon: const Icon(Icons.bug_report),
+      label: const Text('Report an Issue'),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppDesign.spacingL,
+          vertical: AppDesign.spacingM,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: AppDesign.borderMedium,
+        ),
       ),
     );
   }

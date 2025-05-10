@@ -8,6 +8,8 @@ import '../models/event.dart';
 import '../models/userprofile.dart';
 import '../models/attendee.dart';
 import '../models/logactivity.dart';
+import 'package:provider/provider.dart';
+import '../providers/societyprovider.dart';
 
 class AttendanceCheckPage extends StatefulWidget {
   final Event event;
@@ -30,6 +32,7 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
   String _searchQuery = '';
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isSyncing = false;
   final MobileScannerController _scannerController = MobileScannerController();
 
   @override
@@ -179,6 +182,83 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
       setState(() {
         _isLoading = false;
         _searchQuery = '';
+      });
+    }
+  }
+
+  /// Syncs all society members to the attendance list for mandatory/meeting events
+  Future<void> _syncAllMembers() async {
+    setState(() {
+      _isSyncing = true;
+    });
+
+    try {
+      // Get current society
+      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      if (society == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No society selected')),
+        );
+        return;
+      }
+
+      // Get all society members
+      final membersResponse = await Supabase.instance.client
+          .from('user_society_memberships')
+          .select('user_id, profiles!inner(name)')
+          .eq('society_id', society.id);
+
+      // Get current attendees for this time slot
+      final currentAttendees = _allAttendees.map((a) => a.userId).toSet();
+
+      // Find members who aren't attendees yet
+      final missingAttendees = <Map<String, dynamic>>[];
+      for (final member in membersResponse) {
+        final userId = member['user_id'] as String;
+        if (!currentAttendees.contains(userId)) {
+          missingAttendees.add({
+            'timeslot_id': widget.timeSlot.id,
+            'user_id': userId,
+            'is_present': false,
+            'forms_completed': false,
+          });
+        }
+      }
+
+      if (missingAttendees.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('All members are already attendees')),
+        );
+        return;
+      }
+
+      // Add missing attendees
+      await Supabase.instance.client
+          .from('Attendees')
+          .insert(missingAttendees);
+
+      // Log the sync action
+      await logactivity(
+        widget.event.name,
+        '${widget.timeSlot.time.format(context)} - ${widget.timeSlot.endTime.format(context)}',
+        _calculateHours(widget.timeSlot),
+        'sync_attendees',
+        Supabase.instance.client.auth.currentUser?.id ?? '',
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Added ${missingAttendees.length} missing attendees')),
+      );
+
+      // Refresh the attendees list
+      await _fetchAttendees();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error syncing members: $e')),
+      );
+    } finally {
+      setState(() {
+        _isSyncing = false;
       });
     }
   }
@@ -378,6 +458,10 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
 
   @override
   Widget build(BuildContext context) {
+
+    // Check if this is a mandatory or meeting event
+    final shouldShowSyncButton = widget.event.isMandatory || widget.event.type.toLowerCase() == 'meeting';
+
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
@@ -391,6 +475,20 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
           ),
         ),
         centerTitle: true,
+        actions: [
+          if (shouldShowSyncButton)
+            IconButton(
+              icon: _isSyncing 
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Icon(Icons.sync),
+              tooltip: 'Sync All Members',
+              onPressed: _isSyncing ? null : _syncAllMembers,
+            ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
