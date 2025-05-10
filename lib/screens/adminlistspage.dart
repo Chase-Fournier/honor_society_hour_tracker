@@ -13,6 +13,7 @@ import '../models/logactivity.dart';
 import '../exporttoexcel.dart';
 import '../common/normalizetype.dart';
 import 'package:flutter/services.dart';
+import '../common/iconutils.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -400,7 +401,7 @@ class _AdminListPageState extends State<AdminListPage> {
               child: _buildHourSummaryCard(
                 req.type,
                 _getHoursByType(user, req.type).toStringAsFixed(1),
-                _getIconForHourType(req.type),
+                getIconForType( req.type, context),
                 _getColorForHourType(req.type, context),
               ),
             )
@@ -2400,23 +2401,6 @@ class _AdminListPageState extends State<AdminListPage> {
     );
   }
 
-  // Helper to get icon for hour type - dynamic based on type name
-  IconData _getIconForHourType(String type) {
-    final normalizedType = type.toLowerCase();
-    if (normalizedType.contains('service') || normalizedType.contains('volunteer')) 
-      return Icons.volunteer_activism;
-    if (normalizedType.contains('tutor') || normalizedType.contains('teach')) 
-      return Icons.school;
-    if (normalizedType.contains('meet')) 
-      return Icons.groups;
-    if (normalizedType.contains('lead') || normalizedType.contains('officer')) 
-      return Icons.emoji_people;
-    if (normalizedType.contains('fund') || normalizedType.contains('donat')) 
-      return Icons.attach_money;
-    
-    // Default icon if no match
-    return Icons.watch_later;
-  }
 
   // Helper to get color for hour type
   Color _getColorForHourType(String type, BuildContext context) {
@@ -2434,7 +2418,6 @@ class _AdminListPageState extends State<AdminListPage> {
     final List<Color> palette = [
       Theme.of(context).colorScheme.primary,
       Theme.of(context).colorScheme.secondary,
-      Colors.amber,
       Colors.teal,
       Colors.purple,
       Colors.orange,
