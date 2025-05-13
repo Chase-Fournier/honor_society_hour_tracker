@@ -75,6 +75,7 @@ class SocietyProvider extends ChangeNotifier {
               image_url,
               meeting_requirement,
               created_at,
+              error_form_url,
               hour_requirements(
                 id,
                 type,
@@ -189,6 +190,7 @@ class SocietyProvider extends ChangeNotifier {
               image_url,
               meeting_requirement,
               created_at,
+              error_form_url,
               hour_requirements(
                 id,
                 type,
@@ -243,8 +245,7 @@ class SocietyProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print(
-          'SocietyProvider: Refreshing current society: ${_currentSociety?.name}');
+      print('SocietyProvider: Refreshing current society: ${_currentSociety?.name}');
       final societyId = _currentSociety!.id;
       final response =
           await Supabase.instance.client.from('honor_societies').select('''
@@ -254,6 +255,7 @@ class SocietyProvider extends ChangeNotifier {
           image_url,
           meeting_requirement,
           created_at,
+          error_form_url,
           hour_requirements(
             id,
             type,

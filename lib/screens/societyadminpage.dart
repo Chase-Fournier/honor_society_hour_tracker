@@ -24,6 +24,7 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
   late TextEditingController _meetingRequirementController;
+  late TextEditingController _errorFormUrlController;
   bool _isLoading = false;
   File? _imageFile;
   String? _imageUrl;
@@ -40,6 +41,7 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
     _nameController = TextEditingController(text: society?.name ?? '');
     _descriptionController =
         TextEditingController(text: society?.description ?? '');
+    _errorFormUrlController = TextEditingController(text: society?.errorFormUrl ?? '');
     _meetingRequirementController = TextEditingController(
         text: society?.meetingRequirement.toString() ?? '5');
     _imageUrl = society?.imageUrl;
@@ -51,6 +53,7 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
     _nameController.dispose();
     _descriptionController.dispose();
     _meetingRequirementController.dispose();
+    _errorFormUrlController.dispose();
     super.dispose();
   }
 
@@ -114,6 +117,7 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
         'description': _descriptionController.text,
         'meeting_requirement': int.parse(_meetingRequirementController.text),
         if (imageUrl != null) 'image_url': imageUrl,
+        'error_form_url': _errorFormUrlController.text.isNotEmpty ? _errorFormUrlController.text : null,
       }).eq('id', society.id);
 
       // Refresh provider data
@@ -280,6 +284,26 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
                           return 'Please enter a valid number';
                         }
                         return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _errorFormUrlController,
+                      decoration: const InputDecoration(
+                        labelText: 'Error/Issue Form URL (Optional)',
+                        hintText: 'https://...',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.url,
+                      // Optional: Add URL validation
+                      validator: (value) {
+                        if (value != null && value.isNotEmpty) {
+                          // Basic check if it looks like a URL
+                          if (!value.startsWith('http://') && !value.startsWith('https://')) {
+                            return 'Please enter a valid URL (starting with http:// or https://)';
+                          }
+                        }
+                        return null; // No error
                       },
                     ),
                   ],

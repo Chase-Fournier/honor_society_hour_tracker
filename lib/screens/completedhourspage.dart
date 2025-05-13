@@ -904,6 +904,11 @@ List<Widget> _buildRequirementsList() {
   }
 
   Widget _buildReportIssueButton() {
+    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    final customUrl = society?.errorFormUrl;
+    if (customUrl == null){
+      return SizedBox();
+    }
     return OutlinedButton.icon(
       onPressed: _openWebsite,
       icon: const Icon(Icons.bug_report),
@@ -921,10 +926,33 @@ List<Widget> _buildRequirementsList() {
   }
 
   void _openWebsite() async {
-    final Uri url = Uri.parse(
-        'https://docs.google.com/forms/d/e/1FAIpQLSeXg0ctE8Lg3r4aLhUSZYWj8GlvxwxM4aTRhf3axEQRljeRtw/viewform');
-    if (!await launchUrl(url)) {
-      throw Exception('Could not launch url');
+    // Get the current society from the provider
+    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    final customUrl = society?.errorFormUrl;
+
+    // Define the default URL (your original hardcoded one)
+    const String defaultUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSeXg0ctE8Lg3r4aLhUSZYWj8GlvxwxM4aTRhf3axEQRljeRtw/viewform';
+
+    // Use the custom URL if it exists and is not empty, otherwise use the default
+    final String urlToLaunch = (customUrl != null && customUrl.isNotEmpty) ? customUrl : defaultUrl;
+
+    try {
+      final Uri url = Uri.parse(urlToLaunch);
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        // Show a more user-friendly error
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not launch URL: $urlToLaunch')),
+          );
+        }
+      }
+    } catch (e) {
+      // Handle potential Uri.parse errors for invalid URLs
+      if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Invalid URL format: $urlToLaunch')),
+          );
+        }
     }
   }
 }

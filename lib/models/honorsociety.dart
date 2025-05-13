@@ -8,6 +8,8 @@ class HonorSociety {
   final List<HourRequirement> hourRequirements;
   final int meetingRequirement; // Keep meetings as special case
   final DateTime createdAt;
+  final String? errorFormUrl;
+  
 
   HonorSociety({
     required this.id,
@@ -17,6 +19,7 @@ class HonorSociety {
     required this.hourRequirements,
     required this.meetingRequirement,
     required this.createdAt,
+    this.errorFormUrl,
   });
 
   factory HonorSociety.fromJson(Map<String, dynamic> json) {
@@ -30,6 +33,7 @@ class HonorSociety {
           .toList(),
       meetingRequirement: json['meeting_requirement'],
       createdAt: DateTime.parse(json['created_at']),
+      errorFormUrl: json['error_form_url'],
     );
   }
 }
