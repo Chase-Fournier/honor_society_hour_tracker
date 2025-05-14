@@ -22,6 +22,7 @@ import '../common/nhsformatutils.dart';
 import '../models/logactivity.dart';
 import '../common/iconutils.dart';
 import '../common/normalizetype.dart';
+import '../morphingloader.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -357,7 +358,13 @@ class _HomePageState extends State<HomePage> {
         centerTitle: true,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+              child: WavyCircularProgressIndicator(
+          color: Theme.of(context).colorScheme.primary,
+          size: 60,
+          waveCount: 6,
+          waveAmplitude: 3.5,
+        ))
           : RefreshIndicator(
               onRefresh: _fetchData,
               child: SingleChildScrollView(
