@@ -10,7 +10,7 @@ import '../models/meetingnote.dart';
 import 'leaderboardpage.dart';
 import '../common/iconutils.dart';
 import '../common/normalizetype.dart';
-import '../morphingloader.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -244,13 +244,8 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
       ),
       body: _isLoading
           ? Center(
-              child: WavyCircularProgressIndicator(
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 60,
-                  waveCount: 6,
-                  waveAmplitude: 3.5,
-                )
-            )
+                              child: CircularProgressIndicator(),
+                          )
           : RefreshIndicator(
               color: Theme.of(context).colorScheme.primary,
               onRefresh: _fetchData,

@@ -15,6 +15,7 @@ import '../providers/themenotifier.dart';
 import 'societyselectionpage.dart';
 import '../common/app_widgets.dart';
 import '../providers/societyprovider.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -212,7 +213,9 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+                              child: CircularProgressIndicator(),
+                          )
           : RefreshIndicator(
               onRefresh: () async {
                 await _fetchUserProfile();

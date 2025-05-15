@@ -14,6 +14,7 @@ import '../exporttoexcel.dart';
 import '../common/normalizetype.dart';
 import 'package:flutter/services.dart';
 import '../common/iconutils.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -560,7 +561,9 @@ class _AdminListPageState extends State<AdminListPage> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+                              child: CircularProgressIndicator(),
+                          )
           : Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

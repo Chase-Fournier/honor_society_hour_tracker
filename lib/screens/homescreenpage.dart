@@ -22,7 +22,7 @@ import '../common/nhsformatutils.dart';
 import '../models/logactivity.dart';
 import '../common/iconutils.dart';
 import '../common/normalizetype.dart';
-import '../morphingloader.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -40,11 +40,10 @@ class _HomePageState extends State<HomePage> {
   List<Collection> _collections = [];
   List<Event> _events = [];
   String _selectedEventType = 'All';
-  // Existing state variables...
   late Map<String, double> _completedHoursMap = {};
   late Map<String, double> _potentialHoursMap = {};
   late Map<String, double> _requirementMap = {};
-  int _meetingRequirement = 5; // Default value
+  int _meetingRequirement = 5;
   List<String> _availableEventTypes = ['All'];
   bool _isLoading = true;
   final DateFormat formatter = DateFormat('jm');
@@ -309,10 +308,10 @@ class _HomePageState extends State<HomePage> {
       onSelected();
     },
     child: AnimatedContainer(
-      duration: AppDesign.animationShort, // e.g., Duration(milliseconds: 200)
-      curve: Curves.easeInOut, // Smoother curve for shape and color
+      duration: AppDesign.animationShort, 
+      curve: Curves.easeInOut,
       padding: const EdgeInsets.symmetric(
-          horizontal: AppDesign.spacingL - 4, vertical: AppDesign.spacingS + 2), // Adjusted padding for a balanced look
+          horizontal: AppDesign.spacingL - 4, vertical: AppDesign.spacingS + 2),
       decoration: ShapeDecoration(
         color: isSelected ? selectedBackgroundColor : unselectedBackgroundColor,
         shape: isSelected ? selectedShape : unselectedShape,
@@ -329,9 +328,9 @@ class _HomePageState extends State<HomePage> {
         label,
         style: theme.textTheme.labelLarge?.copyWith(
           color: isSelected ? selectedLabelColor : unselectedLabelColor,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, // Bold when selected
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
         ),
-        textAlign: TextAlign.center, // Ensure text is centered
+        textAlign: TextAlign.center,
       ),
     ),
   );
@@ -359,12 +358,8 @@ class _HomePageState extends State<HomePage> {
       ),
       body: _isLoading
           ? Center(
-              child: WavyCircularProgressIndicator(
-          color: Theme.of(context).colorScheme.primary,
-          size: 60,
-          waveCount: 6,
-          waveAmplitude: 3.5,
-        ))
+                              child: CircularProgressIndicator(),
+                          )
           : RefreshIndicator(
               onRefresh: _fetchData,
               child: SingleChildScrollView(

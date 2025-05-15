@@ -10,6 +10,7 @@ import '../models/attendee.dart';
 import '../models/logactivity.dart';
 import 'package:provider/provider.dart';
 import '../providers/societyprovider.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class AttendanceCheckPage extends StatefulWidget {
   final Event event;
@@ -498,7 +499,9 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+                              child: CircularProgressIndicator(),
+                          )
           : Column(
               children: [
                 Padding(

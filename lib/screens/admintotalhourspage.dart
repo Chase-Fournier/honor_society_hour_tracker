@@ -256,7 +256,7 @@ class _AdminTotalHoursPageState extends State<AdminTotalHoursPage> {
         elevation: 15,
         shadowColor: Theme.of(context).colorScheme.shadow,
         title: Text(
-          'Total NHS Hours',
+          'Total Society Hours',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onPrimary,
             fontWeight: FontWeight.bold,

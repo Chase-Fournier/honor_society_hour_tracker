@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../common/app_design.dart';
 import '../models/userranking.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -112,7 +113,9 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
         centerTitle: true,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+                              child: CircularProgressIndicator(),
+                          )
           : RefreshIndicator(
               onRefresh: _fetchLeaderboardData,
               color: Theme.of(context).colorScheme.primary,

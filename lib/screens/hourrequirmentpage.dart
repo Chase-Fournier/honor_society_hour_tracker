@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../models/hourrequirement.dart';
 import '../models/honorsociety.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -303,7 +304,9 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+                              child: CircularProgressIndicator(),
+                          )
           : RefreshIndicator(
               onRefresh: () async {
                 // Refresh requirements from the database

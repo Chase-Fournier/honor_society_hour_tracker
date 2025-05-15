@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
 import 'main.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class SnakePage extends StatefulWidget {
   const SnakePage({Key? key}) : super(key: key);
@@ -409,7 +410,9 @@ class _SnakePageState extends State<SnakePage> with TickerProviderStateMixin {
 
           // Leaderboard Tab
           _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? Center(
+                              child: CircularProgressIndicator(),
+                          )
               : _buildLeaderboard(),
         ],
       ),

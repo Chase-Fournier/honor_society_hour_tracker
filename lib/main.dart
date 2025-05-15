@@ -100,7 +100,7 @@ class _MyAppState extends State<MyApp> {
                 animation: widget.themeNotifier,
                 builder: (context, _) {
                   return MaterialApp(
-                    title: 'NHS Hour Tracking',
+                    title: 'Society Hour Tracking',
                     debugShowCheckedModeBanner: false,
                     theme: themeProvider
                         .getThemeData(widget.themeNotifier.themeColor),

@@ -6,6 +6,7 @@ import '../providers/societyprovider.dart';
 import '../common/app_design.dart';
 import '../models/userprofile.dart';
 import '../models/logactivity.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -533,12 +534,11 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                     foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   ),
                   child: _isLoading
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+                          child: Center(
+                              child: CircularProgressIndicator(),
                           ),
                         )
                       : const Text('Save'),

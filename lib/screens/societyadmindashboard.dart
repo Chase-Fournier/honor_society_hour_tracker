@@ -11,6 +11,7 @@ import '../models/meetingnote.dart';
 import 'admineventspage.dart';
 import 'activitylogpage.dart';
 import "adminlistspage.dart";
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 final supabase = Supabase.instance.client;
 /// Dashboard for society administrators showing statistics and quick access to management features
@@ -325,7 +326,9 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
           ],
         ),
         body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? Center(
+                              child: CircularProgressIndicator(),
+                          )
             : RefreshIndicator(
                 onRefresh: _fetchDashboardData,
                 child: SingleChildScrollView(

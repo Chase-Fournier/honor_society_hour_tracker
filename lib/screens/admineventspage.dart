@@ -13,6 +13,7 @@ import '../models/event.dart';
 import '../models/attendee.dart';
 import '../common/normalizetype.dart';
 import '../common/iconutils.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 
 final supabase = Supabase.instance.client;
@@ -208,10 +209,13 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                         ),
                       ),
                       if (_isLoading)
-                        const SizedBox(
+                        SizedBox(
                             width: 16,
                             height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2)),
+                            child: Center(
+                              child: CircularProgressIndicator(),
+                          ),
+                        )
                     ],
                   ),
                 ),

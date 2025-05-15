@@ -140,7 +140,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         ),
         const SizedBox(height: AppDesign.spacingM),
         Text(
-          'NHS Hour Tracking',
+          'Society Hour Tracking',
           style: TextStyle(
             fontSize: 28.0,
             fontWeight: FontWeight.bold,
@@ -173,7 +173,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         ),
         const SizedBox(height: AppDesign.spacingL),
         Text(
-          'NHS Hour Tracking',
+          'Society Hour Tracking',
           style: TextStyle(
             fontSize: 32.0,
             fontWeight: FontWeight.bold,

@@ -4,6 +4,7 @@ import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../common/app_design.dart';
 import '../models/hourrequirement.dart';
 import '../models/honorsociety.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -266,7 +267,9 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
         title: const Text('Join an Honor Society'),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+                              child: CircularProgressIndicator(),
+                          )
           : _availableSocieties.isEmpty
               ? const Center(
                   child: Text('No available societies to join'),

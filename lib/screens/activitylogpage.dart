@@ -7,6 +7,7 @@ import '../providers/societyprovider.dart';
 import '../common/app_design.dart';
 import 'dart:ui';
 import '../models/activitylog.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -89,7 +90,9 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
           _buildDateSelector(),
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? Center(
+                              child: CircularProgressIndicator(),
+                          )
                 : _logs.isEmpty
                     ? Center(
                         child: Text(

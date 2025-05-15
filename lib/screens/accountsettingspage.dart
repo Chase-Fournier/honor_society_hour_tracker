@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../common/app_design.dart';
 import '../common/app_widgets.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 // Import your shared constants/styles
 final supabase = Supabase.instance.client;
@@ -669,14 +670,9 @@ Future<void> _updateProfileDetails() async {
                           ? Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    color: Theme.of(context).colorScheme.onPrimary,
-                                    strokeWidth: 2,
-                                  ),
-                                ),
+                                Center(
+                              child: CircularProgressIndicator(),
+                          ),
                                 const SizedBox(width: 16),
                                 const Text('Processing...'),
                               ],

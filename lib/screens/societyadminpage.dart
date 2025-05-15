@@ -9,6 +9,7 @@ import '../providers/societyprovider.dart';
 import 'package:provider/provider.dart';
 import '../models/hourrequirement.dart';
 import '../common/iconselector.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class SocietyAdminPage extends StatefulWidget {
   const SocietyAdminPage({Key? key}) : super(key: key);
@@ -340,13 +341,12 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
               child: ElevatedButton.icon(
                 onPressed: _isLoading ? null : _saveSocietyDetails,
                 icon: _isLoading
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
+                        child: Center(
+                              child: CircularProgressIndicator(),
+                          )
                       )
                     : const Icon(Icons.save),
                 label: const Text('Save Society Details'),
@@ -701,7 +701,9 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
 
       return Scaffold(
         body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? Center(
+                              child: CircularProgressIndicator(),
+                          )
             : RefreshIndicator(
                 onRefresh: () async {
                   // Refresh society data and update local requirements

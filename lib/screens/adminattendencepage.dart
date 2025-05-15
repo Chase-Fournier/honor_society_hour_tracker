@@ -13,6 +13,7 @@ import 'attendencecheckpage.dart';
 import '../common/nhsformatutils.dart';
 import '../common/iconutils.dart';
 import '../common/normalizetype.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -220,10 +221,12 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                         ),
                       ),
                       if (_isLoading) 
-                        const SizedBox(
+                        SizedBox(
                           width: 16, 
                           height: 16, 
-                          child: CircularProgressIndicator(strokeWidth: 2)
+                          child: Center(
+                              child: CircularProgressIndicator(),
+                          ),
                         ),
                     ],
                   ),
