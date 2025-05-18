@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../common/app_design.dart';
 import '../common/app_widgets.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
+
 
 // Import your shared constants/styles
 final supabase = Supabase.instance.client;
@@ -24,7 +24,7 @@ class AccountSettingsPage extends StatefulWidget {
 class _AccountSettingsPageState extends State<AccountSettingsPage> {
   // State variables
   final _emailFormKey = GlobalKey<FormState>();
-  
+
   final _passwordFormKey = GlobalKey<FormState>();
   final _profileFormKey = GlobalKey<FormState>();
   final _currentPasswordController = TextEditingController();
@@ -32,22 +32,22 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   final _confirmPasswordController = TextEditingController();
   final _newEmailController = TextEditingController();
   final _graduationYearController = TextEditingController();
-  
+
   String _currentEmail = '';
   bool _isLoadingEmail = false;
   bool _isLoadingPassword = false;
-  bool _isLoadingProfile = false; 
+  bool _isLoadingProfile = false;
   bool _obscureCurrentPassword = true;
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
-  
+
   @override
   void initState() {
     super.initState();
     _fetchCurrentUserEmail();
     _fetchUserProfileDetails();
   }
-  
+
   @override
   void dispose() {
     _currentPasswordController.dispose();
@@ -57,7 +57,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     _graduationYearController.dispose();
     super.dispose();
   }
-  
+
   /// Fetches the current user's email from Supabase
   Future<void> _fetchCurrentUserEmail() async {
     final user = supabase.auth.currentUser;
@@ -70,73 +70,74 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   }
 
   Future<void> _fetchUserProfileDetails() async {
-  setState(() => _isLoadingProfile = true);
-  
-  final user = supabase.auth.currentUser;
-  if (user == null) {
-    setState(() => _isLoadingProfile = false);
-    return;
-  }
+    setState(() => _isLoadingProfile = true);
 
-  try {
-    // Get graduation year from user metadata
-    final userMetadata = user.userMetadata;
-    
-    if (mounted) {
-      setState(() {
-        _graduationYearController.text = userMetadata?['graduation_year']?.toString() ?? '';
-        _isLoadingProfile = false;
-      });
-    }
-  } catch (e) {
-    if (mounted) {
-      _showToast('Error fetching profile details');
+    final user = supabase.auth.currentUser;
+    if (user == null) {
       setState(() => _isLoadingProfile = false);
+      return;
+    }
+
+    try {
+      // Get graduation year from user metadata
+      final userMetadata = user.userMetadata;
+
+      if (mounted) {
+        setState(() {
+          _graduationYearController.text =
+              userMetadata?['graduation_year']?.toString() ?? '';
+          _isLoadingProfile = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        _showToast('Error fetching profile details');
+        setState(() => _isLoadingProfile = false);
+      }
     }
   }
-}
 
 // Replace _updateProfileDetails method with:
-Future<void> _updateProfileDetails() async {
-  if (!_profileFormKey.currentState!.validate()) return;
-  setState(() => _isLoadingProfile = true);
-  final user = supabase.auth.currentUser;
-  if (user == null) {
-    setState(() => _isLoadingProfile = false);
-    return;
-  }
-
-  try {
-    final gradYear = int.tryParse(_graduationYearController.text.trim());
-    
-    // Update user metadata
-    await supabase.auth.updateUser(
-      UserAttributes(
-        data: {
-          ...user.userMetadata ?? {}, // Preserve existing metadata
-          'graduation_year': gradYear
-        },
-      ),
-    );
-
-    if (mounted) {
-      _showToast('Profile Updated Successfully!');
-    }
-  } catch (e) {
-    if (mounted) {
-      _showToast('Profile Update Failed: $e');
-    }
-  }finally {
-    if (mounted) {
+  Future<void> _updateProfileDetails() async {
+    if (!_profileFormKey.currentState!.validate()) return;
+    setState(() => _isLoadingProfile = true);
+    final user = supabase.auth.currentUser;
+    if (user == null) {
       setState(() => _isLoadingProfile = false);
+      return;
+    }
+
+    try {
+      final gradYear = int.tryParse(_graduationYearController.text.trim());
+
+      // Update user metadata
+      await supabase.auth.updateUser(
+        UserAttributes(
+          data: {
+            ...user.userMetadata ?? {}, // Preserve existing metadata
+            'graduation_year': gradYear
+          },
+        ),
+      );
+
+      if (mounted) {
+        _showToast('Profile Updated Successfully!');
+      }
+    } catch (e) {
+      if (mounted) {
+        _showToast('Profile Update Failed: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingProfile = false);
+      }
     }
   }
-}
-  
+
   /// Updates the user's email address
   Future<void> _updateEmail() async {
     if (!_emailFormKey.currentState!.validate()) return;
-    
+
     final newEmail = _newEmailController.text.trim();
     if (newEmail == _currentEmail) {
       _showToast(
@@ -144,18 +145,17 @@ Future<void> _updateProfileDetails() async {
       );
       return;
     }
-    
+
     setState(() => _isLoadingEmail = true);
-    
+
     try {
       await supabase.auth.updateUser(
         UserAttributes(email: newEmail),
       );
-      
+
       _showToast(
         'Verification Email Sent, Please check your new email address to confirm the change.',
       );
-      
     } catch (e) {
       _showToast(
         'Email Update Failed',
@@ -164,35 +164,34 @@ Future<void> _updateProfileDetails() async {
       setState(() => _isLoadingEmail = false);
     }
   }
-  
+
   /// Updates the user's password
   Future<void> _updatePassword() async {
     if (!_passwordFormKey.currentState!.validate()) return;
-    
+
     final currentPassword = _currentPasswordController.text;
     final newPassword = _newPasswordController.text;
-    
+
     setState(() => _isLoadingPassword = true);
-    
+
     try {
       // First verify current password by signing in
       final user = supabase.auth.currentUser;
       if (user == null) throw Exception('User not logged in');
-      
+
       // Update password
       await supabase.auth.updateUser(
         UserAttributes(password: newPassword),
       );
-      
+
       // Clear the form
       _currentPasswordController.clear();
       _newPasswordController.clear();
       _confirmPasswordController.clear();
-      
+
       _showToast(
         'Password Updated',
       );
-      
     } catch (e) {
       _showToast(
         'Password Update Failed',
@@ -201,7 +200,7 @@ Future<void> _updateProfileDetails() async {
       setState(() => _isLoadingPassword = false);
     }
   }
-  
+
   /// Shows a toast notification
   void _showToast(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -218,7 +217,7 @@ Future<void> _updateProfileDetails() async {
     final screenWidth = MediaQuery.of(context).size.width;
     final bool isWideScreen = screenWidth > 900;
     final bool isMediumScreen = screenWidth > 600 && screenWidth <= 900;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -234,11 +233,16 @@ Future<void> _updateProfileDetails() async {
           // Constrain max width on larger screens for better readability
           child: Container(
             constraints: BoxConstraints(
-              maxWidth: isWideScreen ? 1200 : isMediumScreen ? 700 : double.infinity,
+              maxWidth: isWideScreen
+                  ? 1200
+                  : isMediumScreen
+                      ? 700
+                      : double.infinity,
             ),
             child: SingleChildScrollView(
               padding: EdgeInsets.symmetric(
-                horizontal: isWideScreen ? AppDesign.spacingL : AppDesign.spacingL,
+                horizontal:
+                    isWideScreen ? AppDesign.spacingL : AppDesign.spacingL,
                 vertical: AppDesign.spacingL,
               ),
               child: Column(
@@ -246,9 +250,12 @@ Future<void> _updateProfileDetails() async {
                 children: [
                   // Header section
                   _buildHeader(isWideScreen),
-                  
-                  SizedBox(height: isWideScreen ? AppDesign.spacingXXL : AppDesign.spacingL),
-                  
+
+                  SizedBox(
+                      height: isWideScreen
+                          ? AppDesign.spacingXXL
+                          : AppDesign.spacingL),
+
                   // Content area - responsive layout
                   if (isWideScreen)
                     // Wide screen layout (side by side)
@@ -256,7 +263,7 @@ Future<void> _updateProfileDetails() async {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(child: _buildProfileSection()),
-                         const SizedBox(width: AppDesign.spacingL),
+                        const SizedBox(width: AppDesign.spacingL),
                         Expanded(child: _buildEmailSection()),
                         const SizedBox(width: AppDesign.spacingL),
                         Expanded(child: _buildPasswordSection()),
@@ -288,7 +295,6 @@ Future<void> _updateProfileDetails() async {
                           ),
                           child: _buildPasswordSection(),
                         ),
-                        
                       ],
                     )
                   else
@@ -312,66 +318,68 @@ Future<void> _updateProfileDetails() async {
     );
   }
 
-   Widget _buildProfileSection() {
+  Widget _buildProfileSection() {
     final currentYear = DateTime.now().year;
-    final List<String> graduationYears = 
-    List.generate(4, (i) => (currentYear + i).toString());
-     return AppSurfaceCard(
-       child: Form(
-         key: _profileFormKey,
-         child: Column(
-           crossAxisAlignment: CrossAxisAlignment.start,
-           children: [
-             // Section Header
-             const AppSectionHeader(
-               icon: Icons.person_outline,
-               title: 'Profile Details',
-               subtitle: 'Update your graduation year',
-             ),
-             const SizedBox(height: AppDesign.spacingL),
+    final List<String> graduationYears =
+        List.generate(4, (i) => (currentYear + i).toString());
+    return AppSurfaceCard(
+      child: Form(
+        key: _profileFormKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Section Header
+            const AppSectionHeader(
+              icon: Icons.person_outline,
+              title: 'Profile Details',
+              subtitle: 'Update your graduation year',
+            ),
+            const SizedBox(height: AppDesign.spacingL),
 
-             
-              DropdownButtonFormField<String>(
-                value: _graduationYearController.text.isEmpty 
-                    ? null 
-                    : (_graduationYearController.text.length == 4 && int.tryParse(_graduationYearController.text) != null)
-                        ? _graduationYearController.text
-                        : null,
-                decoration: const InputDecoration(
-                  labelText: 'Graduation Year',
-                  prefixIcon: Icon(Icons.school),
-                  border: OutlineInputBorder(),
-                ),
-                items: graduationYears.map((year) => DropdownMenuItem(
-                  value: year,
-                  child: Text(year),
-                )).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _graduationYearController.text = value ?? '';
-                  });
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please select your graduation year';
-                  }
-                  return null;
-                },
+            DropdownButtonFormField<String>(
+              value: _graduationYearController.text.isEmpty
+                  ? null
+                  : (_graduationYearController.text.length == 4 &&
+                          int.tryParse(_graduationYearController.text) != null)
+                      ? _graduationYearController.text
+                      : null,
+              decoration: const InputDecoration(
+                labelText: 'Graduation Year',
+                prefixIcon: Icon(Icons.school),
+                border: OutlineInputBorder(),
               ),
-             const SizedBox(height: AppDesign.spacingL),
+              items: graduationYears
+                  .map((year) => DropdownMenuItem(
+                        value: year,
+                        child: Text(year),
+                      ))
+                  .toList(),
+              onChanged: (value) {
+                setState(() {
+                  _graduationYearController.text = value ?? '';
+                });
+              },
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please select your graduation year';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: AppDesign.spacingL),
 
-             // Save Button
-             AppPrimaryButton(
-               text: 'Update Profile',
-               isLoading: _isLoadingProfile,
-               onPressed: _updateProfileDetails,
-             ),
-           ],
-         ),
-       ),
-     );
-   }
-  
+            // Save Button
+            AppPrimaryButton(
+              text: 'Update Profile',
+              isLoading: _isLoadingProfile,
+              onPressed: _updateProfileDetails,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildHeader(bool isWideScreen) {
     return Center(
       child: Column(
@@ -389,21 +397,21 @@ Future<void> _updateProfileDetails() async {
           Text(
             'Account Security',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: AppDesign.spacingXS),
           Text(
             'Update your email address and password',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
           ),
         ],
       ),
     );
   }
-  
+
   Widget _buildEmailSection() {
     return AppSurfaceCard(
       child: Column(
@@ -416,7 +424,7 @@ Future<void> _updateProfileDetails() async {
             subtitle: 'Change the email address associated with your account',
           ),
           const SizedBox(height: AppDesign.spacingL),
-          
+
           // Current Email
           Row(
             children: [
@@ -438,7 +446,10 @@ Future<void> _updateProfileDetails() async {
                     color: Theme.of(context).colorScheme.surface,
                     borderRadius: AppDesign.borderSmall,
                     border: Border.all(
-                      color: Theme.of(context).colorScheme.outline.withOpacity(0.5),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .outline
+                          .withOpacity(0.5),
                     ),
                   ),
                   child: Text(
@@ -451,7 +462,7 @@ Future<void> _updateProfileDetails() async {
             ],
           ),
           const SizedBox(height: AppDesign.spacingL),
-          
+
           // New Email Form
           Form(
             key: _emailFormKey,
@@ -474,23 +485,23 @@ Future<void> _updateProfileDetails() async {
                   },
                 ),
                 const SizedBox(height: AppDesign.spacingL),
-                
+
                 // Save Button
                 AppPrimaryButton(
                   text: 'Update Email',
                   isLoading: _isLoadingEmail,
                   onPressed: _updateEmail,
                 ),
-                
+
                 const SizedBox(height: AppDesign.spacingS),
-                
+
                 Center(
                   child: Text(
                     'A verification email will be sent to your new address',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontStyle: FontStyle.italic,
-                    ),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontStyle: FontStyle.italic,
+                        ),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -525,8 +536,8 @@ Future<void> _updateProfileDetails() async {
                 Text(
                   'Password',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
@@ -534,11 +545,11 @@ Future<void> _updateProfileDetails() async {
             Text(
               'Change your account password',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
             const SizedBox(height: 24),
-            
+
             // Password Form
             Form(
               key: _passwordFormKey,
@@ -554,9 +565,9 @@ Future<void> _updateProfileDetails() async {
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscureCurrentPassword 
-                            ? Icons.visibility_off
-                            : Icons.visibility,
+                          _obscureCurrentPassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
                         ),
                         onPressed: () {
                           setState(() {
@@ -578,7 +589,7 @@ Future<void> _updateProfileDetails() async {
                     },
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // New Password
                   TextFormField(
                     controller: _newPasswordController,
@@ -588,9 +599,9 @@ Future<void> _updateProfileDetails() async {
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscureNewPassword 
-                            ? Icons.visibility_off
-                            : Icons.visibility,
+                          _obscureNewPassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
                         ),
                         onPressed: () {
                           setState(() {
@@ -615,7 +626,7 @@ Future<void> _updateProfileDetails() async {
                     },
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Confirm Password
                   TextFormField(
                     controller: _confirmPasswordController,
@@ -625,9 +636,9 @@ Future<void> _updateProfileDetails() async {
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscureConfirmPassword 
-                            ? Icons.visibility_off
-                            : Icons.visibility,
+                          _obscureConfirmPassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
                         ),
                         onPressed: () {
                           setState(() {
@@ -652,7 +663,7 @@ Future<void> _updateProfileDetails() async {
                     },
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Save Button
                   SizedBox(
                     width: double.infinity,
@@ -660,7 +671,8 @@ Future<void> _updateProfileDetails() async {
                       onPressed: _isLoadingPassword ? null : _updatePassword,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                        foregroundColor:
+                            Theme.of(context).colorScheme.onPrimary,
                         backgroundColor: Theme.of(context).colorScheme.primary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -671,8 +683,8 @@ Future<void> _updateProfileDetails() async {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Center(
-                              child: CircularProgressIndicator(),
-                          ),
+                                  child: CircularProgressIndicator(),
+                                ),
                                 const SizedBox(width: 16),
                                 const Text('Processing...'),
                               ],
@@ -680,17 +692,23 @@ Future<void> _updateProfileDetails() async {
                           : const Text('Update Password'),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 12),
-                  
+
                   // Password Requirements
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceVariant
+                          .withOpacity(0.5),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .outline
+                            .withOpacity(0.3),
                       ),
                     ),
                     child: Column(
@@ -700,14 +718,17 @@ Future<void> _updateProfileDetails() async {
                           'Password Requirements:',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: 8),
                         _buildRequirementRow('At least 8 characters long'),
-                        _buildRequirementRow('Include upper and lowercase letters'),
+                        _buildRequirementRow(
+                            'Include upper and lowercase letters'),
                         _buildRequirementRow('Include at least one number'),
-                        _buildRequirementRow('Include at least one special character'),
+                        _buildRequirementRow(
+                            'Include at least one special character'),
                       ],
                     ),
                   ),
@@ -719,7 +740,7 @@ Future<void> _updateProfileDetails() async {
       ),
     );
   }
-  
+
   Widget _buildRequirementRow(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),

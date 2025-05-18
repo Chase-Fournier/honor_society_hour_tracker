@@ -10,7 +10,7 @@ import '../models/attendee.dart';
 import '../models/logactivity.dart';
 import 'package:provider/provider.dart';
 import '../providers/societyprovider.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
+
 
 class AttendanceCheckPage extends StatefulWidget {
   final Event event;
@@ -195,7 +195,8 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
 
     try {
       // Get current society
-      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
       if (society == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No society selected')),
@@ -234,9 +235,7 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
       }
 
       // Add missing attendees
-      await Supabase.instance.client
-          .from('Attendees')
-          .insert(missingAttendees);
+      await Supabase.instance.client.from('Attendees').insert(missingAttendees);
 
       // Log the sync action
       await logactivity(
@@ -248,7 +247,9 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Added ${missingAttendees.length} missing attendees')),
+        SnackBar(
+            content:
+                Text('Added ${missingAttendees.length} missing attendees')),
       );
 
       // Refresh the attendees list
@@ -459,9 +460,9 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
 
   @override
   Widget build(BuildContext context) {
-
     // Check if this is a mandatory or meeting event
-    final shouldShowSyncButton = widget.event.isMandatory || widget.event.type.toLowerCase() == 'meeting';
+    final shouldShowSyncButton = widget.event.isMandatory ||
+        widget.event.type.toLowerCase() == 'meeting';
 
     return Scaffold(
       appBar: AppBar(
@@ -479,13 +480,14 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
         actions: [
           if (shouldShowSyncButton)
             IconButton(
-              icon: _isSyncing 
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  )
-                : const Icon(Icons.sync),
+              icon: _isSyncing
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.sync),
               tooltip: 'Sync All Members',
               onPressed: _isSyncing ? null : _syncAllMembers,
             ),
@@ -500,8 +502,8 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
       ),
       body: _isLoading
           ? Center(
-                              child: CircularProgressIndicator(),
-                          )
+              child: CircularProgressIndicator(),
+            )
           : Column(
               children: [
                 Padding(

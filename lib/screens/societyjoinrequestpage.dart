@@ -4,10 +4,9 @@ import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../common/app_design.dart';
 import '../models/hourrequirement.dart';
 import '../models/honorsociety.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
+
 
 final supabase = Supabase.instance.client;
-
 
 class SocietyJoinRequestPage extends StatefulWidget {
   const SocietyJoinRequestPage({super.key});
@@ -267,9 +266,9 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
         title: const Text('Join an Honor Society'),
       ),
       body: _isLoading
-          ? Center(
-                              child: CircularProgressIndicator(),
-                          )
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
           : _availableSocieties.isEmpty
               ? const Center(
                   child: Text('No available societies to join'),
@@ -321,7 +320,7 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
                           ),
                           trailing: hasPendingRequest
                               ? Chip(
-                                  label: const Text('Request Pending'),
+                                  label: const Text('Pending'),
                                   backgroundColor: Colors.amber[100],
                                   labelStyle: TextStyle(
                                     color: Colors.amber[800],

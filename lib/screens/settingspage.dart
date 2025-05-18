@@ -15,7 +15,7 @@ import '../providers/themenotifier.dart';
 import 'societyselectionpage.dart';
 import '../common/app_widgets.dart';
 import '../providers/societyprovider.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
+
 
 final supabase = Supabase.instance.client;
 
@@ -214,14 +214,14 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       body: _isLoading
           ? Center(
-                              child: CircularProgressIndicator(),
-                          )
+              child: CircularProgressIndicator(),
+            )
           : RefreshIndicator(
               onRefresh: () async {
                 await _fetchUserProfile();
                 await _fetchUserSocieties();
               },
-              child: isWideScreen 
+              child: isWideScreen
                   ? _buildWideScreenLayout()
                   : _buildMobileLayout(),
             ),
@@ -235,42 +235,40 @@ class _SettingsPageState extends State<SettingsPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Left column - profile info and society 
+          // Left column - profile info and society
           Expanded(
             flex: 3,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                  _buildSocietyCard(),
-                
+                _buildSocietyCard(),
+
                 const SizedBox(height: 24),
-                
+
                 // User profile card
                 _buildUserProfileCard(),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Account settings card
                 _buildAccountSettingsCard(),
-                
               ],
             ),
           ),
-          
+
           const SizedBox(width: 24),
-          
+
           // Right column - theme and other settings
           Expanded(
             flex: 4,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                
                 // Appearance settings card
                 _buildAppearanceCard(),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Games section - only show on web
                 _buildGamesSection(),
               ],
@@ -289,26 +287,25 @@ class _SettingsPageState extends State<SettingsPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Society Card
-            _buildSocietyCard(),
-          
+          _buildSocietyCard(),
+
           const SizedBox(height: 16),
-          
+
           // User profile card
           _buildUserProfileCard(),
-          
+
           const SizedBox(height: 24),
-          
+
           // Account settings card
           _buildAccountSettingsCard(),
-          
+
           const SizedBox(height: 24),
-          
+
           // Appearance settings card
           _buildAppearanceCard(),
-  
-          
+
           const SizedBox(height: 24),
-          
+
           // Snake game button
           ElevatedButton.icon(
             onPressed: () {
@@ -327,82 +324,89 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // Society Card Widget
   Widget _buildSocietyCard() {
-     final societyProvider = Provider.of<SocietyProvider>(context, listen: false);
-     final currentSociety = societyProvider.currentSociety;
+    final societyProvider =
+        Provider.of<SocietyProvider>(context, listen: false);
+    final currentSociety = societyProvider.currentSociety;
 
-     if (currentSociety == null) return const SizedBox.shrink(); // Handle null case
+    if (currentSociety == null)
+      return const SizedBox.shrink(); // Handle null case
 
-     return AppCard(
+    return AppCard(
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
-       padding: AppDesign.paddingMedium,
-       child: Column(
-         crossAxisAlignment: CrossAxisAlignment.start,
-         children: [
-           Row(
-             crossAxisAlignment: CrossAxisAlignment.center, // Align items vertically
-             children: [
-               if (currentSociety.imageUrl != null)
-                 CircleAvatar(
-                   radius: 28,
-                   backgroundImage: NetworkImage(currentSociety.imageUrl!),
-                 )
-               else
-                 CircleAvatar(
-                   radius: 28,
-                   child: Text(
-                     currentSociety.name.isNotEmpty ? currentSociety.name[0] : '?',
-                     style: const TextStyle(fontSize: 24),
-                   ),
-                   backgroundColor: Theme.of(context).colorScheme.primary,
-                   foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                 ),
-               const SizedBox(width: 16),
-               Expanded(
-                 child: Column(
-                   crossAxisAlignment: CrossAxisAlignment.start,
-                   children: [
-                     Text(
-                       currentSociety.name,
-                       style: const TextStyle(
-                         fontWeight: FontWeight.bold,
-                         fontSize: 20,
-                       ),
-                     ),
-                     if (_isAdmin)
-                       Chip(
-                         label: const Text('Admin'),
-                         backgroundColor:
-                             Theme.of(context).colorScheme.primaryContainer,
-                         labelStyle: TextStyle(
-                           color: Theme.of(context).colorScheme.onPrimaryContainer,
-                           fontWeight: FontWeight.bold,
-                           fontSize: 12,
-                         ),
-                         padding: EdgeInsets.symmetric(horizontal: 6, vertical: 0), // Make chip smaller
-                         visualDensity: VisualDensity.compact,
-                       ),
-                   ],
-                 ),
-               ),
-               IconButton(
-              icon: const Icon(Icons.switch_account),
-              color: Theme.of(context).colorScheme.primary,
-              onPressed:() {
-                   Navigator.pushAndRemoveUntil(
-                     context,
-                     MaterialPageRoute(builder: (context) => const SocietySelectionPage()),
-                     (route) => false,
-                   );},
-              tooltip: 'switch Society',
-            ),
-               
-             ],
-           ),
-
-         ],
-       ),
-     );
-   }
+      padding: AppDesign.paddingMedium,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.center, // Align items vertically
+            children: [
+              if (currentSociety.imageUrl != null)
+                CircleAvatar(
+                  radius: 28,
+                  backgroundImage: NetworkImage(currentSociety.imageUrl!),
+                )
+              else
+                CircleAvatar(
+                  radius: 28,
+                  child: Text(
+                    currentSociety.name.isNotEmpty
+                        ? currentSociety.name[0]
+                        : '?',
+                    style: const TextStyle(fontSize: 24),
+                  ),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      currentSociety.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      ),
+                    ),
+                    if (_isAdmin)
+                      Chip(
+                        label: const Text('Admin'),
+                        backgroundColor:
+                            Theme.of(context).colorScheme.primaryContainer,
+                        labelStyle: TextStyle(
+                          color:
+                              Theme.of(context).colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 0), // Make chip smaller
+                        visualDensity: VisualDensity.compact,
+                      ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.switch_account),
+                color: Theme.of(context).colorScheme.primary,
+                onPressed: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const SocietySelectionPage()),
+                    (route) => false,
+                  );
+                },
+                tooltip: 'switch Society',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
   // User Profile Card Widget
   Widget _buildUserProfileCard() {
@@ -559,15 +563,15 @@ class _SettingsPageState extends State<SettingsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Padding(
-                  padding: EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 8.0),
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                   child: Text('Theme Mode'),
                 ),
                 RadioListTile<themeprovider.ThemeMode>(
                   title: const Text('Light'),
                   value: themeprovider.ThemeMode.light,
-                  groupValue:
-                      Provider.of<themeprovider.ThemeProvider>(context).themeMode,
+                  groupValue: Provider.of<themeprovider.ThemeProvider>(context)
+                      .themeMode,
                   onChanged: (value) {
                     Provider.of<themeprovider.ThemeProvider>(context,
                             listen: false)
@@ -577,9 +581,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 RadioListTile<themeprovider.ThemeMode>(
                   title: const Text('Dark'),
                   value: themeprovider.ThemeMode.dark,
-                  groupValue:
-                      Provider.of<themeprovider.ThemeProvider>(context)
-                          .themeMode,
+                  groupValue: Provider.of<themeprovider.ThemeProvider>(context)
+                      .themeMode,
                   onChanged: (value) {
                     Provider.of<themeprovider.ThemeProvider>(context,
                             listen: false)
@@ -589,9 +592,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 RadioListTile<themeprovider.ThemeMode>(
                   title: const Text('Midnight'),
                   value: themeprovider.ThemeMode.midnight,
-                  groupValue:
-                      Provider.of<themeprovider.ThemeProvider>(context)
-                          .themeMode,
+                  groupValue: Provider.of<themeprovider.ThemeProvider>(context)
+                      .themeMode,
                   onChanged: (value) {
                     Provider.of<themeprovider.ThemeProvider>(context,
                             listen: false)
@@ -641,18 +643,15 @@ class _SettingsPageState extends State<SettingsPage> {
                   () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const SnakePage()),
+                      MaterialPageRoute(
+                          builder: (context) => const SnakePage()),
                     );
                   },
                 ),
                 // Add more game cards in the future
-                _buildGameCard(
-                  'Coming Soon',
-                  Icons.airplanemode_active,
-                  Colors.amber,
-                  () {},
-                  enabled: false
-                ),
+                _buildGameCard('Coming Soon', Icons.airplanemode_active,
+                    Colors.amber, () {},
+                    enabled: false),
                 _buildGameCard(
                   'Coming Soon',
                   Icons.pending,
@@ -669,16 +668,12 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildGameCard(
-    String title, 
-    IconData icon, 
-    Color color, 
-    VoidCallback onPressed, 
-    {bool enabled = true}
-  ) {
+      String title, IconData icon, Color color, VoidCallback onPressed,
+      {bool enabled = true}) {
     return Card(
       elevation: enabled ? 2 : 0,
-      color: enabled 
-          ? Theme.of(context).cardColor 
+      color: enabled
+          ? Theme.of(context).cardColor
           : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
       shape: RoundedRectangleBorder(
         borderRadius: AppDesign.borderMedium,
@@ -692,7 +687,7 @@ class _SettingsPageState extends State<SettingsPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                icon, 
+                icon,
                 size: 36,
                 color: enabled ? color : color.withOpacity(0.5),
               ),
@@ -702,9 +697,12 @@ class _SettingsPageState extends State<SettingsPage> {
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
-                  color: enabled 
-                      ? Theme.of(context).colorScheme.onSurface 
-                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                  color: enabled
+                      ? Theme.of(context).colorScheme.onSurface
+                      : Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withOpacity(0.5),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -715,28 +713,28 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-Future<void> _signOut() async {
-  final navigationState = Navigator.of(context);
-  
-  try {
-    // Clear provider data
-    Provider.of<SocietyProvider>(context, listen: false).handleLogout();
-    
-    // Clear preferences
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('sessionData');
-    await prefs.remove('lastSocietyId');
-    
-    // Sign out from Supabase
-    await supabase.auth.signOut();
-    
-    // Navigate to login page
-    navigationState.pushNamedAndRemoveUntil('/', (route) => false);
-  } catch (e) {
-    print('Error during logout: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error during logout: $e')),
-    );
+  Future<void> _signOut() async {
+    final navigationState = Navigator.of(context);
+
+    try {
+      // Clear provider data
+      Provider.of<SocietyProvider>(context, listen: false).handleLogout();
+
+      // Clear preferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('sessionData');
+      await prefs.remove('lastSocietyId');
+
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+
+      // Navigate to login page
+      navigationState.pushNamedAndRemoveUntil('/', (route) => false);
+    } catch (e) {
+      print('Error during logout: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error during logout: $e')),
+      );
+    }
   }
-}
 }

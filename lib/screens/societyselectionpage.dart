@@ -165,7 +165,8 @@ class SocietySelectionPage extends StatelessWidget {
                       ? Image.network(
                           society.imageUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
                             color: imageColor,
                             child: Center(
                               child: Icon(
@@ -186,7 +187,7 @@ class SocietySelectionPage extends StatelessWidget {
                             ),
                           ),
                         ),
-                  
+
                   // Gradient overlay at the bottom for better text contrast if needed
                   Positioned(
                     bottom: 0,
@@ -209,7 +210,7 @@ class SocietySelectionPage extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             // Society name and select button
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -229,14 +230,14 @@ class SocietySelectionPage extends StatelessWidget {
                     child: Text(
                       society.name,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  
+
                   // Select button
                   Container(
                     margin: const EdgeInsets.only(left: 8),
@@ -317,17 +318,17 @@ class SocietySelectionPage extends StatelessWidget {
   Widget _buildBottomBar(BuildContext context) {
     // Check if we're on a wide screen
     final bool isWideScreen = MediaQuery.of(context).size.width > 600;
-    
+
     // Colors based on theme
     final primaryColor = Theme.of(context).colorScheme.primary;
     final surfaceColor = Theme.of(context).colorScheme.surface;
-    
+
     // For the gradient effect
     final gradientColors = [
       primaryColor.withOpacity(0.05),
       primaryColor.withOpacity(0.1),
     ];
-    
+
     if (isWideScreen) {
       // Web layout - horizontal arrangement
       return Container(
@@ -371,7 +372,8 @@ class SocietySelectionPage extends StatelessWidget {
                 icon: const Icon(Icons.add),
                 label: const Text('Join Another Society'),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
                   backgroundColor: primaryColor,
                   foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   elevation: 2,
@@ -390,7 +392,8 @@ class SocietySelectionPage extends StatelessWidget {
                 icon: const Icon(Icons.logout),
                 label: const Text('Log Out'),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
                   side: BorderSide(color: primaryColor),
                   foregroundColor: primaryColor,
                   shape: RoundedRectangleBorder(
@@ -517,7 +520,7 @@ class SocietySelectionPage extends StatelessWidget {
               child: const Text('Log Out'),
             ),
           ],
-        ); 
+        );
       },
     );
   }

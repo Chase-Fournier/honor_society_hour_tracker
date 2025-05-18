@@ -205,7 +205,7 @@ Future<void> exportToExcel(
           .cell(CellIndex.indexByColumnRow(
               columnIndex: colIndex++, rowIndex: rowIndex))
           .value = TextCellValue(emailMap[user.id] ?? '');
-          
+
       sheetObject
           .cell(CellIndex.indexByColumnRow(
               columnIndex: colIndex++, rowIndex: rowIndex))

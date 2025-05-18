@@ -32,8 +32,10 @@ class _IconSelectorState extends State<IconSelector> {
   void _showIconSelectionSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder( // Optional: nice rounded corners
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppDesign.radiusLarge)),
+      shape: const RoundedRectangleBorder(
+        // Optional: nice rounded corners
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppDesign.radiusLarge)),
       ),
       builder: (sheetContext) {
         // Use a GridView to display icons
@@ -62,9 +64,13 @@ class _IconSelectorState extends State<IconSelector> {
               borderRadius: AppDesign.borderSmall,
               child: Container(
                 decoration: BoxDecoration(
-                  color: isSelected ? Theme.of(context).primaryColorLight.withOpacity(0.3) : Colors.transparent,
+                  color: isSelected
+                      ? Theme.of(context).primaryColorLight.withOpacity(0.3)
+                      : Colors.transparent,
                   border: Border.all(
-                    color: isSelected ? Theme.of(context).primaryColor : Colors.grey.shade300,
+                    color: isSelected
+                        ? Theme.of(context).primaryColor
+                        : Colors.grey.shade300,
                     width: isSelected ? 2 : 1,
                   ),
                   borderRadius: AppDesign.borderSmall,
@@ -74,7 +80,9 @@ class _IconSelectorState extends State<IconSelector> {
                   child: Icon(
                     iconData,
                     size: 30,
-                    color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).iconTheme.color,
+                    color: isSelected
+                        ? Theme.of(context).primaryColor
+                        : Theme.of(context).iconTheme.color,
                   ),
                 ),
               ),
@@ -95,7 +103,7 @@ class _IconSelectorState extends State<IconSelector> {
         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
       child: InkWell(
-         // Use InkWell for tap feedback
+        // Use InkWell for tap feedback
         onTap: () => _showIconSelectionSheet(context),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,

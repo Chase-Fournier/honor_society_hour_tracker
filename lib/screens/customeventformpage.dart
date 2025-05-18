@@ -6,7 +6,7 @@ import '../providers/societyprovider.dart';
 import '../common/app_design.dart';
 import '../models/userprofile.dart';
 import '../models/logactivity.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
+
 
 final supabase = Supabase.instance.client;
 
@@ -538,7 +538,7 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                           width: 20,
                           height: 20,
                           child: Center(
-                              child: CircularProgressIndicator(),
+                            child: CircularProgressIndicator(),
                           ),
                         )
                       : const Text('Save'),

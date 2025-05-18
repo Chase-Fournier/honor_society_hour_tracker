@@ -10,7 +10,7 @@ import '../models/meetingnote.dart';
 import 'leaderboardpage.dart';
 import '../common/iconutils.dart';
 import '../common/normalizetype.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
+
 
 final supabase = Supabase.instance.client;
 
@@ -244,8 +244,8 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
       ),
       body: _isLoading
           ? Center(
-                              child: CircularProgressIndicator(),
-                          )
+              child: CircularProgressIndicator(),
+            )
           : RefreshIndicator(
               color: Theme.of(context).colorScheme.primary,
               onRefresh: _fetchData,
@@ -262,7 +262,8 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
                     sliver: SliverGrid(
                       gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
                         maxCrossAxisExtent: 300,
-                        childAspectRatio: MediaQuery.of(context).size.width > 600 ? 2.2 : 1.8,
+                        childAspectRatio:
+                            MediaQuery.of(context).size.width > 600 ? 2.2 : 1.8,
                         crossAxisSpacing: AppDesign.spacingM,
                         mainAxisSpacing: AppDesign.spacingM,
                       ),
@@ -276,7 +277,8 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
                         ),
                         _buildSummaryCard(
                           title: 'Requirements',
-                          value: '${_countCompletedRequirements()}/${_requirementMap.length + 1}',
+                          value:
+                              '${_countCompletedRequirements()}/${_requirementMap.length + 1}',
                           subtitle: 'Completed',
                           icon: Icons.check_circle,
                           color: Theme.of(context).colorScheme.tertiary,
@@ -313,8 +315,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
     );
   }
 
- 
-List<Widget> _buildRequirementsList() {
+  List<Widget> _buildRequirementsList() {
     List<Widget> widgets = [];
 
     // First build standard hour requirements
@@ -346,24 +347,26 @@ List<Widget> _buildRequirementsList() {
     return _completedHoursMap.values.fold(0.0, (sum, hours) => sum + hours);
   }
 
-  Widget _buildSectionHeader({required String title, required String subtitle}) {
+  Widget _buildSectionHeader(
+      {required String title, required String subtitle}) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppDesign.spacingM, AppDesign.spacingL, AppDesign.spacingM, AppDesign.spacingM),
+      padding: const EdgeInsets.fromLTRB(AppDesign.spacingM, AppDesign.spacingL,
+          AppDesign.spacingM, AppDesign.spacingM),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 4),
           Text(
             subtitle,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
           ),
         ],
       ),
@@ -398,8 +401,8 @@ List<Widget> _buildRequirementsList() {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
                 ),
               ],
             ),
@@ -407,16 +410,16 @@ List<Widget> _buildRequirementsList() {
             Text(
               value,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
             ),
             const SizedBox(height: 4),
             Text(
               subtitle,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
           ],
         ),
@@ -466,17 +469,23 @@ List<Widget> _buildRequirementsList() {
                     children: [
                       Text(
                         'Meeting Notes',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
-                        ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onPrimaryContainer,
+                                ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Review important information from previous meetings',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.8),
-                        ),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimaryContainer
+                                  .withOpacity(0.8),
+                            ),
                       ),
                     ],
                   ),
@@ -497,23 +506,22 @@ List<Widget> _buildRequirementsList() {
   // Count completed requirements
   int _countCompletedRequirements() {
     int completed = 0;
-    
+
     // Check hour requirements
     for (final entry in _requirementMap.entries) {
       if ((_completedHoursMap[entry.key] ?? 0.0) >= entry.value) {
         completed++;
       }
     }
-    
+
     // Check meeting requirement
     final meetingHours = _completedHoursMap['Meeting'] ?? 0.0;
     if (meetingHours >= _meetingRequirement) {
       completed++;
     }
-    
+
     return completed;
   }
-
 
   Widget _buildCompletedHoursList(String type, List<CompletedHour> hours) {
     if (hours.isEmpty) {
@@ -636,8 +644,10 @@ List<Widget> _buildRequirementsList() {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color:
-                          Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.1),
                       borderRadius: AppDesign.borderLarge,
                     ),
                     child: Text(
@@ -657,8 +667,6 @@ List<Widget> _buildRequirementsList() {
     );
   }
 
-  
-
   Widget _buildModernRequirementCard({
     required String type,
     required double completedHours,
@@ -668,17 +676,19 @@ List<Widget> _buildRequirementsList() {
   }) {
     final percentage = ((completedHours / requiredHours) * 100).clamp(0, 100);
     final isComplete = completedHours >= requiredHours;
-    final icon = isMeeting ? Icons.groups_rounded : getIconForType(type, context);
+    final icon =
+        isMeeting ? Icons.groups_rounded : getIconForType(type, context);
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(AppDesign.spacingM, 0, AppDesign.spacingM, AppDesign.spacingM),
+      margin: const EdgeInsets.fromLTRB(
+          AppDesign.spacingM, 0, AppDesign.spacingM, AppDesign.spacingM),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: AppDesign.borderLarge,
         border: Border.all(
-          color: isComplete 
-            ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
-            : Theme.of(context).colorScheme.outlineVariant,
+          color: isComplete
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
+              : Theme.of(context).colorScheme.outlineVariant,
           width: 1,
         ),
       ),
@@ -693,7 +703,8 @@ List<Widget> _buildRequirementsList() {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    color:
+                        Theme.of(context).colorScheme.primary.withOpacity(0.1),
                     borderRadius: AppDesign.borderMedium,
                   ),
                   child: Icon(
@@ -709,16 +720,19 @@ List<Widget> _buildRequirementsList() {
                     children: [
                       Text(
                         isMeeting ? 'Meeting Attendance' : '$type Hours',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '${completedHours.toStringAsFixed(1)} / $requiredHours ${isMeeting ? 'meetings' : 'hours'}',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
                       ),
                     ],
                   ),
@@ -726,7 +740,8 @@ List<Widget> _buildRequirementsList() {
                 // Status chip
                 AnimatedContainer(
                   duration: AppDesign.animationShort,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: isComplete
                         ? Theme.of(context).colorScheme.primary
@@ -747,12 +762,15 @@ List<Widget> _buildRequirementsList() {
                       const SizedBox(width: 4),
                       Text(
                         isComplete ? 'Complete' : '${percentage.round()}%',
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: isComplete
-                              ? Theme.of(context).colorScheme.onPrimary
-                              : Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                        style:
+                            Theme.of(context).textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: isComplete
+                                      ? Theme.of(context).colorScheme.onPrimary
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                ),
                       ),
                     ],
                   ),
@@ -777,7 +795,8 @@ List<Widget> _buildRequirementsList() {
                   return LinearProgressIndicator(
                     value: value,
                     minHeight: 12,
-                    backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                    backgroundColor:
+                        Theme.of(context).colorScheme.surfaceVariant,
                     valueColor: AlwaysStoppedAnimation<Color>(
                       Theme.of(context).colorScheme.primary,
                     ),
@@ -790,17 +809,15 @@ List<Widget> _buildRequirementsList() {
           // Event list or empty state
           Padding(
             padding: AppDesign.paddingMedium,
-            child: hours.isEmpty 
-              ? _buildEmptyState(type)
-              : _buildEventList(hours),
+            child:
+                hours.isEmpty ? _buildEmptyState(type) : _buildEventList(hours),
           ),
         ],
       ),
     );
   }
 
-
- Widget _buildEmptyState(String type) {
+  Widget _buildEmptyState(String type) {
     return Container(
       width: double.infinity,
       padding: AppDesign.paddingLarge,
@@ -813,14 +830,18 @@ List<Widget> _buildRequirementsList() {
           Icon(
             Icons.event_busy,
             size: 32,
-            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+            color:
+                Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
           ),
           const SizedBox(height: AppDesign.spacingS),
           Text(
             'No ${type.toLowerCase()} hours recorded yet',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.8),
-            ),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurfaceVariant
+                      .withOpacity(0.8),
+                ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -835,28 +856,33 @@ List<Widget> _buildRequirementsList() {
         Text(
           '${hours.length} ${hours.length == 1 ? 'Event' : 'Events'}',
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontWeight: FontWeight.w600,
-          ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
         ),
         const SizedBox(height: AppDesign.spacingS),
         ListView.separated(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: hours.length,
-          separatorBuilder: (context, index) => const SizedBox(height: AppDesign.spacingS),
+          separatorBuilder: (context, index) =>
+              const SizedBox(height: AppDesign.spacingS),
           itemBuilder: (context, index) {
             final hour = hours[index];
             return Container(
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                color: Theme.of(context)
+                    .colorScheme
+                    .surfaceVariant
+                    .withOpacity(0.3),
                 borderRadius: AppDesign.borderMedium,
               ),
               child: ListTile(
                 dense: true,
                 leading: CircleAvatar(
                   radius: 18,
-                  backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  backgroundColor:
+                      Theme.of(context).colorScheme.primary.withOpacity(0.1),
                   child: Text(
                     hour.title.substring(0, 1).toUpperCase(),
                     style: TextStyle(
@@ -869,29 +895,31 @@ List<Widget> _buildRequirementsList() {
                 title: Text(
                   hour.title,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
+                        fontWeight: FontWeight.w500,
+                      ),
                 ),
                 subtitle: Text(
                   hour.date.year == 0
                       ? 'Date not recorded'
                       : '${hour.date.month}-${hour.date.day}-${hour.date.year}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                 ),
                 trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    color:
+                        Theme.of(context).colorScheme.primary.withOpacity(0.1),
                     borderRadius: AppDesign.borderMedium,
                   ),
                   child: Text(
                     '${hour.hours.toStringAsFixed(1)}h',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                   ),
                 ),
               ),
@@ -903,9 +931,10 @@ List<Widget> _buildRequirementsList() {
   }
 
   Widget _buildReportIssueButton() {
-    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     final customUrl = society?.errorFormUrl;
-    if (customUrl == null){
+    if (customUrl == null) {
       return SizedBox();
     }
     return OutlinedButton.icon(
@@ -926,14 +955,17 @@ List<Widget> _buildRequirementsList() {
 
   void _openWebsite() async {
     // Get the current society from the provider
-    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     final customUrl = society?.errorFormUrl;
 
     // Define the default URL (your original hardcoded one)
-    const String defaultUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSeXg0ctE8Lg3r4aLhUSZYWj8GlvxwxM4aTRhf3axEQRljeRtw/viewform';
+    const String defaultUrl =
+        'https://docs.google.com/forms/d/e/1FAIpQLSeXg0ctE8Lg3r4aLhUSZYWj8GlvxwxM4aTRhf3axEQRljeRtw/viewform';
 
     // Use the custom URL if it exists and is not empty, otherwise use the default
-    final String urlToLaunch = (customUrl != null && customUrl.isNotEmpty) ? customUrl : defaultUrl;
+    final String urlToLaunch =
+        (customUrl != null && customUrl.isNotEmpty) ? customUrl : defaultUrl;
 
     try {
       final Uri url = Uri.parse(urlToLaunch);
@@ -948,10 +980,10 @@ List<Widget> _buildRequirementsList() {
     } catch (e) {
       // Handle potential Uri.parse errors for invalid URLs
       if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Invalid URL format: $urlToLaunch')),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Invalid URL format: $urlToLaunch')),
+        );
+      }
     }
   }
 }

@@ -21,14 +21,16 @@ class CompletedUserHour {
       hours = hoursValue;
     } else {
       // Provide a default or handle the error differently if needed
-      print('Warning: Invalid hours value received: $hoursValue. Defaulting to 0.');
+      print(
+          'Warning: Invalid hours value received: $hoursValue. Defaulting to 0.');
       hours = 0.0;
       // Optionally: throw FormatException('Invalid hours value: $hoursValue');
     }
 
     return CompletedUserHour(
       id: json['id'] as int, // <-- Parse the ID
-      eventName: json['event_name'] as String? ?? 'Unnamed Event', // Handle potential null
+      eventName: json['event_name'] as String? ??
+          'Unnamed Event', // Handle potential null
       hours: hours,
       type: json['type'] as String? ?? 'Unknown Type', // Handle potential null
     );

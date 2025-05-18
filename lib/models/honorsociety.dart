@@ -9,7 +9,6 @@ class HonorSociety {
   final int meetingRequirement; // Keep meetings as special case
   final DateTime createdAt;
   final String? errorFormUrl;
-  
 
   HonorSociety({
     required this.id,

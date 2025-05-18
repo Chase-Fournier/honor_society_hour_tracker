@@ -13,7 +13,6 @@ import '../models/event.dart';
 import '../models/attendee.dart';
 import '../common/normalizetype.dart';
 import '../common/iconutils.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 
 final supabase = Supabase.instance.client;
@@ -210,10 +209,10 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                       ),
                       if (_isLoading)
                         SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: Center(
-                              child: CircularProgressIndicator(),
+                          width: 16,
+                          height: 16,
+                          child: Center(
+                            child: CircularProgressIndicator(),
                           ),
                         )
                     ],
@@ -324,8 +323,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
         data: event,
         feedback: Card(
           elevation: 4.0,
-          shape:
-              RoundedRectangleBorder(borderRadius: AppDesign.borderMedium),
+          shape: RoundedRectangleBorder(borderRadius: AppDesign.borderMedium),
           child: Container(
             padding: AppDesign.paddingMedium,
             width: 200,
@@ -366,8 +364,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
         childWhenDragging: Opacity(
           opacity: 0.5,
           child: Card(
-            shape:
-                RoundedRectangleBorder(borderRadius: AppDesign.borderLarge),
+            shape: RoundedRectangleBorder(borderRadius: AppDesign.borderLarge),
             elevation: 0,
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Container(
@@ -707,8 +704,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
       },
       builder: (context, candidateData, rejectedData) {
         return Card(
-          shape:
-              RoundedRectangleBorder(borderRadius: AppDesign.borderLarge),
+          shape: RoundedRectangleBorder(borderRadius: AppDesign.borderLarge),
           elevation: 2,
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           color: isHovered
@@ -816,7 +812,6 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
       },
     );
   }
-
 
   void _showAddEventDialog() {
     final _formKey = GlobalKey<FormState>();
@@ -1183,7 +1178,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
 
   Future<void> _fetchDataOptimized() async {
     setState(() => _isLoading = true);
-    
+
     try {
       // Get current society
       final society =
@@ -1200,9 +1195,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
       // Execute both queries in parallel using Future.wait
       final [eventsResponse, collectionsResponse] = await Future.wait([
         // Optimized events query with nested selects
-        supabase
-            .from('Events')
-            .select('''
+        supabase.from('Events').select('''
               id,
               name,
               description,
@@ -1236,39 +1229,39 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                   )
                 )
               )
-            ''')
-            .eq('society_id', society.id)
-            .order('date'),
-        
-        // Collections query
-        supabase
-            .from('Collections')
-            .select('*')
-            .eq('society_id', society.id)
-      ]);
+            ''').eq('society_id', society.id).order('date'),
 
+        // Collections query
+        supabase.from('Collections').select('*').eq('society_id', society.id)
+      ]);
 
       // Process events with nested data
       final List<Event> events = eventsResponse.map<Event>((eventData) {
         // Process time slots with attendees
-        final timeSlots = (eventData['Time slots'] as List).map<TimeSlot>((timeSlotData) {
+        final timeSlots =
+            (eventData['Time slots'] as List).map<TimeSlot>((timeSlotData) {
           // Process attendees
-          final attendees = (timeSlotData['Attendees'] as List? ?? []).map<Attendee>((attendeeData) {
-            return Attendee(
-              id: attendeeData['id'],
-              timeSlotId: attendeeData['timeslot_id'],
-              userId: attendeeData['user_id'],
-              name: attendeeData['profiles']['name'],
-              isPresent: attendeeData['is_present'] ?? false,
-              formsCompleted: attendeeData['forms_completed'] ?? false,
-            );
-          }).where((attendee) => attendee != null).cast<Attendee>().toList();
+          final attendees = (timeSlotData['Attendees'] as List? ?? [])
+              .map<Attendee>((attendeeData) {
+                return Attendee(
+                  id: attendeeData['id'],
+                  timeSlotId: attendeeData['timeslot_id'],
+                  userId: attendeeData['user_id'],
+                  name: attendeeData['profiles']['name'],
+                  isPresent: attendeeData['is_present'] ?? false,
+                  formsCompleted: attendeeData['forms_completed'] ?? false,
+                );
+              })
+              .where((attendee) => attendee != null)
+              .cast<Attendee>()
+              .toList();
 
           // Create time slot with attendees
           return TimeSlot.fromJson({
             ...timeSlotData,
             'attendees': attendees,
-          })..attendees = attendees;
+          })
+            ..attendees = attendees;
         }).toList();
 
         // Create event with time slots
@@ -1291,7 +1284,6 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
       print('Error in optimized fetch: $e');
     }
   }
-  
 
   Future<void> _fetchEvents() async {
     setState(() {
@@ -1622,7 +1614,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
     }
   }
 
- /// Displays dialog for adding new time slots to an event.
+  /// Displays dialog for adding new time slots to an event.
   /// Handles time selection and capacity input.
   ///
   /// Parameters:
@@ -2140,9 +2132,13 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   /// Throws:
   /// - DatabaseException if collection creation fails
   Future<void> _addCollection(String name) async {
-    final response = await Supabase.instance.client
-        .from('Collections')
-        .insert({'name': name, 'event_ids': [], 'society_id': Provider.of<SocietyProvider>(context, listen: false).currentSociety!.id});
+    final response = await Supabase.instance.client.from('Collections').insert({
+      'name': name,
+      'event_ids': [],
+      'society_id': Provider.of<SocietyProvider>(context, listen: false)
+          .currentSociety!
+          .id
+    });
 
     if (response != null) {
       final newCollection = Collection.fromJson(response[0]);

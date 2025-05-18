@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/societyprovider.dart';
 import '../main.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
+
 
 /// Page to manage join requests for a society's admin
 class JoinRequestsAdminPage extends StatefulWidget {
@@ -217,8 +217,8 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
           ),
           body: _isLoading
               ? Center(
-                              child: CircularProgressIndicator(),
-                          )
+                  child: CircularProgressIndicator(),
+                )
               : TabBarView(
                   controller: _tabController,
                   children: [
@@ -322,7 +322,6 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
       ),
     );
   }
-
 }
 
 /// Model class for join requests

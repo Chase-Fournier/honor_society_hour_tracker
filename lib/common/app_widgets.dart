@@ -11,7 +11,7 @@ class AppCard extends StatelessWidget {
   final BorderRadius? borderRadius;
   final double elevation;
   final VoidCallback? onTap;
-  
+
   const AppCard({
     Key? key,
     required this.child,
@@ -21,12 +21,11 @@ class AppCard extends StatelessWidget {
     this.elevation = AppDesign.elevationSmall,
     this.onTap,
   }) : super(key: key);
-  
+
   @override
   Widget build(BuildContext context) {
-    final cardColor = backgroundColor ?? 
-        Theme.of(context).colorScheme.surface;
-    
+    final cardColor = backgroundColor ?? Theme.of(context).colorScheme.surface;
+
     final card = Card(
       elevation: elevation,
       shape: RoundedRectangleBorder(
@@ -38,7 +37,7 @@ class AppCard extends StatelessWidget {
         child: child,
       ),
     );
-    
+
     if (onTap != null) {
       return InkWell(
         onTap: onTap,
@@ -46,7 +45,7 @@ class AppCard extends StatelessWidget {
         child: card,
       );
     }
-    
+
     return card;
   }
 }
@@ -57,7 +56,7 @@ class AppSurfaceCard extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final BorderRadius? borderRadius;
   final VoidCallback? onTap;
-  
+
   const AppSurfaceCard({
     Key? key,
     required this.child,
@@ -65,12 +64,13 @@ class AppSurfaceCard extends StatelessWidget {
     this.borderRadius,
     this.onTap,
   }) : super(key: key);
-  
+
   @override
   Widget build(BuildContext context) {
     return AppCard(
       elevation: AppDesign.elevationNone,
-      backgroundColor: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+      backgroundColor:
+          Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
       borderRadius: borderRadius ?? AppDesign.borderLarge,
       padding: padding ?? AppDesign.paddingLarge,
       onTap: onTap,
@@ -86,7 +86,7 @@ class AppPrimaryButton extends StatelessWidget {
   final IconData? icon;
   final bool isLoading;
   final bool isFullWidth;
-  
+
   const AppPrimaryButton({
     Key? key,
     required this.text,
@@ -95,10 +95,10 @@ class AppPrimaryButton extends StatelessWidget {
     this.isLoading = false,
     this.isFullWidth = true,
   }) : super(key: key);
-  
+
   @override
   Widget build(BuildContext context) {
-    final buttonContent = isLoading 
+    final buttonContent = isLoading
         ? Row(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
@@ -126,7 +126,7 @@ class AppPrimaryButton extends StatelessWidget {
                 ],
               )
             : Text(text);
-    
+
     final button = ElevatedButton(
       onPressed: isLoading ? null : onPressed,
       style: ElevatedButton.styleFrom(
@@ -142,14 +142,14 @@ class AppPrimaryButton extends StatelessWidget {
       ),
       child: buttonContent,
     );
-    
+
     if (isFullWidth) {
       return SizedBox(
         width: double.infinity,
         child: button,
       );
     }
-    
+
     return button;
   }
 }
@@ -165,7 +165,7 @@ class AppTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final Function(String)? onChanged;
   final TextInputType keyboardType;
-  
+
   const AppTextField({
     Key? key,
     required this.label,
@@ -178,7 +178,7 @@ class AppTextField extends StatelessWidget {
     this.onChanged,
     this.keyboardType = TextInputType.text,
   }) : super(key: key);
-  
+
   @override
   Widget build(BuildContext context) {
     return TextFormField(
@@ -207,14 +207,14 @@ class AppSectionHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
   final IconData? icon;
-  
+
   const AppSectionHeader({
     Key? key,
     required this.title,
     this.subtitle,
     this.icon,
   }) : super(key: key);
-  
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -232,8 +232,8 @@ class AppSectionHeader extends StatelessWidget {
             Text(
               title,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
           ],
         ),
@@ -242,8 +242,8 @@ class AppSectionHeader extends StatelessWidget {
           Text(
             subtitle!,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
           ),
         ],
       ],

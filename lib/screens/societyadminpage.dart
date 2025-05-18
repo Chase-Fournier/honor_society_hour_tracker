@@ -9,7 +9,7 @@ import '../providers/societyprovider.dart';
 import 'package:provider/provider.dart';
 import '../models/hourrequirement.dart';
 import '../common/iconselector.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
+
 
 class SocietyAdminPage extends StatefulWidget {
   const SocietyAdminPage({Key? key}) : super(key: key);
@@ -42,7 +42,8 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
     _nameController = TextEditingController(text: society?.name ?? '');
     _descriptionController =
         TextEditingController(text: society?.description ?? '');
-    _errorFormUrlController = TextEditingController(text: society?.errorFormUrl ?? '');
+    _errorFormUrlController =
+        TextEditingController(text: society?.errorFormUrl ?? '');
     _meetingRequirementController = TextEditingController(
         text: society?.meetingRequirement.toString() ?? '5');
     _imageUrl = society?.imageUrl;
@@ -118,7 +119,9 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
         'description': _descriptionController.text,
         'meeting_requirement': int.parse(_meetingRequirementController.text),
         if (imageUrl != null) 'image_url': imageUrl,
-        'error_form_url': _errorFormUrlController.text.isNotEmpty ? _errorFormUrlController.text : null,
+        'error_form_url': _errorFormUrlController.text.isNotEmpty
+            ? _errorFormUrlController.text
+            : null,
       }).eq('id', society.id);
 
       // Refresh provider data
@@ -300,7 +303,8 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
                       validator: (value) {
                         if (value != null && value.isNotEmpty) {
                           // Basic check if it looks like a URL
-                          if (!value.startsWith('http://') && !value.startsWith('https://')) {
+                          if (!value.startsWith('http://') &&
+                              !value.startsWith('https://')) {
                             return 'Please enter a valid URL (starting with http:// or https://)';
                           }
                         }
@@ -345,9 +349,8 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
                         width: 20,
                         height: 20,
                         child: Center(
-                              child: CircularProgressIndicator(),
-                          )
-                      )
+                          child: CircularProgressIndicator(),
+                        ))
                     : const Icon(Icons.save),
                 label: const Text('Save Society Details'),
                 style: ElevatedButton.styleFrom(
@@ -376,7 +379,6 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
   List<HourRequirement> _requirements = [];
   bool _isLoading = false;
   bool _hasChanges = false;
-  
 
   @override
   void initState() {
@@ -385,7 +387,8 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
   }
 
   void _loadRequirements() {
-    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     if (society != null) {
       setState(() {
         _requirements = List.from(society.hourRequirements);
@@ -394,136 +397,141 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
   }
 
   void _showEditRequirementDialog(HourRequirement requirement) {
-  String type = requirement.type;
-  String description = requirement.description;
-  double hours = requirement.hoursNeeded;
-  bool isActive = requirement.isActive;
-  String iconName = requirement.iconName; // New field for icon
+    String type = requirement.type;
+    String description = requirement.description;
+    double hours = requirement.hoursNeeded;
+    bool isActive = requirement.isActive;
+    String iconName = requirement.iconName; // New field for icon
 
-  showDialog(
-    context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) => AlertDialog(
-        title: const Text('Edit Hour Requirement'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Type Name',
-                  border: OutlineInputBorder(),
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Edit Hour Requirement'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Type Name',
+                    border: OutlineInputBorder(),
+                  ),
+                  controller: TextEditingController(text: type),
+                  onChanged: (value) => type = value,
                 ),
-                controller: TextEditingController(text: type),
-                onChanged: (value) => type = value,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    border: OutlineInputBorder(),
+                  ),
+                  controller: TextEditingController(text: description),
+                  maxLines: 2,
+                  onChanged: (value) => description = value,
                 ),
-                controller: TextEditingController(text: description),
-                maxLines: 2,
-                onChanged: (value) => description = value,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Hours Required',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Hours Required',
+                    border: OutlineInputBorder(),
+                  ),
+                  controller: TextEditingController(text: hours.toString()),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (value) => hours = double.tryParse(value) ?? hours,
                 ),
-                controller: TextEditingController(text: hours.toString()),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                onChanged: (value) => hours = double.tryParse(value) ?? hours,
-              ),
-              const SizedBox(height: 16),
-              // New icon selector component
-              IconSelector(
-                initialValue: iconName,
-                onChanged: (value) {
-                  setState(() {
-                    iconName = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              SwitchListTile(
-                title: const Text('Active'),
-                subtitle: const Text('Inactive requirements won\'t be counted or displayed'),
-                value: isActive,
-                onChanged: (value) => setState(() => isActive = value),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              _showDeleteConfirmation(requirement);
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
+                const SizedBox(height: 16),
+                // New icon selector component
+                IconSelector(
+                  initialValue: iconName,
+                  onChanged: (value) {
+                    setState(() {
+                      iconName = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+                SwitchListTile(
+                  title: const Text('Active'),
+                  subtitle: const Text(
+                      'Inactive requirements won\'t be counted or displayed'),
+                  value: isActive,
+                  onChanged: (value) => setState(() => isActive = value),
+                ),
+              ],
             ),
-            child: const Text('Delete'),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              if (type.isNotEmpty && hours > 0) {
-                setState(() => _isLoading = true);
-                try {
-                  await supabase.from('hour_requirements').update({
-                    'type': type,
-                    'description': description,
-                    'hours_needed': hours,
-                    'is_active': isActive,
-                    'icon_name': iconName, // Update the icon name
-                  }).eq('id', requirement.id);
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                _showDeleteConfirmation(requirement);
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+              ),
+              child: const Text('Delete'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (type.isNotEmpty && hours > 0) {
+                  setState(() => _isLoading = true);
+                  try {
+                    await supabase.from('hour_requirements').update({
+                      'type': type,
+                      'description': description,
+                      'hours_needed': hours,
+                      'is_active': isActive,
+                      'icon_name': iconName, // Update the icon name
+                    }).eq('id', requirement.id);
 
-                  setState(() {
-                    final index = _requirements.indexWhere((r) => r.id == requirement.id);
-                    if (index != -1) {
-                      _requirements[index] = HourRequirement(
-                        id: requirement.id,
-                        type: type,
-                        description: description,
-                        hoursNeeded: hours,
-                        isActive: isActive,
-                        iconName: iconName, // Include the icon name
+                    setState(() {
+                      final index = _requirements
+                          .indexWhere((r) => r.id == requirement.id);
+                      if (index != -1) {
+                        _requirements[index] = HourRequirement(
+                          id: requirement.id,
+                          type: type,
+                          description: description,
+                          hoursNeeded: hours,
+                          isActive: isActive,
+                          iconName: iconName, // Include the icon name
+                        );
+                      }
+                      _hasChanges = true;
+                    });
+
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Requirement updated successfully')),
+                      );
+                      Navigator.pop(context);
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text('Error updating requirement: $e')),
                       );
                     }
-                    _hasChanges = true;
-                  });
-
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Requirement updated successfully')),
-                    );
-                    Navigator.pop(context);
+                  } finally {
+                    setState(() => _isLoading = false);
                   }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error updating requirement: $e')),
-                    );
-                  }
-                } finally {
-                  setState(() => _isLoading = false);
                 }
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
-  
+    );
+  }
+
   void _showDeleteConfirmation(HourRequirement requirement) {
     showDialog(
       context: context,
@@ -585,112 +593,118 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
   }
 
   void _showAddRequirementDialog() {
-  String type = '';
-  String description = '';
-  double hours = 0;
-  String iconName = 'workspaces'; // Default icon
-  final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    String type = '';
+    String description = '';
+    double hours = 0;
+    String iconName = 'workspaces'; // Default icon
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
 
-  showDialog(
-    context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) => AlertDialog(
-        title: const Text('Add Hour Requirement'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Type Name',
-                  hintText: 'E.g., Service, Tutoring, Leadership',
-                  border: OutlineInputBorder(),
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Add Hour Requirement'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Type Name',
+                    hintText: 'E.g., Service, Tutoring, Leadership',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (value) => type = value,
                 ),
-                onChanged: (value) => type = value,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  hintText: 'Describe what counts for this requirement',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    hintText: 'Describe what counts for this requirement',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 2,
+                  onChanged: (value) => description = value,
                 ),
-                maxLines: 2,
-                onChanged: (value) => description = value,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Hours Required',
-                  hintText: 'E.g., 10.0',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Hours Required',
+                    hintText: 'E.g., 10.0',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (value) => hours = double.tryParse(value) ?? 0,
                 ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                onChanged: (value) => hours = double.tryParse(value) ?? 0,
-              ),
-              const SizedBox(height: 16),
-              // New icon selector component
-              IconSelector(
-                initialValue: iconName,
-                onChanged: (value) {
-                  setState(() {
-                    iconName = value;
-                  });
-                },
-              ),
-            ],
+                const SizedBox(height: 16),
+                // New icon selector component
+                IconSelector(
+                  initialValue: iconName,
+                  onChanged: (value) {
+                    setState(() {
+                      iconName = value;
+                    });
+                  },
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (type.isNotEmpty && hours > 0) {
-                setState(() => _isLoading = true);
-                try {
-                  final response = await supabase.from('hour_requirements').insert({
-                    'society_id': society!.id,
-                    'type': type,
-                    'description': description,
-                    'hours_needed': hours,
-                    'is_active': true,
-                    'icon_name': iconName, // Include the icon name
-                  }).select().single();
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (type.isNotEmpty && hours > 0) {
+                  setState(() => _isLoading = true);
+                  try {
+                    final response = await supabase
+                        .from('hour_requirements')
+                        .insert({
+                          'society_id': society!.id,
+                          'type': type,
+                          'description': description,
+                          'hours_needed': hours,
+                          'is_active': true,
+                          'icon_name': iconName, // Include the icon name
+                        })
+                        .select()
+                        .single();
 
-                  setState(() {
-                    _requirements.add(HourRequirement.fromJson(response));
-                    _hasChanges = true;
-                  });
+                    setState(() {
+                      _requirements.add(HourRequirement.fromJson(response));
+                      _hasChanges = true;
+                    });
 
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Requirement added successfully')),
-                    );
-                    Navigator.pop(context);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Requirement added successfully')),
+                      );
+                      Navigator.pop(context);
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error adding requirement: $e')),
+                      );
+                    }
+                  } finally {
+                    setState(() => _isLoading = false);
                   }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error adding requirement: $e')),
-                    );
-                  }
-                } finally {
-                  setState(() => _isLoading = false);
                 }
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
-  
   @override
   Widget build(BuildContext context) {
     return Consumer<SocietyProvider>(builder: (context, provider, _) {
@@ -702,8 +716,8 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
       return Scaffold(
         body: _isLoading
             ? Center(
-                              child: CircularProgressIndicator(),
-                          )
+                child: CircularProgressIndicator(),
+              )
             : RefreshIndicator(
                 onRefresh: () async {
                   // Refresh society data and update local requirements

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-
 enum ThemeMode { light, dark, midnight }
 
 class ThemeProvider extends ChangeNotifier {

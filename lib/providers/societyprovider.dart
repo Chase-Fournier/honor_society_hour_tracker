@@ -245,7 +245,8 @@ class SocietyProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print('SocietyProvider: Refreshing current society: ${_currentSociety?.name}');
+      print(
+          'SocietyProvider: Refreshing current society: ${_currentSociety?.name}');
       final societyId = _currentSociety!.id;
       final response =
           await Supabase.instance.client.from('honor_societies').select('''
@@ -373,23 +374,24 @@ class SocietyProvider extends ChangeNotifier {
   }
 
   /// Create a new hour requirement with icon
-  Future<bool> createHourRequirement(
-      String type, 
-      String description, 
-      double hoursNeeded,
-      String iconName) async {
+  Future<bool> createHourRequirement(String type, String description,
+      double hoursNeeded, String iconName) async {
     if (_currentSociety == null) return false;
-    
+
     try {
-      final response = await Supabase.instance.client.from('hour_requirements').insert({
-        'society_id': _currentSociety!.id,
-        'type': type,
-        'description': description,
-        'hours_needed': hoursNeeded,
-        'is_active': true,
-        'icon_name': iconName,
-      }).select().single();
-      
+      final response = await Supabase.instance.client
+          .from('hour_requirements')
+          .insert({
+            'society_id': _currentSociety!.id,
+            'type': type,
+            'description': description,
+            'hours_needed': hoursNeeded,
+            'is_active': true,
+            'icon_name': iconName,
+          })
+          .select()
+          .single();
+
       if (response != null) {
         // Add to local data
         final newRequirement = HourRequirement.fromJson(response);
@@ -403,17 +405,17 @@ class SocietyProvider extends ChangeNotifier {
       return false;
     }
   }
-  
+
   /// Update an hour requirement including its icon
   Future<bool> updateHourRequirement(
       int requirementId,
-      String type, 
-      String description, 
+      String type,
+      String description,
       double hoursNeeded,
       bool isActive,
       String iconName) async {
     if (_currentSociety == null) return false;
-    
+
     try {
       await Supabase.instance.client.from('hour_requirements').update({
         'type': type,
@@ -422,10 +424,11 @@ class SocietyProvider extends ChangeNotifier {
         'is_active': isActive,
         'icon_name': iconName,
       }).eq('id', requirementId);
-      
+
       // Update local data
       if (_currentSociety != null) {
-        final index = _currentSociety!.hourRequirements.indexWhere((r) => r.id == requirementId);
+        final index = _currentSociety!.hourRequirements
+            .indexWhere((r) => r.id == requirementId);
         if (index != -1) {
           _currentSociety!.hourRequirements[index] = HourRequirement(
             id: requirementId,

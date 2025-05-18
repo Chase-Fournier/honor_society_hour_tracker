@@ -7,7 +7,7 @@ import '../common/app_design.dart';
 import '../models/affecteduser.dart';
 import '../models/customeventgroup.dart';
 import '../models/logactivity.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
+
 
 final supabase = Supabase.instance.client;
 
@@ -405,7 +405,8 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
                           _deleteSelectedEvents();
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
                         ),
                         child: const Text('Delete'),
                       ),
@@ -420,10 +421,8 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
       ),
       body: _isLoading
           ? Center(
-          child: LoadingAnimationWidget.threeRotatingDots(
-          color: Theme.of(context).colorScheme.primary,
-          size: 75,
-          ),)
+              child: CircularProgressIndicator()
+            )
           : Column(
               children: [
                 // Search Bar

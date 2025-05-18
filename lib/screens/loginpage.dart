@@ -15,10 +15,11 @@ class LoginPage extends StatefulWidget {
   _LoginPageState createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
+class _LoginPageState extends State<LoginPage>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -34,7 +35,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     );
     _animationController.forward();
   }
-  
+
   @override
   void dispose() {
     _animationController.dispose();
@@ -47,29 +48,30 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     final screenWidth = MediaQuery.of(context).size.width;
     final isWideScreen = screenWidth > 900;
     final isTabletScreen = screenWidth > 600 && screenWidth <= 900;
-    
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.background,
       body: Center(
         child: SingleChildScrollView(
           child: Container(
             constraints: BoxConstraints(
-              maxWidth: isWideScreen ? 1200 : 
-                        isTabletScreen ? 600 : double.infinity,
+              maxWidth: isWideScreen
+                  ? 1200
+                  : isTabletScreen
+                      ? 600
+                      : double.infinity,
             ),
             padding: EdgeInsets.symmetric(
               horizontal: isWideScreen ? 0 : AppDesign.spacingL,
               vertical: AppDesign.spacingL,
             ),
-            child: isWideScreen
-                ? _buildWideLayout()
-                : _buildMobileLayout(),
+            child: isWideScreen ? _buildWideLayout() : _buildMobileLayout(),
           ),
         ),
       ),
     );
   }
-  
+
   Widget _buildWideLayout() {
     return Row(
       children: [
@@ -91,7 +93,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             ),
           ),
         ),
-        
+
         // Right section with auth form
         Expanded(
           flex: 4,
@@ -111,7 +113,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       ],
     );
   }
-  
+
   Widget _buildMobileLayout() {
     return AppCard(
       elevation: AppDesign.elevationSmall,
@@ -129,7 +131,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       ),
     );
   }
-  
+
   Widget _buildCompactHeader() {
     return Column(
       children: [
@@ -160,7 +162,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       ],
     );
   }
-  
+
   Widget _buildMarketingContent() {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -185,22 +187,27 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           'Track service hours, manage events, and connect with your honor society - all in one place.',
           style: TextStyle(
             fontSize: 18.0,
-            color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.8),
+            color: Theme.of(context)
+                .colorScheme
+                .onPrimaryContainer
+                .withOpacity(0.8),
           ),
         ),
         const SizedBox(height: AppDesign.spacingL),
         // Feature bullets
-        _buildFeatureRow(Icons.volunteer_activism, 'Record community service hours'),
+        _buildFeatureRow(
+            Icons.volunteer_activism, 'Record community service hours'),
         const SizedBox(height: AppDesign.spacingS),
         _buildFeatureRow(Icons.event_available, 'Sign up for upcoming events'),
         const SizedBox(height: AppDesign.spacingS),
-        _buildFeatureRow(Icons.insights, 'Track your progress towards requirements'),
+        _buildFeatureRow(
+            Icons.insights, 'Track your progress towards requirements'),
         const SizedBox(height: AppDesign.spacingS),
         _buildFeatureRow(Icons.people, 'Connect with your honor society'),
       ],
     );
   }
-  
+
   Widget _buildFeatureRow(IconData icon, String text) {
     return Row(
       children: [
@@ -229,7 +236,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       ],
     );
   }
-  
+
   Widget _buildAuthForm() {
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -244,7 +251,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   backgroundColor: Theme.of(context).colorScheme.secondary,
                   foregroundColor: Theme.of(context).colorScheme.onSecondary,
                   elevation: 4,
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
                   textStyle: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -252,7 +260,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   shape: RoundedRectangleBorder(
                     borderRadius: AppDesign.borderMedium,
                     side: BorderSide(
-                      color: Theme.of(context).colorScheme.onSecondary.withOpacity(0.2),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSecondary
+                          .withOpacity(0.2),
                       width: 1,
                     ),
                   ),
@@ -267,13 +278,15 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   MaterialPageRoute(builder: (context) => const WaitingPage()),
                 );
               },
-              redirectTo: kIsWeb ? null : 'com.wheelermun.nhs://callback',
+              redirectTo: kIsWeb ? null : 'com.wheelermun.nhs://callback', // For email confirmation
+              resetPasswordRedirectTo: kIsWeb ? null : 'com.wheelermun.nhs://reset-password', // For password reset
               onSignInComplete: (AuthResponse response) {
                 if (response.session != null) {
                   // Navigate to society selection on successful sign-in
                   Navigator.pushAndRemoveUntil(
                     context,
-                    MaterialPageRoute(builder: (context) => const SocietySelectionPage()),
+                    MaterialPageRoute(
+                        builder: (context) => const SocietySelectionPage()),
                     (route) => false,
                   );
                 }
@@ -284,23 +297,27 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   label: 'Name',
                   key: 'name',
                   validator: (val) {
-                    return val == null || val.isEmpty ? 'Please enter your name' : null;
+                    return val == null || val.isEmpty
+                        ? 'Please enter your name'
+                        : null;
                   },
                 ),
-                // Add graduation year dropdown field
                 MetaDataField(
                   prefixIcon: const Icon(Icons.school),
                   label: 'Graduation Year',
                   key: 'graduation_year',
                   validator: (val) {
-                    return val == null || val.isEmpty ? 'Please enter your graduation year' : null;
+                    return val == null || val.isEmpty
+                        ? 'Please enter your graduation year'
+                        : null;
                   },
                 ),
               ],
             ),
           ),
-          const SizedBox(height: AppDesign.spacingM),
           
+          const SizedBox(height: AppDesign.spacingM),
+
           // Optional social login section
           SupaSocialsAuth(
             socialProviders: const [],

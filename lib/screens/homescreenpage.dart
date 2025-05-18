@@ -22,7 +22,7 @@ import '../common/nhsformatutils.dart';
 import '../models/logactivity.dart';
 import '../common/iconutils.dart';
 import '../common/normalizetype.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
+
 
 final supabase = Supabase.instance.client;
 
@@ -226,8 +226,8 @@ class _HomePageState extends State<HomePage> {
                 (attendee) => attendee.userId == userId && !attendee.isPresent);
 
             if (isSignedUp && isNotPresent) {
-              final duration =
-                  NhsFormatUtils.calculateDuration(timeSlot.time, timeSlot.endTime);
+              final duration = NhsFormatUtils.calculateDuration(
+                  timeSlot.time, timeSlot.endTime);
 
               // Use normalized type for consistent matching
               final normalizedType = normalizeType(event.type);
@@ -253,22 +253,23 @@ class _HomePageState extends State<HomePage> {
 
   // Build event type filter chips based on society requirements
   List<Widget> _buildEventTypeChips(ThemeData theme) {
-  return _availableEventTypes.map((type) {
-    final bool isSelected = _selectedEventType == type;
-    return Padding(
-      padding: const EdgeInsets.only(right: AppDesign.spacingS + 2, bottom: AppDesign.spacingS), // Added bottom padding for wrap
-      child: _buildAnimatedFilterChip(
-        theme: theme,
-        label: type,
-        isSelected: isSelected,
-        onSelected: () {
-          if (mounted) setState(() => _selectedEventType = type);
-        },
-      ),
-    );
-  }).toList();
-}
-
+    return _availableEventTypes.map((type) {
+      final bool isSelected = _selectedEventType == type;
+      return Padding(
+        padding: const EdgeInsets.only(
+            right: AppDesign.spacingS + 2,
+            bottom: AppDesign.spacingS), // Added bottom padding for wrap
+        child: _buildAnimatedFilterChip(
+          theme: theme,
+          label: type,
+          isSelected: isSelected,
+          onSelected: () {
+            if (mounted) setState(() => _selectedEventType = type);
+          },
+        ),
+      );
+    }).toList();
+  }
 
   // Filter events based on selected type
   List<Event> _getFilteredEvents() {
@@ -283,65 +284,72 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildAnimatedFilterChip({
-  required ThemeData theme,
-  required String label,
-  required bool isSelected,
-  required VoidCallback onSelected,
-}) {
-  // Define shapes - no explicit borders needed on the shapes themselves now
-  final ShapeBorder unselectedShape = StadiumBorder(); // Pill shape
-  final ShapeBorder selectedShape = RoundedRectangleBorder(
-    borderRadius: AppDesign.borderMedium, // e.g., BorderRadius.circular(12.0) or 16.0
-  );
+    required ThemeData theme,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onSelected,
+  }) {
+    // Define shapes - no explicit borders needed on the shapes themselves now
+    final ShapeBorder unselectedShape = StadiumBorder(); // Pill shape
+    final ShapeBorder selectedShape = RoundedRectangleBorder(
+      borderRadius:
+          AppDesign.borderMedium, // e.g., BorderRadius.circular(12.0) or 16.0
+    );
 
-  // Define colors
-   final Color unselectedBackgroundColor = theme.colorScheme.surfaceVariant.withOpacity(0.7);
-  final Color selectedBackgroundColor = theme.colorScheme.primaryContainer;
-  final Color unselectedLabelColor = theme.colorScheme.onSurfaceVariant;
-  final Color selectedLabelColor = theme.colorScheme.onPrimaryContainer;
-  final Color iconColor = isSelected ? selectedLabelColor : unselectedLabelColor;
+    // Define colors
+    final Color unselectedBackgroundColor =
+        theme.colorScheme.surfaceVariant.withOpacity(0.7);
+    final Color selectedBackgroundColor = theme.colorScheme.primaryContainer;
+    final Color unselectedLabelColor = theme.colorScheme.onSurfaceVariant;
+    final Color selectedLabelColor = theme.colorScheme.onPrimaryContainer;
+    final Color iconColor =
+        isSelected ? selectedLabelColor : unselectedLabelColor;
 
-  return GestureDetector(
-    onTap: () {
-      // Optional: Add haptic feedback for a more tactile feel
-      // HapticFeedback.lightImpact();
-      onSelected();
-    },
-    child: AnimatedContainer(
-      duration: AppDesign.animationShort, 
-      curve: Curves.easeInOut,
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppDesign.spacingL - 4, vertical: AppDesign.spacingS + 2),
-      decoration: ShapeDecoration(
-        color: isSelected ? selectedBackgroundColor : unselectedBackgroundColor,
-        shape: isSelected ? selectedShape : unselectedShape,
-        // No shadows by default for a flatter, cleaner look, but you can add them:
-        // shadows: isSelected ? [
-        //   BoxShadow(
-        //     color: theme.colorScheme.shadow.withOpacity(0.1),
-        //     blurRadius: 4,
-        //     offset: const Offset(0, 2),
-        //   )
-        // ] : null,
-      ),
-      child: Text(
-        label,
-        style: theme.textTheme.labelLarge?.copyWith(
-          color: isSelected ? selectedLabelColor : unselectedLabelColor,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+    return GestureDetector(
+      onTap: () {
+        // Optional: Add haptic feedback for a more tactile feel
+        // HapticFeedback.lightImpact();
+        onSelected();
+      },
+      child: AnimatedContainer(
+        duration: AppDesign.animationShort,
+        curve: Curves.easeInOut,
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppDesign.spacingL - 4,
+            vertical: AppDesign.spacingS + 2),
+        decoration: ShapeDecoration(
+          color:
+              isSelected ? selectedBackgroundColor : unselectedBackgroundColor,
+          shape: isSelected ? selectedShape : unselectedShape,
+          // No shadows by default for a flatter, cleaner look, but you can add them:
+          // shadows: isSelected ? [
+          //   BoxShadow(
+          //     color: theme.colorScheme.shadow.withOpacity(0.1),
+          //     blurRadius: 4,
+          //     offset: const Offset(0, 2),
+          //   )
+          // ] : null,
         ),
-        textAlign: TextAlign.center,
+        child: Text(
+          label,
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: isSelected ? selectedLabelColor : unselectedLabelColor,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          ),
+          textAlign: TextAlign.center,
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final societyName = Provider.of<SocietyProvider>(context).currentSociety?.name ?? 'Your Society';
+    final societyName =
+        Provider.of<SocietyProvider>(context).currentSociety?.name ??
+            'Your Society';
     final filteredEvents = _getFilteredEvents();
-    
+
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
@@ -358,8 +366,8 @@ class _HomePageState extends State<HomePage> {
       ),
       body: _isLoading
           ? Center(
-                              child: CircularProgressIndicator(),
-                          )
+              child: CircularProgressIndicator(),
+            )
           : RefreshIndicator(
               onRefresh: _fetchData,
               child: SingleChildScrollView(
@@ -435,7 +443,6 @@ class _HomePageState extends State<HomePage> {
   /// Creates a double progress bar showing completed and potential hours.
   Widget _buildDoubleProgressBar(BuildContext context, String title,
       double completedHours, double potentialHours, int hoursNeeded) {
-  
     final isComplete = completedHours >= hoursNeeded;
 
     return Card(
@@ -845,12 +852,13 @@ class _HomePageState extends State<HomePage> {
                     // Event icon
                     CircleAvatar(
                       radius: 16,
-                      backgroundColor:
-                          Theme.of(context).colorScheme.primary
-                              .withOpacity(0.15),
+                      backgroundColor: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.15),
                       child: Icon(
                         getIconForType(event.type, context),
-                        color:Theme.of(context).colorScheme.primary,
+                        color: Theme.of(context).colorScheme.primary,
                         size: 16,
                       ),
                     ),
@@ -914,9 +922,10 @@ class _HomePageState extends State<HomePage> {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color:
-                                      Theme.of(context).colorScheme.primary
-                                          .withOpacity(0.1),
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withOpacity(0.1),
                                   borderRadius: AppDesign.borderSmall,
                                 ),
                                 child: Text(
@@ -924,7 +933,8 @@ class _HomePageState extends State<HomePage> {
                                   style: TextStyle(
                                     fontSize: 12.0,
                                     fontWeight: FontWeight.w500,
-                                    color: Theme.of(context).colorScheme.primary,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
                                   ),
                                 ),
                               ),
@@ -1064,7 +1074,7 @@ class _HomePageState extends State<HomePage> {
                   ),
 
                   const Spacer(),
-                  
+
                   // Add to Calendar icon for signed up users
                   if (isSignedUp)
                     IconButton(
@@ -2231,7 +2241,8 @@ class _HomePageState extends State<HomePage> {
       await logactivity(
         eventData['name'],
         '${formatter.format(swapRequest.startTime)} - ${formatter.format(swapRequest.endTime)}',
-        NhsFormatUtils.calculateDuration(TimeOfDay.fromDateTime(swapRequest.startTime),
+        NhsFormatUtils.calculateDuration(
+            TimeOfDay.fromDateTime(swapRequest.startTime),
             TimeOfDay.fromDateTime(swapRequest.endTime)),
         'swap',
         currentAttendeeId,

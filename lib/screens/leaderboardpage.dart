@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../common/app_design.dart';
 import '../models/userranking.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
+
 
 final supabase = Supabase.instance.client;
 
@@ -114,8 +114,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       ),
       body: _isLoading
           ? Center(
-                              child: CircularProgressIndicator(),
-                          )
+              child: CircularProgressIndicator(),
+            )
           : RefreshIndicator(
               onRefresh: _fetchLeaderboardData,
               color: Theme.of(context).colorScheme.primary,
@@ -128,10 +128,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                       width: double.infinity,
                       padding: AppDesign.paddingMedium,
                       decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primaryContainer,
-                          
+                        color: Theme.of(context).colorScheme.primaryContainer,
                         borderRadius: const BorderRadius.only(
                           bottomLeft: Radius.circular(AppDesign.radiusXLarge),
                           bottomRight: Radius.circular(AppDesign.radiusXLarge),
@@ -283,8 +280,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 height: height,
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.3),
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(AppDesign.radiusSmall)),
+                  borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(AppDesign.radiusSmall)),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,

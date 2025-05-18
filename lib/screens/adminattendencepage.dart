@@ -13,7 +13,7 @@ import 'attendencecheckpage.dart';
 import '../common/nhsformatutils.dart';
 import '../common/iconutils.dart';
 import '../common/normalizetype.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
+
 
 final supabase = Supabase.instance.client;
 
@@ -31,7 +31,6 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
   String _selectedEventType = 'All'; // Added for filtering
   DateTime? _startDate;
   DateTime? _endDate;
-
 
   @override
   void initState() {
@@ -119,7 +118,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isWideScreen = screenWidth > 900;
-    
+
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
@@ -178,14 +177,14 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                 ),
               ),
             ),
-            
+
           // Main content area (takes full width on mobile, remaining space on web)
           Expanded(
             child: Column(
               children: [
-                // Today's Events Section 
+                // Today's Events Section
                 _buildTodaysEventsHeader(),
-                
+
                 // Show horizontal chips and date selector only on mobile
                 if (!isWideScreen) ...[
                   Padding(
@@ -198,13 +197,13 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                       ),
                     ),
                   ),
-                  
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 8.0),
                     child: _buildDateRangeSelector(isCompact: true),
                   ),
                 ],
-                
+
                 // Event Count and Loading Indicator
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -212,66 +211,67 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        _filteredEvents.isEmpty 
-                          ? 'No events found' 
-                          : '${_filteredEvents.length} ${_filteredEvents.length == 1 ? 'event' : 'events'}${_selectedEventType != 'All' ? ' - $_selectedEventType' : ''}',
+                        _filteredEvents.isEmpty
+                            ? 'No events found'
+                            : '${_filteredEvents.length} ${_filteredEvents.length == 1 ? 'event' : 'events'}${_selectedEventType != 'All' ? ' - $_selectedEventType' : ''}',
                         style: TextStyle(
                           fontWeight: FontWeight.w500,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
-                      if (_isLoading) 
+                      if (_isLoading)
                         SizedBox(
-                          width: 16, 
-                          height: 16, 
+                          width: 16,
+                          height: 16,
                           child: Center(
-                              child: CircularProgressIndicator(),
+                            child: CircularProgressIndicator(),
                           ),
                         ),
                     ],
                   ),
                 ),
-                
+
                 // Main event list
                 Expanded(
                   child: _filteredEvents.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.event_busy,
-                              size: 64,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No events found',
-                              style: Theme.of(context).textTheme.headlineSmall,
-                            ),
-                            if (_selectedEventType != 'All')
-                              Padding(
-                                padding: AppDesign.paddingSmall,
-                                child: TextButton.icon(
-                                  icon: const Icon(Icons.filter_alt_off),
-                                  label: const Text('Clear filter'),
-                                  onPressed: () {
-                                    setState(() {
-                                      _selectedEventType = 'All';
-                                    });
-                                  },
-                                ),
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.event_busy,
+                                size: 64,
+                                color: Colors.grey,
                               ),
-                          ],
+                              const SizedBox(height: 16),
+                              Text(
+                                'No events found',
+                                style:
+                                    Theme.of(context).textTheme.headlineSmall,
+                              ),
+                              if (_selectedEventType != 'All')
+                                Padding(
+                                  padding: AppDesign.paddingSmall,
+                                  child: TextButton.icon(
+                                    icon: const Icon(Icons.filter_alt_off),
+                                    label: const Text('Clear filter'),
+                                    onPressed: () {
+                                      setState(() {
+                                        _selectedEventType = 'All';
+                                      });
+                                    },
+                                  ),
+                                ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: _filteredEvents.length,
+                          itemBuilder: (context, index) {
+                            final event = _filteredEvents[index];
+                            return _buildEventCard(event);
+                          },
                         ),
-                      )
-                    : ListView.builder(
-                        itemCount: _filteredEvents.length,
-                        itemBuilder: (context, index) {
-                          final event = _filteredEvents[index];
-                          return _buildEventCard(event);
-                        },
-                      ),
                 ),
               ],
             ),
@@ -280,12 +280,13 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
       ),
     );
   }
+
   // Now create a date range selector widget
   Widget _buildDateRangeSelector({required bool isCompact}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (!isCompact) 
+        if (!isCompact)
           Padding(
             padding: const EdgeInsets.only(bottom: 8.0),
             child: Text(
@@ -319,7 +320,10 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                 child: Container(
                   padding: AppDesign.paddingSmall,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceVariant
+                        .withOpacity(0.5),
                     borderRadius: AppDesign.borderMedium,
                     border: Border.all(
                       color: Theme.of(context).colorScheme.outlineVariant,
@@ -336,14 +340,19 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          _startDate == null 
-                              ? 'Start Date' 
+                          _startDate == null
+                              ? 'Start Date'
                               : DateFormat('MMM d, y').format(_startDate!),
                           style: TextStyle(
                             fontWeight: FontWeight.w500,
-                            color: _startDate == null 
-                                ? Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7)
-                                : Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: _startDate == null
+                                ? Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant
+                                    .withOpacity(0.7)
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -358,7 +367,8 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                           child: Icon(
                             Icons.clear,
                             size: 18,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                     ],
@@ -366,16 +376,17 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                 ),
               ),
             ),
-            
+
             const SizedBox(width: 12),
-            
+
             // End date selector
             Expanded(
               child: InkWell(
                 onTap: () async {
                   final DateTime? picked = await showDatePicker(
                     context: context,
-                    initialDate: _endDate ?? (_startDate != null ? _startDate! : DateTime.now()),
+                    initialDate: _endDate ??
+                        (_startDate != null ? _startDate! : DateTime.now()),
                     firstDate: _startDate ?? DateTime(2020),
                     lastDate: DateTime(2030),
                   );
@@ -389,7 +400,10 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                 child: Container(
                   padding: AppDesign.paddingSmall,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceVariant
+                        .withOpacity(0.5),
                     borderRadius: AppDesign.borderMedium,
                     border: Border.all(
                       color: Theme.of(context).colorScheme.outlineVariant,
@@ -406,14 +420,19 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          _endDate == null 
-                              ? 'End Date' 
+                          _endDate == null
+                              ? 'End Date'
                               : DateFormat('MMM d, y').format(_endDate!),
                           style: TextStyle(
                             fontWeight: FontWeight.w500,
-                            color: _endDate == null 
-                                ? Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7)
-                                : Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: _endDate == null
+                                ? Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant
+                                    .withOpacity(0.7)
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -428,7 +447,8 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                           child: Icon(
                             Icons.clear,
                             size: 18,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                     ],
@@ -438,7 +458,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
             ),
           ],
         ),
-        
+
         // Show applied filter info if dates are selected
         if (_startDate != null || _endDate != null)
           Padding(
@@ -489,7 +509,8 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
     }
     return '';
   }
-    // Display today's events or upcoming events section
+
+  // Display today's events or upcoming events section
   Widget _buildTodaysEventsHeader() {
     // Filter today's events
     final now = DateTime.now();
@@ -735,7 +756,8 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                       const SizedBox(height: 4),
                       Text(
                         event.timeSlots.length == 1
-                            ? NhsFormatUtils.formatTimeSlot(event.timeSlots.first, context)
+                            ? NhsFormatUtils.formatTimeSlot(
+                                event.timeSlots.first, context)
                             : '${event.timeSlots.length} time slots',
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1092,10 +1114,9 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
   }
 
   Future<void> _fetchEvents() async {
-    
-      setState(() {
-        _isLoading = true;
-      });
+    setState(() {
+      _isLoading = true;
+    });
     try {
       // Get current society
       final society =
@@ -1109,27 +1130,20 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
       }
 
       // 1. Start building query for events in this society
-      var query = supabase
-          .from('Events')
-          .select()
-          .eq('society_id', society.id);
-      
+      var query = supabase.from('Events').select().eq('society_id', society.id);
+
       // 2. Apply date range filter if dates are selected
       if (_startDate != null) {
         query = query.gte('date', _startDate!.toIso8601String());
       }
-      
+
       if (_endDate != null) {
         // Include the entire end date by setting time to end of day
         final endOfDay = DateTime(
-          _endDate!.year, 
-          _endDate!.month, 
-          _endDate!.day, 
-          23, 59, 59
-        );
+            _endDate!.year, _endDate!.month, _endDate!.day, 23, 59, 59);
         query = query.lte('date', endOfDay.toIso8601String());
       }
-      
+
       // 3. Order by date
       final eventResponse = await query.order('date');
 

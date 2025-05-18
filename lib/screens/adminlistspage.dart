@@ -14,7 +14,7 @@ import '../exporttoexcel.dart';
 import '../common/normalizetype.dart';
 import 'package:flutter/services.dart';
 import '../common/iconutils.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
+
 
 final supabase = Supabase.instance.client;
 
@@ -47,31 +47,31 @@ class _AdminListPageState extends State<AdminListPage> {
   String? _selectedHourType;
   bool _isLoading = false;
   bool _isExporting = false;
-  
+
   // Multi-select functionality
   bool _isMultiSelectMode = false;
   Set<String> _selectedUserIds = {};
 
   // Conditional filtering
   bool _useAdvancedFiltering = false;
-  
+
   // Hour filtering options
   double _minimumTotalHours = 0;
   double _maximumTotalHours = 50;
   String _totalHoursCondition = 'atLeast'; // 'atLeast', 'atMost', 'between'
-  
+
   double _minimumServiceHours = 0;
   double _maximumServiceHours = 25;
   String _serviceHoursCondition = 'atLeast'; // 'atLeast', 'atMost', 'between'
-  
+
   double _minimumTutoringHours = 0;
   double _maximumTutoringHours = 25;
   String _tutoringHoursCondition = 'atLeast'; // 'atLeast', 'atMost', 'between'
-  
+
   // Graduation year filtering
   String _filterGraduationYear = '';
   String _graduationYearCondition = 'equals'; // 'equals', 'before', 'after'
-  
+
   // Dues filtering
   bool _filterByDues = false;
   bool _showPaidDues = true;
@@ -84,18 +84,19 @@ class _AdminListPageState extends State<AdminListPage> {
 
   // Helper method to get available requirement types from current society
   List<String> get _availableHourTypes {
-    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     if (society == null) return ['All'];
-    
+
     final types = ['All', 'Meeting']; // Always include these
-    
+
     // Add all active requirements from the society
     for (final req in society.hourRequirements) {
       if (req.isActive && !types.contains(req.type)) {
         types.add(req.type);
       }
     }
-    
+
     return types;
   }
 
@@ -107,36 +108,35 @@ class _AdminListPageState extends State<AdminListPage> {
 
     try {
       // Get current society
-      final societyId = Provider.of<SocietyProvider>(context, listen: false).currentSociety?.id;
+      final societyId = Provider.of<SocietyProvider>(context, listen: false)
+          .currentSociety
+          ?.id;
       if (societyId == null) {
-        setState((){
+        setState(() {
           _isLoading = false;
         });
         return;
       }
-      
+
       // Get all the data we need in just two queries run in parallel
       final results = await Future.wait([
         // 1. Get members with their profiles and dues status in a single query
-        supabase
-          .from('user_society_memberships')
-          .select('''
+        supabase.from('user_society_memberships').select('''
             user_id, 
             has_paid_dues,
             profiles:user_id(name, email, graduation_year)
-          ''')
-          .eq('society_id', societyId),
-        
+          ''').eq('society_id', societyId),
+
         // 2. Get all service hours for this society at once
         supabase
-          .from('Service hours')
-          .select('id, user_id, event_name, hours, type')
-          .eq('society_id', societyId)
+            .from('Service hours')
+            .select('id, user_id, event_name, hours, type')
+            .eq('society_id', societyId)
       ]);
-      
+
       final memberships = results[0] as List;
       final hoursData = results[1] as List;
-      
+
       // Process hours data into a map for quick lookup
       Map<String, List<CompletedUserHour>> userHoursMap = {};
       for (final hourData in hoursData) {
@@ -144,13 +144,13 @@ class _AdminListPageState extends State<AdminListPage> {
         final hour = CompletedUserHour.fromJson(hourData);
         userHoursMap.putIfAbsent(userId, () => []).add(hour);
       }
-      
+
       // Build the user profiles from the combined data
       final List<UserProfile> users = [];
       for (final membership in memberships) {
         final userId = membership['user_id'] as String;
         final profileData = membership['profiles'];
-        
+
         if (profileData != null) {
           users.add(UserProfile(
             name: profileData['name'] as String,
@@ -161,10 +161,10 @@ class _AdminListPageState extends State<AdminListPage> {
           ));
         }
       }
-      
+
       // Sort users by name
       users.sort((a, b) => a.name.compareTo(b.name));
-      
+
       if (mounted) {
         setState(() {
           _users.addAll(users);
@@ -180,7 +180,7 @@ class _AdminListPageState extends State<AdminListPage> {
       }
     }
   }
- 
+
   List<UserProfile> _getFilteredAndSortedUsers() {
     List<UserProfile> filteredUsers = _users;
 
@@ -195,8 +195,8 @@ class _AdminListPageState extends State<AdminListPage> {
     // Filter by hour type if selected
     if (_selectedHourType != null && _selectedHourType != 'All') {
       filteredUsers = filteredUsers.where((user) {
-        return user.completedHours.any((hour) => 
-          normalizeType(hour.type) == normalizeType(_selectedHourType!));
+        return user.completedHours.any((hour) =>
+            normalizeType(hour.type) == normalizeType(_selectedHourType!));
       }).toList();
     }
 
@@ -204,44 +204,60 @@ class _AdminListPageState extends State<AdminListPage> {
     if (_useAdvancedFiltering) {
       filteredUsers = filteredUsers.where((user) {
         bool meetsAllCriteria = true;
-        
+
         // Filter by total hours
         final totalHours = _getTotalHours(user);
         if (_totalHoursCondition == 'atLeast' && _minimumTotalHours > 0) {
-          meetsAllCriteria = meetsAllCriteria && (totalHours >= _minimumTotalHours);
-        } else if (_totalHoursCondition == 'atMost' && _maximumTotalHours < 50) {
-          meetsAllCriteria = meetsAllCriteria && (totalHours <= _maximumTotalHours);
-        } else if (_totalHoursCondition == 'between' && (_minimumTotalHours > 0 || _maximumTotalHours < 50)) {
-          meetsAllCriteria = meetsAllCriteria && 
-            (totalHours >= _minimumTotalHours && totalHours <= _maximumTotalHours);
+          meetsAllCriteria =
+              meetsAllCriteria && (totalHours >= _minimumTotalHours);
+        } else if (_totalHoursCondition == 'atMost' &&
+            _maximumTotalHours < 50) {
+          meetsAllCriteria =
+              meetsAllCriteria && (totalHours <= _maximumTotalHours);
+        } else if (_totalHoursCondition == 'between' &&
+            (_minimumTotalHours > 0 || _maximumTotalHours < 50)) {
+          meetsAllCriteria = meetsAllCriteria &&
+              (totalHours >= _minimumTotalHours &&
+                  totalHours <= _maximumTotalHours);
         }
-        
+
         // Filter by service hours
         final serviceHours = _getHoursByType(user, 'Service');
         if (_serviceHoursCondition == 'atLeast' && _minimumServiceHours > 0) {
-          meetsAllCriteria = meetsAllCriteria && (serviceHours >= _minimumServiceHours);
-        } else if (_serviceHoursCondition == 'atMost' && _maximumServiceHours < 25) {
-          meetsAllCriteria = meetsAllCriteria && (serviceHours <= _maximumServiceHours);
-        } else if (_serviceHoursCondition == 'between' && (_minimumServiceHours > 0 || _maximumServiceHours < 25)) {
-          meetsAllCriteria = meetsAllCriteria && 
-            (serviceHours >= _minimumServiceHours && serviceHours <= _maximumServiceHours);
+          meetsAllCriteria =
+              meetsAllCriteria && (serviceHours >= _minimumServiceHours);
+        } else if (_serviceHoursCondition == 'atMost' &&
+            _maximumServiceHours < 25) {
+          meetsAllCriteria =
+              meetsAllCriteria && (serviceHours <= _maximumServiceHours);
+        } else if (_serviceHoursCondition == 'between' &&
+            (_minimumServiceHours > 0 || _maximumServiceHours < 25)) {
+          meetsAllCriteria = meetsAllCriteria &&
+              (serviceHours >= _minimumServiceHours &&
+                  serviceHours <= _maximumServiceHours);
         }
-        
+
         // Filter by tutoring hours
         final tutoringHours = _getHoursByType(user, 'Tutoring');
         if (_tutoringHoursCondition == 'atLeast' && _minimumTutoringHours > 0) {
-          meetsAllCriteria = meetsAllCriteria && (tutoringHours >= _minimumTutoringHours);
-        } else if (_tutoringHoursCondition == 'atMost' && _maximumTutoringHours < 25) {
-          meetsAllCriteria = meetsAllCriteria && (tutoringHours <= _maximumTutoringHours);
-        } else if (_tutoringHoursCondition == 'between' && (_minimumTutoringHours > 0 || _maximumTutoringHours < 25)) {
-          meetsAllCriteria = meetsAllCriteria && 
-            (tutoringHours >= _minimumTutoringHours && tutoringHours <= _maximumTutoringHours);
+          meetsAllCriteria =
+              meetsAllCriteria && (tutoringHours >= _minimumTutoringHours);
+        } else if (_tutoringHoursCondition == 'atMost' &&
+            _maximumTutoringHours < 25) {
+          meetsAllCriteria =
+              meetsAllCriteria && (tutoringHours <= _maximumTutoringHours);
+        } else if (_tutoringHoursCondition == 'between' &&
+            (_minimumTutoringHours > 0 || _maximumTutoringHours < 25)) {
+          meetsAllCriteria = meetsAllCriteria &&
+              (tutoringHours >= _minimumTutoringHours &&
+                  tutoringHours <= _maximumTutoringHours);
         }
-        
+
         // Check graduation year
         if (_filterGraduationYear.isNotEmpty) {
           if (_graduationYearCondition == 'equals') {
-            meetsAllCriteria = meetsAllCriteria && user.graduationYear == _filterGraduationYear;
+            meetsAllCriteria = meetsAllCriteria &&
+                user.graduationYear == _filterGraduationYear;
           } else if (_graduationYearCondition == 'before') {
             // Try to convert to int for comparison
             try {
@@ -250,7 +266,8 @@ class _AdminListPageState extends State<AdminListPage> {
               meetsAllCriteria = meetsAllCriteria && gradYear < filterYear;
             } catch (e) {
               // Fallback to string comparison if parsing fails
-              meetsAllCriteria = meetsAllCriteria && user.graduationYear.compareTo(_filterGraduationYear) < 0;
+              meetsAllCriteria = meetsAllCriteria &&
+                  user.graduationYear.compareTo(_filterGraduationYear) < 0;
             }
           } else if (_graduationYearCondition == 'after') {
             // Try to convert to int for comparison
@@ -260,16 +277,18 @@ class _AdminListPageState extends State<AdminListPage> {
               meetsAllCriteria = meetsAllCriteria && gradYear > filterYear;
             } catch (e) {
               // Fallback to string comparison if parsing fails
-              meetsAllCriteria = meetsAllCriteria && user.graduationYear.compareTo(_filterGraduationYear) > 0;
+              meetsAllCriteria = meetsAllCriteria &&
+                  user.graduationYear.compareTo(_filterGraduationYear) > 0;
             }
           }
         }
-        
+
         // Filter by dues status if selected
         if (_filterByDues) {
-          meetsAllCriteria = meetsAllCriteria && user.hasPaidDues == _showPaidDues;
+          meetsAllCriteria =
+              meetsAllCriteria && user.hasPaidDues == _showPaidDues;
         }
-        
+
         return meetsAllCriteria;
       }).toList();
     }
@@ -331,86 +350,84 @@ class _AdminListPageState extends State<AdminListPage> {
     final baseColor = isEvenRow
         ? Theme.of(context).colorScheme.surface
         : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.2);
-        
+
     // For multi-select mode
     if (_isMultiSelectMode && _selectedUserIds.contains(user.id)) {
       return Theme.of(context).colorScheme.primaryContainer;
     }
-    
+
     // Check for conditional coloring
     if (_useAdvancedFiltering) {
       final totalHours = _getTotalHours(user);
       final serviceHours = _getHoursByType(user, 'Service');
       final tutoringHours = _getHoursByType(user, 'Tutoring');
-      
+
       // Example: Color students graduating in current year + low hours in warning color
-      if (user.graduationYear == DateTime.now().year.toString() && 
+      if (user.graduationYear == DateTime.now().year.toString() &&
           totalHours < 10) {
         return Theme.of(context).colorScheme.errorContainer.withOpacity(0.3);
       }
-      
+
       // Color students with very low tutoring hours
       if (tutoringHours < 3) {
         return Theme.of(context).colorScheme.tertiaryContainer.withOpacity(0.3);
       }
-      
+
       // Color students with low service hours and graduating soon
-      if (serviceHours < 5 && 
+      if (serviceHours < 5 &&
           user.graduationYear == DateTime.now().year.toString()) {
-        return Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.3);
+        return Theme.of(context)
+            .colorScheme
+            .secondaryContainer
+            .withOpacity(0.3);
       }
     }
-    
+
     return baseColor;
   }
 
   // Helper to build hour summary card in user details dialog
   Widget _buildHourTypeCards(UserProfile user) {
     final List<Widget> cards = [];
-    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
-    
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+
     // Total hours card (always show)
-    cards.add(
-      Expanded(
-        child: _buildHourSummaryCard(
-          'Total',
-          _getTotalHours(user).toStringAsFixed(1),
-          Icons.watch_later,
-          Theme.of(context).colorScheme.primary,
-        ),
-      )
-    );
-    
+    cards.add(Expanded(
+      child: _buildHourSummaryCard(
+        'Total',
+        _getTotalHours(user).toStringAsFixed(1),
+        Icons.watch_later,
+        Theme.of(context).colorScheme.primary,
+      ),
+    ));
+
     // Meeting hours (always include)
-    cards.add(
-      Expanded(
-        child: _buildHourSummaryCard(
-          'Meeting',
-          _getHoursByType(user, 'Meeting').toStringAsFixed(1),
-          Icons.groups,
-          Theme.of(context).colorScheme.tertiary,
-        ),
-      )
-    );
-    
+    cards.add(Expanded(
+      child: _buildHourSummaryCard(
+        'Meeting',
+        _getHoursByType(user, 'Meeting').toStringAsFixed(1),
+        Icons.groups,
+        Theme.of(context).colorScheme.tertiary,
+      ),
+    ));
+
     // Add cards for each active requirement type
     if (society != null) {
       for (final req in society.hourRequirements) {
         if (req.isActive && req.type != 'Meeting') {
-          cards.add(
-            Expanded(
-              child: _buildHourSummaryCard(
-                req.type,
-                _getHoursByType(user, req.type).toStringAsFixed(1),
-                getIconForType( req.type, context),
-                _getColorForHourType(req.type, context),
-              ),
-            )
-          );
+          cards.add(Expanded(
+            child: _buildHourSummaryCard(
+              req.type,
+              _getHoursByType(user, req.type).toStringAsFixed(1),
+              getIconForType(req.type, context),
+              _getColorForHourType(req.type, context),
+            ),
+          ));
         }
       }
     }
-    
+
     return Row(
       children: cards,
     );
@@ -418,22 +435,23 @@ class _AdminListPageState extends State<AdminListPage> {
 
   // Helper to generate hour breakdown text based on society requirements
   String _generateHoursBreakdownText(UserProfile user) {
-    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     if (society == null) return '';
-    
+
     // If filtered by specific type
     if (_selectedHourType != null && _selectedHourType != 'All') {
       final selectedHours = _getHoursByType(user, _selectedHourType!);
       return '${selectedHours.toStringAsFixed(1)} ${_selectedHourType} hrs';
     }
-    
+
     // Type abbreviations
     final StringBuffer text = StringBuffer();
-    
+
     // Always include Meeting (special case)
     final meetingHours = _getHoursByType(user, 'Meeting');
     text.write('M: ${meetingHours.toStringAsFixed(1)}');
-    
+
     // Add each active requirement type
     for (final req in society.hourRequirements) {
       if (req.isActive && req.type != 'Meeting') {
@@ -446,12 +464,12 @@ class _AdminListPageState extends State<AdminListPage> {
         } else {
           abbr = req.type.substring(0, 1);
         }
-        
+
         final hours = _getHoursByType(user, req.type);
         text.write(', $abbr: ${hours.toStringAsFixed(1)}');
       }
     }
-    
+
     return text.toString();
   }
 
@@ -460,7 +478,7 @@ class _AdminListPageState extends State<AdminListPage> {
     final filteredUsers = _getFilteredAndSortedUsers();
     final screenWidth = MediaQuery.of(context).size.width;
     final isWideScreen = screenWidth > 900;
-    
+
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
@@ -479,10 +497,16 @@ class _AdminListPageState extends State<AdminListPage> {
           if (isWideScreen)
             IconButton(
               icon: Icon(
-                _isMultiSelectMode ? Icons.check_box : Icons.check_box_outline_blank,
-                color: _isMultiSelectMode ? Theme.of(context).colorScheme.primary : null,
+                _isMultiSelectMode
+                    ? Icons.check_box
+                    : Icons.check_box_outline_blank,
+                color: _isMultiSelectMode
+                    ? Theme.of(context).colorScheme.primary
+                    : null,
               ),
-              tooltip: _isMultiSelectMode ? 'Exit Multi-select' : 'Enter Multi-select',
+              tooltip: _isMultiSelectMode
+                  ? 'Exit Multi-select'
+                  : 'Enter Multi-select',
               onPressed: () {
                 setState(() {
                   _isMultiSelectMode = !_isMultiSelectMode;
@@ -492,7 +516,7 @@ class _AdminListPageState extends State<AdminListPage> {
                 });
               },
             ),
-            
+
           // Show selected users action button if in multi-select mode
           if (_isMultiSelectMode && _selectedUserIds.isNotEmpty)
             PopupMenuButton<String>(
@@ -522,14 +546,15 @@ class _AdminListPageState extends State<AdminListPage> {
                 ),
               ],
             ),
-            
+
           // Show bulk edit button on all screen sizes
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const BulkEditEventsPage()),
+                MaterialPageRoute(
+                    builder: (context) => const BulkEditEventsPage()),
               );
             },
           ),
@@ -548,8 +573,8 @@ class _AdminListPageState extends State<AdminListPage> {
                     Icons.file_download,
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
-            onPressed: _isExporting 
-                ? null 
+            onPressed: _isExporting
+                ? null
                 : () {
                     setState(() => _isExporting = true);
                     exportToExcel(context, filteredUsers).then((_) {
@@ -562,8 +587,8 @@ class _AdminListPageState extends State<AdminListPage> {
       ),
       body: _isLoading
           ? Center(
-                              child: CircularProgressIndicator(),
-                          )
+              child: CircularProgressIndicator(),
+            )
           : Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -605,57 +630,50 @@ class _AdminListPageState extends State<AdminListPage> {
                                   ),
                                 ),
                                 const SizedBox(height: 24),
-                                
+
                                 // Sort options
                                 Text(
                                   'Sort By',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.primary,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
                                 _buildSortOptionsList(),
-                                
+
                                 const SizedBox(height: 24),
-                                
+
                                 // Sort order
                                 Text(
                                   'Sort Order',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.primary,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 4,
-                                  children: [
-                                    _buildOrderChip(
-                                      SortOrder.ascending, 
-                                      '↑ Ascending', 
-                                      (setState) {}
-                                    ),
-                                    _buildOrderChip(
-                                      SortOrder.descending, 
-                                      '↓ Descending', 
-                                      (setState) {}
-                                    ),
-                                  ]
-                                ),
-                                
+                                Wrap(spacing: 8, runSpacing: 4, children: [
+                                  _buildOrderChip(SortOrder.ascending,
+                                      '↑ Ascending', (setState) {}),
+                                  _buildOrderChip(SortOrder.descending,
+                                      '↓ Descending', (setState) {}),
+                                ]),
+
                                 const SizedBox(height: 16),
-                                
+
                                 // Filter by hour type
                                 Text(
                                   'Filter by Hour Type',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.primary,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
@@ -668,15 +686,16 @@ class _AdminListPageState extends State<AdminListPage> {
                                       label: Text(type),
                                       onSelected: (selected) {
                                         setState(() {
-                                          _selectedHourType = selected ? type : null;
+                                          _selectedHourType =
+                                              selected ? type : null;
                                         });
                                       },
                                     );
                                   }).toList(),
                                 ),
-                                
+
                                 const SizedBox(height: 16),
-                                
+
                                 // Advanced filtering UI
                                 ExpansionTile(
                                   title: Text(
@@ -684,12 +703,14 @@ class _AdminListPageState extends State<AdminListPage> {
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
-                                      color: Theme.of(context).colorScheme.primary,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
                                     ),
                                   ),
                                   children: [
                                     SwitchListTile(
-                                      title: const Text('Enable Advanced Filtering'),
+                                      title: const Text(
+                                          'Enable Advanced Filtering'),
                                       value: _useAdvancedFiltering,
                                       onChanged: (value) {
                                         setState(() {
@@ -699,47 +720,63 @@ class _AdminListPageState extends State<AdminListPage> {
                                     ),
                                     if (_useAdvancedFiltering) ...[
                                       const SizedBox(height: 8),
-                                      
+
                                       // Total Hours Filter
                                       Padding(
                                         padding: const EdgeInsets.all(8.0),
                                         child: Card(
                                           elevation: 0,
-                                          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .surfaceVariant
+                                              .withOpacity(0.3),
                                           child: Padding(
                                             padding: const EdgeInsets.all(12.0),
                                             child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
                                                 Text(
                                                   'Total Hours',
                                                   style: TextStyle(
                                                     fontWeight: FontWeight.bold,
-                                                    color: Theme.of(context).colorScheme.primary,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .primary,
                                                   ),
                                                 ),
                                                 const SizedBox(height: 8),
                                                 // Filter type selector
                                                 DropdownButtonFormField<String>(
                                                   value: _totalHoursCondition,
-                                                  decoration: const InputDecoration(
+                                                  decoration:
+                                                      const InputDecoration(
                                                     labelText: 'Condition',
                                                     isDense: true,
                                                   ),
                                                   items: const [
-                                                    DropdownMenuItem(value: 'atLeast', child: Text('At least')),
-                                                    DropdownMenuItem(value: 'atMost', child: Text('At most')),
-                                                    DropdownMenuItem(value: 'between', child: Text('Between')),
+                                                    DropdownMenuItem(
+                                                        value: 'atLeast',
+                                                        child:
+                                                            Text('At least')),
+                                                    DropdownMenuItem(
+                                                        value: 'atMost',
+                                                        child: Text('At most')),
+                                                    DropdownMenuItem(
+                                                        value: 'between',
+                                                        child: Text('Between')),
                                                   ],
                                                   onChanged: (value) {
                                                     setState(() {
-                                                      _totalHoursCondition = value!;
+                                                      _totalHoursCondition =
+                                                          value!;
                                                     });
                                                   },
                                                 ),
                                                 const SizedBox(height: 8),
                                                 // Show appropriate sliders based on condition
-                                                if (_totalHoursCondition == 'atLeast')
+                                                if (_totalHoursCondition ==
+                                                    'atLeast')
                                                   _buildFilterSlider(
                                                     'Minimum Value',
                                                     _minimumTotalHours,
@@ -747,11 +784,13 @@ class _AdminListPageState extends State<AdminListPage> {
                                                     50,
                                                     (value) {
                                                       setState(() {
-                                                        _minimumTotalHours = value;
+                                                        _minimumTotalHours =
+                                                            value;
                                                       });
                                                     },
                                                   )
-                                                else if (_totalHoursCondition == 'atMost')
+                                                else if (_totalHoursCondition ==
+                                                    'atMost')
                                                   _buildFilterSlider(
                                                     'Maximum Value',
                                                     _maximumTotalHours,
@@ -759,11 +798,13 @@ class _AdminListPageState extends State<AdminListPage> {
                                                     50,
                                                     (value) {
                                                       setState(() {
-                                                        _maximumTotalHours = value;
+                                                        _maximumTotalHours =
+                                                            value;
                                                       });
                                                     },
                                                   )
-                                                else if (_totalHoursCondition == 'between')
+                                                else if (_totalHoursCondition ==
+                                                    'between')
                                                   Column(
                                                     children: [
                                                       _buildFilterSlider(
@@ -773,10 +814,13 @@ class _AdminListPageState extends State<AdminListPage> {
                                                         50,
                                                         (value) {
                                                           setState(() {
-                                                            _minimumTotalHours = value;
+                                                            _minimumTotalHours =
+                                                                value;
                                                             // Adjust max if needed
-                                                            if (_maximumTotalHours < _minimumTotalHours) {
-                                                              _maximumTotalHours = _minimumTotalHours;
+                                                            if (_maximumTotalHours <
+                                                                _minimumTotalHours) {
+                                                              _maximumTotalHours =
+                                                                  _minimumTotalHours;
                                                             }
                                                           });
                                                         },
@@ -788,10 +832,13 @@ class _AdminListPageState extends State<AdminListPage> {
                                                         50,
                                                         (value) {
                                                           setState(() {
-                                                            _maximumTotalHours = value;
+                                                            _maximumTotalHours =
+                                                                value;
                                                             // Adjust min if needed
-                                                            if (_minimumTotalHours > _maximumTotalHours) {
-                                                              _minimumTotalHours = _maximumTotalHours;
+                                                            if (_minimumTotalHours >
+                                                                _maximumTotalHours) {
+                                                              _minimumTotalHours =
+                                                                  _maximumTotalHours;
                                                             }
                                                           });
                                                         },
@@ -803,47 +850,63 @@ class _AdminListPageState extends State<AdminListPage> {
                                           ),
                                         ),
                                       ),
-                                      
+
                                       // Service Hours Filter
                                       Padding(
                                         padding: const EdgeInsets.all(8.0),
                                         child: Card(
                                           elevation: 0,
-                                          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .surfaceVariant
+                                              .withOpacity(0.3),
                                           child: Padding(
                                             padding: const EdgeInsets.all(12.0),
                                             child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
                                                 Text(
                                                   'Service Hours',
                                                   style: TextStyle(
                                                     fontWeight: FontWeight.bold,
-                                                    color: Theme.of(context).colorScheme.primary,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .primary,
                                                   ),
                                                 ),
                                                 const SizedBox(height: 8),
                                                 // Filter type selector
                                                 DropdownButtonFormField<String>(
                                                   value: _serviceHoursCondition,
-                                                  decoration: const InputDecoration(
+                                                  decoration:
+                                                      const InputDecoration(
                                                     labelText: 'Condition',
                                                     isDense: true,
                                                   ),
                                                   items: const [
-                                                    DropdownMenuItem(value: 'atLeast', child: Text('At least')),
-                                                    DropdownMenuItem(value: 'atMost', child: Text('At most')),
-                                                    DropdownMenuItem(value: 'between', child: Text('Between')),
+                                                    DropdownMenuItem(
+                                                        value: 'atLeast',
+                                                        child:
+                                                            Text('At least')),
+                                                    DropdownMenuItem(
+                                                        value: 'atMost',
+                                                        child: Text('At most')),
+                                                    DropdownMenuItem(
+                                                        value: 'between',
+                                                        child: Text('Between')),
                                                   ],
                                                   onChanged: (value) {
                                                     setState(() {
-                                                      _serviceHoursCondition = value!;
+                                                      _serviceHoursCondition =
+                                                          value!;
                                                     });
                                                   },
                                                 ),
                                                 const SizedBox(height: 8),
                                                 // Show appropriate sliders based on condition
-                                                if (_serviceHoursCondition == 'atLeast')
+                                                if (_serviceHoursCondition ==
+                                                    'atLeast')
                                                   _buildFilterSlider(
                                                     'Minimum Value',
                                                     _minimumServiceHours,
@@ -851,11 +914,13 @@ class _AdminListPageState extends State<AdminListPage> {
                                                     25,
                                                     (value) {
                                                       setState(() {
-                                                        _minimumServiceHours = value;
+                                                        _minimumServiceHours =
+                                                            value;
                                                       });
                                                     },
                                                   )
-                                                else if (_serviceHoursCondition == 'atMost')
+                                                else if (_serviceHoursCondition ==
+                                                    'atMost')
                                                   _buildFilterSlider(
                                                     'Maximum Value',
                                                     _maximumServiceHours,
@@ -863,11 +928,13 @@ class _AdminListPageState extends State<AdminListPage> {
                                                     25,
                                                     (value) {
                                                       setState(() {
-                                                        _maximumServiceHours = value;
+                                                        _maximumServiceHours =
+                                                            value;
                                                       });
                                                     },
                                                   )
-                                                else if (_serviceHoursCondition == 'between')
+                                                else if (_serviceHoursCondition ==
+                                                    'between')
                                                   Column(
                                                     children: [
                                                       _buildFilterSlider(
@@ -877,9 +944,12 @@ class _AdminListPageState extends State<AdminListPage> {
                                                         25,
                                                         (value) {
                                                           setState(() {
-                                                            _minimumServiceHours = value;
-                                                            if (_maximumServiceHours < _minimumServiceHours) {
-                                                              _maximumServiceHours = _minimumServiceHours;
+                                                            _minimumServiceHours =
+                                                                value;
+                                                            if (_maximumServiceHours <
+                                                                _minimumServiceHours) {
+                                                              _maximumServiceHours =
+                                                                  _minimumServiceHours;
                                                             }
                                                           });
                                                         },
@@ -891,9 +961,12 @@ class _AdminListPageState extends State<AdminListPage> {
                                                         25,
                                                         (value) {
                                                           setState(() {
-                                                            _maximumServiceHours = value;
-                                                            if (_minimumServiceHours > _maximumServiceHours) {
-                                                              _minimumServiceHours = _maximumServiceHours;
+                                                            _maximumServiceHours =
+                                                                value;
+                                                            if (_minimumServiceHours >
+                                                                _maximumServiceHours) {
+                                                              _minimumServiceHours =
+                                                                  _maximumServiceHours;
                                                             }
                                                           });
                                                         },
@@ -905,47 +978,64 @@ class _AdminListPageState extends State<AdminListPage> {
                                           ),
                                         ),
                                       ),
-                                      
+
                                       // Tutoring Hours Filter
                                       Padding(
                                         padding: const EdgeInsets.all(8.0),
                                         child: Card(
                                           elevation: 0,
-                                          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .surfaceVariant
+                                              .withOpacity(0.3),
                                           child: Padding(
                                             padding: const EdgeInsets.all(12.0),
                                             child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
                                                 Text(
                                                   'Tutoring Hours',
                                                   style: TextStyle(
                                                     fontWeight: FontWeight.bold,
-                                                    color: Theme.of(context).colorScheme.primary,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .primary,
                                                   ),
                                                 ),
                                                 const SizedBox(height: 8),
                                                 // Filter type selector
                                                 DropdownButtonFormField<String>(
-                                                  value: _tutoringHoursCondition,
-                                                  decoration: const InputDecoration(
+                                                  value:
+                                                      _tutoringHoursCondition,
+                                                  decoration:
+                                                      const InputDecoration(
                                                     labelText: 'Condition',
                                                     isDense: true,
                                                   ),
                                                   items: const [
-                                                    DropdownMenuItem(value: 'atLeast', child: Text('At least')),
-                                                    DropdownMenuItem(value: 'atMost', child: Text('At most')),
-                                                    DropdownMenuItem(value: 'between', child: Text('Between')),
+                                                    DropdownMenuItem(
+                                                        value: 'atLeast',
+                                                        child:
+                                                            Text('At least')),
+                                                    DropdownMenuItem(
+                                                        value: 'atMost',
+                                                        child: Text('At most')),
+                                                    DropdownMenuItem(
+                                                        value: 'between',
+                                                        child: Text('Between')),
                                                   ],
                                                   onChanged: (value) {
                                                     setState(() {
-                                                      _tutoringHoursCondition = value!;
+                                                      _tutoringHoursCondition =
+                                                          value!;
                                                     });
                                                   },
                                                 ),
                                                 const SizedBox(height: 8),
                                                 // Show appropriate sliders based on condition
-                                                if (_tutoringHoursCondition == 'atLeast')
+                                                if (_tutoringHoursCondition ==
+                                                    'atLeast')
                                                   _buildFilterSlider(
                                                     'Minimum Value',
                                                     _minimumTutoringHours,
@@ -953,11 +1043,13 @@ class _AdminListPageState extends State<AdminListPage> {
                                                     25,
                                                     (value) {
                                                       setState(() {
-                                                        _minimumTutoringHours = value;
+                                                        _minimumTutoringHours =
+                                                            value;
                                                       });
                                                     },
                                                   )
-                                                else if (_tutoringHoursCondition == 'atMost')
+                                                else if (_tutoringHoursCondition ==
+                                                    'atMost')
                                                   _buildFilterSlider(
                                                     'Maximum Value',
                                                     _maximumTutoringHours,
@@ -965,11 +1057,13 @@ class _AdminListPageState extends State<AdminListPage> {
                                                     25,
                                                     (value) {
                                                       setState(() {
-                                                        _maximumTutoringHours = value;
+                                                        _maximumTutoringHours =
+                                                            value;
                                                       });
                                                     },
                                                   )
-                                                else if (_tutoringHoursCondition == 'between')
+                                                else if (_tutoringHoursCondition ==
+                                                    'between')
                                                   Column(
                                                     children: [
                                                       _buildFilterSlider(
@@ -979,9 +1073,12 @@ class _AdminListPageState extends State<AdminListPage> {
                                                         25,
                                                         (value) {
                                                           setState(() {
-                                                            _minimumTutoringHours = value;
-                                                            if (_maximumTutoringHours < _minimumTutoringHours) {
-                                                              _maximumTutoringHours = _minimumTutoringHours;
+                                                            _minimumTutoringHours =
+                                                                value;
+                                                            if (_maximumTutoringHours <
+                                                                _minimumTutoringHours) {
+                                                              _maximumTutoringHours =
+                                                                  _minimumTutoringHours;
                                                             }
                                                           });
                                                         },
@@ -993,9 +1090,12 @@ class _AdminListPageState extends State<AdminListPage> {
                                                         25,
                                                         (value) {
                                                           setState(() {
-                                                            _maximumTutoringHours = value;
-                                                            if (_minimumTutoringHours > _maximumTutoringHours) {
-                                                              _minimumTutoringHours = _maximumTutoringHours;
+                                                            _maximumTutoringHours =
+                                                                value;
+                                                            if (_minimumTutoringHours >
+                                                                _maximumTutoringHours) {
+                                                              _minimumTutoringHours =
+                                                                  _maximumTutoringHours;
                                                             }
                                                           });
                                                         },
@@ -1007,54 +1107,72 @@ class _AdminListPageState extends State<AdminListPage> {
                                           ),
                                         ),
                                       ),
-                                      
+
                                       // Graduation Year Filter Card
                                       Padding(
                                         padding: const EdgeInsets.all(8.0),
                                         child: Card(
                                           elevation: 0,
-                                          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .surfaceVariant
+                                              .withOpacity(0.3),
                                           child: Padding(
                                             padding: const EdgeInsets.all(12.0),
                                             child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
                                                 Text(
                                                   'Graduation Year',
                                                   style: TextStyle(
                                                     fontWeight: FontWeight.bold,
-                                                    color: Theme.of(context).colorScheme.primary,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .primary,
                                                   ),
                                                 ),
                                                 const SizedBox(height: 8),
                                                 // Filter type selector
                                                 DropdownButtonFormField<String>(
-                                                  value: _graduationYearCondition,
-                                                  decoration: const InputDecoration(
+                                                  value:
+                                                      _graduationYearCondition,
+                                                  decoration:
+                                                      const InputDecoration(
                                                     labelText: 'Condition',
                                                     isDense: true,
                                                   ),
                                                   items: const [
-                                                    DropdownMenuItem(value: 'equals', child: Text('Equals')),
-                                                    DropdownMenuItem(value: 'before', child: Text('Before')),
-                                                    DropdownMenuItem(value: 'after', child: Text('After')),
+                                                    DropdownMenuItem(
+                                                        value: 'equals',
+                                                        child: Text('Equals')),
+                                                    DropdownMenuItem(
+                                                        value: 'before',
+                                                        child: Text('Before')),
+                                                    DropdownMenuItem(
+                                                        value: 'after',
+                                                        child: Text('After')),
                                                   ],
                                                   onChanged: (value) {
                                                     setState(() {
-                                                      _graduationYearCondition = value!;
+                                                      _graduationYearCondition =
+                                                          value!;
                                                     });
                                                   },
                                                 ),
                                                 const SizedBox(height: 8),
                                                 TextField(
-                                                  decoration: const InputDecoration(
+                                                  decoration:
+                                                      const InputDecoration(
                                                     labelText: 'Year',
                                                     hintText: 'e.g. 2025',
                                                   ),
-                                                  keyboardType: TextInputType.number,
+                                                  keyboardType:
+                                                      TextInputType.number,
                                                   onChanged: (value) {
                                                     setState(() {
-                                                      _filterGraduationYear = value;
+                                                      _filterGraduationYear =
+                                                          value;
                                                     });
                                                   },
                                                 ),
@@ -1063,27 +1181,34 @@ class _AdminListPageState extends State<AdminListPage> {
                                           ),
                                         ),
                                       ),
-                                      
+
                                       // Dues Status Filter
                                       Padding(
                                         padding: const EdgeInsets.all(8.0),
                                         child: Card(
                                           elevation: 0,
-                                          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .surfaceVariant
+                                              .withOpacity(0.3),
                                           child: Padding(
                                             padding: const EdgeInsets.all(12.0),
                                             child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
                                                 Text(
                                                   'Dues Status',
                                                   style: TextStyle(
                                                     fontWeight: FontWeight.bold,
-                                                    color: Theme.of(context).colorScheme.primary,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .primary,
                                                   ),
                                                 ),
                                                 SwitchListTile(
-                                                  title: const Text('Filter by dues status'),
+                                                  title: const Text(
+                                                      'Filter by dues status'),
                                                   value: _filterByDues,
                                                   onChanged: (value) {
                                                     setState(() {
@@ -1093,7 +1218,8 @@ class _AdminListPageState extends State<AdminListPage> {
                                                 ),
                                                 if (_filterByDues)
                                                   RadioListTile<bool>(
-                                                    title: const Text('Dues Paid'),
+                                                    title:
+                                                        const Text('Dues Paid'),
                                                     value: true,
                                                     groupValue: _showPaidDues,
                                                     onChanged: (value) {
@@ -1104,7 +1230,8 @@ class _AdminListPageState extends State<AdminListPage> {
                                                   ),
                                                 if (_filterByDues)
                                                   RadioListTile<bool>(
-                                                    title: const Text('Dues Unpaid'),
+                                                    title: const Text(
+                                                        'Dues Unpaid'),
                                                     value: false,
                                                     groupValue: _showPaidDues,
                                                     onChanged: (value) {
@@ -1118,9 +1245,9 @@ class _AdminListPageState extends State<AdminListPage> {
                                           ),
                                         ),
                                       ),
-                                      
+
                                       const SizedBox(height: 16),
-                                      
+
                                       // Reset filters button
                                       Center(
                                         child: OutlinedButton.icon(
@@ -1132,18 +1259,21 @@ class _AdminListPageState extends State<AdminListPage> {
                                               _minimumTotalHours = 0;
                                               _maximumTotalHours = 50;
                                               _totalHoursCondition = 'atLeast';
-                                              
+
                                               _minimumServiceHours = 0;
                                               _maximumServiceHours = 25;
-                                              _serviceHoursCondition = 'atLeast';
-                                              
+                                              _serviceHoursCondition =
+                                                  'atLeast';
+
                                               _minimumTutoringHours = 0;
                                               _maximumTutoringHours = 25;
-                                              _tutoringHoursCondition = 'atLeast';
-                                              
+                                              _tutoringHoursCondition =
+                                                  'atLeast';
+
                                               _filterGraduationYear = '';
-                                              _graduationYearCondition = 'equals';
-                                              
+                                              _graduationYearCondition =
+                                                  'equals';
+
                                               _filterByDues = false;
                                               _showPaidDues = true;
                                             });
@@ -1153,14 +1283,14 @@ class _AdminListPageState extends State<AdminListPage> {
                                     ],
                                   ],
                                 ),
-                                
+
                                 // Add some padding at the bottom for better scrolling
                                 const SizedBox(height: 24),
                               ],
                             ),
                           ),
                         ),
-                        
+
                         // Fixed button at bottom of sidebar (outside of scroll view)
                         Padding(
                           padding: const EdgeInsets.all(16.0),
@@ -1173,7 +1303,8 @@ class _AdminListPageState extends State<AdminListPage> {
                               icon: const Icon(Icons.add),
                               label: const Text('Bulk Add Hours'),
                               style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
                               ),
                             ),
                           ),
@@ -1181,7 +1312,7 @@ class _AdminListPageState extends State<AdminListPage> {
                       ],
                     ),
                   ),
-                
+
                 // Main content area
                 Expanded(
                   child: Column(
@@ -1208,7 +1339,7 @@ class _AdminListPageState extends State<AdminListPage> {
                                 ),
                               ),
                               const SizedBox(height: 16.0),
-                              
+
                               // Bulk add button
                               Row(
                                 children: [
@@ -1230,9 +1361,10 @@ class _AdminListPageState extends State<AdminListPage> {
                                   ),
                                 ],
                               ),
-                              
+
                               // Show selected filter if any
-                              if (_selectedHourType != null && _selectedHourType != 'All')
+                              if (_selectedHourType != null &&
+                                  _selectedHourType != 'All')
                                 Padding(
                                   padding: const EdgeInsets.only(top: 8.0),
                                   child: Row(
@@ -1241,12 +1373,15 @@ class _AdminListPageState extends State<AdminListPage> {
                                         'Filtered by: ',
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
-                                          color: Theme.of(context).colorScheme.primary,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
                                         ),
                                       ),
                                       Chip(
                                         label: Text(_selectedHourType!),
-                                        deleteIcon: const Icon(Icons.clear, size: 18),
+                                        deleteIcon:
+                                            const Icon(Icons.clear, size: 18),
                                         onDeleted: () {
                                           setState(() {
                                             _selectedHourType = null;
@@ -1259,10 +1394,11 @@ class _AdminListPageState extends State<AdminListPage> {
                             ],
                           ),
                         ),
-                      
+
                       // User count info and active filter indicators
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 8.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -1272,7 +1408,9 @@ class _AdminListPageState extends State<AdminListPage> {
                                   '${filteredUsers.length} ${filteredUsers.length == 1 ? 'member' : 'members'}',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w500,
-                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
                                   ),
                                 ),
                                 if (_searchQuery.isNotEmpty)
@@ -1280,33 +1418,41 @@ class _AdminListPageState extends State<AdminListPage> {
                                     ' matching "${_searchQuery}"',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w500,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
                                     ),
                                   ),
-                                
+
                                 const Spacer(),
-                                
+
                                 // Show summary of advanced filters if active
                                 if (_useAdvancedFiltering)
                                   Chip(
                                     label: Text('Advanced Filters'),
-                                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                                    deleteIcon: const Icon(Icons.clear, size: 16),
+                                    backgroundColor: Theme.of(context)
+                                        .colorScheme
+                                        .primaryContainer,
+                                    deleteIcon:
+                                        const Icon(Icons.clear, size: 16),
                                     onDeleted: () {
                                       setState(() {
                                         _useAdvancedFiltering = false;
                                       });
                                     },
                                   ),
-                                  
+
                                 if (_isMultiSelectMode)
                                   Chip(
-                                    label: Text('${_selectedUserIds.length} selected'),
-                                    backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+                                    label: Text(
+                                        '${_selectedUserIds.length} selected'),
+                                    backgroundColor: Theme.of(context)
+                                        .colorScheme
+                                        .secondaryContainer,
                                   ),
                               ],
                             ),
-                            
+
                             // Show summary of active advanced filters
                             if (_useAdvancedFiltering)
                               Padding(
@@ -1316,47 +1462,70 @@ class _AdminListPageState extends State<AdminListPage> {
                                   runSpacing: 4,
                                   children: [
                                     // Total hours indicators
-                                    if (_totalHoursCondition == 'atLeast' && _minimumTotalHours > 0)
-                                      _buildFilterIndicator('Total ≥ ${_minimumTotalHours.toStringAsFixed(1)}'),
-                                    if (_totalHoursCondition == 'atMost' && _maximumTotalHours < 50)
-                                      _buildFilterIndicator('Total ≤ ${_maximumTotalHours.toStringAsFixed(1)}'),
-                                    if (_totalHoursCondition == 'between' && (_minimumTotalHours > 0 || _maximumTotalHours < 50))
-                                      _buildFilterIndicator('${_minimumTotalHours.toStringAsFixed(1)} ≤ Total ≤ ${_maximumTotalHours.toStringAsFixed(1)}'),
-                                    
+                                    if (_totalHoursCondition == 'atLeast' &&
+                                        _minimumTotalHours > 0)
+                                      _buildFilterIndicator(
+                                          'Total ≥ ${_minimumTotalHours.toStringAsFixed(1)}'),
+                                    if (_totalHoursCondition == 'atMost' &&
+                                        _maximumTotalHours < 50)
+                                      _buildFilterIndicator(
+                                          'Total ≤ ${_maximumTotalHours.toStringAsFixed(1)}'),
+                                    if (_totalHoursCondition == 'between' &&
+                                        (_minimumTotalHours > 0 ||
+                                            _maximumTotalHours < 50))
+                                      _buildFilterIndicator(
+                                          '${_minimumTotalHours.toStringAsFixed(1)} ≤ Total ≤ ${_maximumTotalHours.toStringAsFixed(1)}'),
+
                                     // Service hours indicators
-                                    if (_serviceHoursCondition == 'atLeast' && _minimumServiceHours > 0)
-                                      _buildFilterIndicator('Service ≥ ${_minimumServiceHours.toStringAsFixed(1)}'),
-                                    if (_serviceHoursCondition == 'atMost' && _maximumServiceHours < 25)
-                                      _buildFilterIndicator('Service ≤ ${_maximumServiceHours.toStringAsFixed(1)}'),
-                                    if (_serviceHoursCondition == 'between' && (_minimumServiceHours > 0 || _maximumServiceHours < 25))
-                                      _buildFilterIndicator('${_minimumServiceHours.toStringAsFixed(1)} ≤ Service ≤ ${_maximumServiceHours.toStringAsFixed(1)}'),
-                                    
+                                    if (_serviceHoursCondition == 'atLeast' &&
+                                        _minimumServiceHours > 0)
+                                      _buildFilterIndicator(
+                                          'Service ≥ ${_minimumServiceHours.toStringAsFixed(1)}'),
+                                    if (_serviceHoursCondition == 'atMost' &&
+                                        _maximumServiceHours < 25)
+                                      _buildFilterIndicator(
+                                          'Service ≤ ${_maximumServiceHours.toStringAsFixed(1)}'),
+                                    if (_serviceHoursCondition == 'between' &&
+                                        (_minimumServiceHours > 0 ||
+                                            _maximumServiceHours < 25))
+                                      _buildFilterIndicator(
+                                          '${_minimumServiceHours.toStringAsFixed(1)} ≤ Service ≤ ${_maximumServiceHours.toStringAsFixed(1)}'),
+
                                     // Tutoring hours indicators
-                                    if (_tutoringHoursCondition == 'atLeast' && _minimumTutoringHours > 0)
-                                      _buildFilterIndicator('Tutoring ≥ ${_minimumTutoringHours.toStringAsFixed(1)}'),
-                                    if (_tutoringHoursCondition == 'atMost' && _maximumTutoringHours < 25)
-                                      _buildFilterIndicator('Tutoring ≤ ${_maximumTutoringHours.toStringAsFixed(1)}'),
-                                    if (_tutoringHoursCondition == 'between' && (_minimumTutoringHours > 0 || _maximumTutoringHours < 25))
-                                      _buildFilterIndicator('${_minimumTutoringHours.toStringAsFixed(1)} ≤ Tutoring ≤ ${_maximumTutoringHours.toStringAsFixed(1)}'),
-                                    
+                                    if (_tutoringHoursCondition == 'atLeast' &&
+                                        _minimumTutoringHours > 0)
+                                      _buildFilterIndicator(
+                                          'Tutoring ≥ ${_minimumTutoringHours.toStringAsFixed(1)}'),
+                                    if (_tutoringHoursCondition == 'atMost' &&
+                                        _maximumTutoringHours < 25)
+                                      _buildFilterIndicator(
+                                          'Tutoring ≤ ${_maximumTutoringHours.toStringAsFixed(1)}'),
+                                    if (_tutoringHoursCondition == 'between' &&
+                                        (_minimumTutoringHours > 0 ||
+                                            _maximumTutoringHours < 25))
+                                      _buildFilterIndicator(
+                                          '${_minimumTutoringHours.toStringAsFixed(1)} ≤ Tutoring ≤ ${_maximumTutoringHours.toStringAsFixed(1)}'),
+
                                     // Graduation year indicators
                                     if (_filterGraduationYear.isNotEmpty)
-                                      _buildFilterIndicator(
-                                        _graduationYearCondition == 'equals' ? 'Year: $_filterGraduationYear' :
-                                        _graduationYearCondition == 'before' ? 'Year < $_filterGraduationYear' :
-                                        'Year > $_filterGraduationYear'
-                                      ),
-                                      
+                                      _buildFilterIndicator(_graduationYearCondition ==
+                                              'equals'
+                                          ? 'Year: $_filterGraduationYear'
+                                          : _graduationYearCondition == 'before'
+                                              ? 'Year < $_filterGraduationYear'
+                                              : 'Year > $_filterGraduationYear'),
+
                                     // Dues status indicator
                                     if (_filterByDues)
-                                      _buildFilterIndicator('Dues: ${_showPaidDues ? 'Paid' : 'Unpaid'}'),
+                                      _buildFilterIndicator(
+                                          'Dues: ${_showPaidDues ? 'Paid' : 'Unpaid'}'),
                                   ],
                                 ),
                               ),
                           ],
                         ),
                       ),
-                      
+
                       // User list
                       Expanded(
                         child: filteredUsers.isEmpty
@@ -1374,9 +1543,12 @@ class _AdminListPageState extends State<AdminListPage> {
                                       _searchQuery.isNotEmpty
                                           ? 'No members match your search'
                                           : 'No members to display',
-                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                        color: Colors.grey[600],
-                                      ),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            color: Colors.grey[600],
+                                          ),
                                     ),
                                   ],
                                 ),
@@ -1384,9 +1556,11 @@ class _AdminListPageState extends State<AdminListPage> {
                             : RefreshIndicator(
                                 onRefresh: _fetchUsers,
                                 child: isWideScreen
-                                    ? _buildUserTable(filteredUsers)  // Table view for wide screens
-                                    : _buildUserCardList(filteredUsers)  // Card list for mobile
-                              ),
+                                    ? _buildUserTable(
+                                        filteredUsers) // Table view for wide screens
+                                    : _buildUserCardList(
+                                        filteredUsers) // Card list for mobile
+                                ),
                       ),
                     ],
                   ),
@@ -1416,13 +1590,8 @@ class _AdminListPageState extends State<AdminListPage> {
     );
   }
 
-  Widget _buildFilterSlider(
-    String label, 
-    double value, 
-    double min, 
-    double max, 
-    Function(double) onChanged
-  ) {
+  Widget _buildFilterSlider(String label, double value, double min, double max,
+      Function(double) onChanged) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Column(
@@ -1463,8 +1632,10 @@ class _AdminListPageState extends State<AdminListPage> {
                 SizedBox(
                   width: 48,
                   child: Checkbox(
-                    value: _selectedUserIds.length == users.length && users.isNotEmpty,
-                    tristate: _selectedUserIds.isNotEmpty && _selectedUserIds.length < users.length,
+                    value: _selectedUserIds.length == users.length &&
+                        users.isNotEmpty,
+                    tristate: _selectedUserIds.isNotEmpty &&
+                        _selectedUserIds.length < users.length,
                     onChanged: (checked) {
                       setState(() {
                         if (checked ?? false) {
@@ -1478,7 +1649,7 @@ class _AdminListPageState extends State<AdminListPage> {
                     },
                   ),
                 ),
-              
+
               // Name column (wider)
               Expanded(
                 flex: 3,
@@ -1518,7 +1689,7 @@ class _AdminListPageState extends State<AdminListPage> {
                   ),
                 ),
               ),
-              
+
               // Graduation year column
               Expanded(
                 flex: 1,
@@ -1558,7 +1729,7 @@ class _AdminListPageState extends State<AdminListPage> {
                   ),
                 ),
               ),
-              
+
               // Total hours column
               Expanded(
                 flex: 2,
@@ -1598,7 +1769,7 @@ class _AdminListPageState extends State<AdminListPage> {
                   ),
                 ),
               ),
-              
+
               // Dues paid column
               Expanded(
                 child: Text(
@@ -1607,7 +1778,7 @@ class _AdminListPageState extends State<AdminListPage> {
                   textAlign: TextAlign.center,
                 ),
               ),
-              
+
               // Actions column
               const SizedBox(
                 width: 100,
@@ -1620,7 +1791,7 @@ class _AdminListPageState extends State<AdminListPage> {
             ],
           ),
         ),
-        
+
         // Table body with scrolling
         Expanded(
           child: ListView.builder(
@@ -1628,10 +1799,10 @@ class _AdminListPageState extends State<AdminListPage> {
             itemBuilder: (context, index) {
               final user = users[index];
               final totalHours = _getTotalHours(user);
-    
+
               // Generate hour breakdown text
               final hoursText = _generateHoursBreakdownText(user);
-              
+
               return Container(
                 color: _getRowColor(user, index, context),
                 child: InkWell(
@@ -1649,7 +1820,8 @@ class _AdminListPageState extends State<AdminListPage> {
                     }
                   },
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 12, horizontal: 16),
                     child: Row(
                       children: [
                         // Checkbox for multi-select mode
@@ -1669,7 +1841,7 @@ class _AdminListPageState extends State<AdminListPage> {
                               },
                             ),
                           ),
-                          
+
                         // Name column
                         Expanded(
                           flex: 3,
@@ -1677,11 +1849,15 @@ class _AdminListPageState extends State<AdminListPage> {
                             children: [
                               CircleAvatar(
                                 radius: 16,
-                                backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                                backgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withOpacity(0.2),
                                 child: Text(
                                   user.name.isNotEmpty ? user.name[0] : '?',
                                   style: TextStyle(
-                                    color: Theme.of(context).colorScheme.primary,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -1696,7 +1872,7 @@ class _AdminListPageState extends State<AdminListPage> {
                             ],
                           ),
                         ),
-                        
+
                         // Graduation Year column
                         Expanded(
                           flex: 1,
@@ -1707,7 +1883,7 @@ class _AdminListPageState extends State<AdminListPage> {
                             ),
                           ),
                         ),
-                        
+
                         // Total hours column
                         Expanded(
                           flex: 2,
@@ -1716,31 +1892,38 @@ class _AdminListPageState extends State<AdminListPage> {
                             children: [
                               Text(
                                 '${totalHours.toStringAsFixed(1)} hrs',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
                               ),
                               Text(
                                 hoursText,
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        
+
                         Expanded(
                           child: Center(
                             child: IconButton(
                               icon: Icon(
-                                user.hasPaidDues ? Icons.check_circle : Icons.cancel,
-                                color: user.hasPaidDues ? Colors.green : Theme.of(context).colorScheme.error,
+                                user.hasPaidDues
+                                    ? Icons.check_circle
+                                    : Icons.cancel,
+                                color: user.hasPaidDues
+                                    ? Colors.green
+                                    : Theme.of(context).colorScheme.error,
                               ),
                               onPressed: () => _toggleDuesStatus(user),
                             ),
                           ),
                         ),
-                        
+
                         // Actions column
                         SizedBox(
                           width: 100,
@@ -1779,26 +1962,27 @@ class _AdminListPageState extends State<AdminListPage> {
       ],
     );
   }
-  
+
   // Copy selected user information to clipboard
   void _copySelectedUserInfo(bool copyEmails) async {
     if (_selectedUserIds.isEmpty) return;
-    
+
     final List<String> result = [];
-    final selectedUsers = _users.where((u) => _selectedUserIds.contains(u.id)).toList();
-    
+    final selectedUsers =
+        _users.where((u) => _selectedUserIds.contains(u.id)).toList();
+
     if (copyEmails) {
       // Need to fetch emails from the database
       final emailsResponse = await supabase
           .from('profiles')
           .select('user_id, email')
           .inFilter('user_id', _selectedUserIds.toList());
-          
+
       Map<String, String> emailMap = {};
       for (var item in emailsResponse) {
         emailMap[item['user_id']] = item['email'];
       }
-      
+
       // Create the list of emails
       for (var user in selectedUsers) {
         final email = emailMap[user.id] ?? '';
@@ -1810,7 +1994,7 @@ class _AdminListPageState extends State<AdminListPage> {
       // Just copy names
       result.addAll(selectedUsers.map((u) => u.name));
     }
-    
+
     // Copy to clipboard and show confirmation
     final clipboardText = result.join('\n');
     // In a real implementation, you would use Flutter's clipboard package here
@@ -1818,8 +2002,7 @@ class _AdminListPageState extends State<AdminListPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '${result.length} ${copyEmails ? 'emails' : 'names'} copied to clipboard'
-        ),
+            '${result.length} ${copyEmails ? 'emails' : 'names'} copied to clipboard'),
         action: SnackBarAction(
           label: 'OK',
           onPressed: () {},
@@ -1827,14 +2010,15 @@ class _AdminListPageState extends State<AdminListPage> {
       ),
     );
   }
-  
+
   // Export only selected users to Excel
   void _exportSelectedUsers() {
     if (_selectedUserIds.isEmpty) return;
-    
+
     setState(() => _isExporting = true);
-    
-    final selectedUsers = _users.where((u) => _selectedUserIds.contains(u.id)).toList();
+
+    final selectedUsers =
+        _users.where((u) => _selectedUserIds.contains(u.id)).toList();
     exportToExcel(context, selectedUsers).then((_) {
       setState(() => _isExporting = false);
     });
@@ -1851,27 +2035,28 @@ class _AdminListPageState extends State<AdminListPage> {
       },
     );
   }
-  
+
   // Existing implementation
   Widget _buildUserCard(UserProfile user) {
     // Get society requirements from provider
-    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     if (society == null) return const SizedBox();
-    
+
     // Generate abbreviations for requirement types
     Map<String, String> typeAbbreviations = {};
     Set<String> usedFirstLetters = {};
-    
+
     // Add Meeting first (special requirement)
     typeAbbreviations['Meeting'] = 'M';
     usedFirstLetters.add('M');
-    
+
     // Add other requirements with adaptive abbreviations
     for (final req in society.hourRequirements) {
       if (req.isActive) {
         final type = req.type;
         final firstLetter = type.isEmpty ? 'X' : type[0].toUpperCase();
-        
+
         if (!usedFirstLetters.contains(firstLetter)) {
           // If first letter isn't used yet, use it
           typeAbbreviations[type] = firstLetter;
@@ -1883,49 +2068,55 @@ class _AdminListPageState extends State<AdminListPage> {
         }
       }
     }
-    
+
     // Calculate hours for each requirement type
     Map<String, double> hoursByType = {};
     double totalHours = 0;
-    
+
     // Initialize with 0 for all requirement types
     typeAbbreviations.keys.forEach((type) {
       hoursByType[type] = 0;
     });
-    
+
     // Sum hours by type
     for (final hour in user.completedHours) {
       final normalizedType = normalizeType(hour.type);
       if (hoursByType.containsKey(normalizedType)) {
-        hoursByType[normalizedType] = (hoursByType[normalizedType] ?? 0) + hour.hours;
+        hoursByType[normalizedType] =
+            (hoursByType[normalizedType] ?? 0) + hour.hours;
         totalHours += hour.hours;
-      } else if (typeAbbreviations.keys.any((k) => normalizeType(k) == normalizedType)) {
+      } else if (typeAbbreviations.keys
+          .any((k) => normalizeType(k) == normalizedType)) {
         // Try to find a matching type with different capitalization
         final matchingType = typeAbbreviations.keys.firstWhere(
           (k) => normalizeType(k) == normalizedType,
           orElse: () => normalizedType,
         );
-        hoursByType[matchingType] = (hoursByType[matchingType] ?? 0) + hour.hours;
+        hoursByType[matchingType] =
+            (hoursByType[matchingType] ?? 0) + hour.hours;
         totalHours += hour.hours;
       }
     }
-    
+
     // Build the hours display text
     final StringBuffer hoursText = StringBuffer();
     hoursText.write('${totalHours.toStringAsFixed(1)} hrs (');
-    
+
     final List<String> hourParts = [];
     typeAbbreviations.forEach((type, abbr) {
       hourParts.add('$abbr: ${hoursByType[type]?.toStringAsFixed(1)}');
     });
-    
+
     hoursText.write(hourParts.join(', '));
     hoursText.write(')');
 
     // Filter hours by selected type if needed
-    final List<CompletedUserHour> filteredHours = _selectedHourType != null && _selectedHourType != 'All'
-        ? user.completedHours.where((hour) => 
-            normalizeType(hour.type) == normalizeType(_selectedHourType!)).toList()
+    final List<CompletedUserHour> filteredHours = _selectedHourType != null &&
+            _selectedHourType != 'All'
+        ? user.completedHours
+            .where((hour) =>
+                normalizeType(hour.type) == normalizeType(_selectedHourType!))
+            .toList()
         : user.completedHours;
 
     return Card(
@@ -1933,7 +2124,8 @@ class _AdminListPageState extends State<AdminListPage> {
       shape: RoundedRectangleBorder(
         borderRadius: AppDesign.borderXLarge,
       ),
-      elevation:  _isMultiSelectMode && _selectedUserIds.contains(user.id) ? 4 : 2,
+      elevation:
+          _isMultiSelectMode && _selectedUserIds.contains(user.id) ? 4 : 2,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: CustomExpansionTile(
         title: ListTile(
@@ -1967,7 +2159,9 @@ class _AdminListPageState extends State<AdminListPage> {
                 onDoubleTap: () => _toggleDuesStatus(user),
                 child: Icon(
                   user.hasPaidDues ? Icons.check_circle : Icons.cancel,
-                  color: user.hasPaidDues ? Colors.green : Theme.of(context).colorScheme.error,
+                  color: user.hasPaidDues
+                      ? Colors.green
+                      : Theme.of(context).colorScheme.error,
                 ),
               ),
               IconButton(
@@ -1995,46 +2189,48 @@ class _AdminListPageState extends State<AdminListPage> {
                 color: Theme.of(context).colorScheme.primary,
               ),
             ),
-              trailing: Row( // Use Row for multiple trailing icons
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit, size: 25), // Edit Icon
-                      tooltip: 'Edit Hour',
-                      color: Theme.of(context).colorScheme.primary,
-                      onPressed: () {
-                        // Show the edit dialog
-                        _showEditHourDialog(context, user, hour);
-                      },
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.delete, size: 25), // Keep delete icon
-                      color: Theme.of(context).colorScheme.primary,
-                      tooltip: 'Delete Hour',
-                      onPressed: () {
-                        _deleteServiceHour(hour, user.id); // Keep existing delete logic
-                      },
-                       padding: EdgeInsets.zero,
-                       constraints: const BoxConstraints(),
-                    ),
-                  ],
+            trailing: Row(
+              // Use Row for multiple trailing icons
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit, size: 25), // Edit Icon
+                  tooltip: 'Edit Hour',
+                  color: Theme.of(context).colorScheme.primary,
+                  onPressed: () {
+                    // Show the edit dialog
+                    _showEditHourDialog(context, user, hour);
+                  },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
-              );
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.delete, size: 25), // Keep delete icon
+                  color: Theme.of(context).colorScheme.primary,
+                  tooltip: 'Delete Hour',
+                  onPressed: () {
+                    _deleteServiceHour(
+                        hour, user.id); // Keep existing delete logic
+                  },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+          );
         }).toList(),
       ),
     );
   }
 
-  void _showEditHourDialog(BuildContext context, UserProfile user, CompletedUserHour hour) {
-  showDialog(
-    context: context,
-    builder: (BuildContext dialogContext) {
-      // Use a Builder to get a context that is under the Dialog's context
-      return Builder(
-        builder: (builderContext) {
+  void _showEditHourDialog(
+      BuildContext context, UserProfile user, CompletedUserHour hour) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        // Use a Builder to get a context that is under the Dialog's context
+        return Builder(builder: (builderContext) {
           return AlertDialog(
             title: Text('Edit Service Hour for ${user.name}'),
             content: _EditHourDialogContent(
@@ -2055,11 +2251,10 @@ class _AdminListPageState extends State<AdminListPage> {
               // The save button is now inside the dialog content
             ],
           );
-        }
-      );
-    },
-  );
-}
+        });
+      },
+    );
+  }
 
   // Update the sort options list to be dynamic
   Widget _buildSortOptionsList() {
@@ -2067,36 +2262,39 @@ class _AdminListPageState extends State<AdminListPage> {
     final List<Widget> options = [
       _buildSortOptionTile(SortField.name, 'Name'),
       _buildSortOptionTile(SortField.totalHours, 'Total Hours'),
-      _buildSortOptionTile(SortField.graduationYear, 'Graduation Year'), // New sort option
+      _buildSortOptionTile(
+          SortField.graduationYear, 'Graduation Year'), // New sort option
     ];
-    
+
     // Get society to determine which hour types to include
-    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     if (society != null) {
       // If a specific type is selected, only show that one
       if (_selectedHourType != null && _selectedHourType != 'All') {
-        options.add(_buildSortOptionTile(SortField.serviceHours, '$_selectedHourType Hours'));
+        options.add(_buildSortOptionTile(
+            SortField.serviceHours, '$_selectedHourType Hours'));
       } else {
         // Otherwise show for each active requirement type
         // Always include Meeting hours
-        options.add(_buildSortOptionTile(SortField.meetingHours, 'Meeting Hours'));
-        
+        options
+            .add(_buildSortOptionTile(SortField.meetingHours, 'Meeting Hours'));
+
         // Add option for each active requirement type
         for (final req in society.hourRequirements) {
           if (req.isActive && req.type != 'Meeting') {
             options.add(_buildSortOptionTile(
-              // We'll still use serviceHours or tutoringHours as the enum value,
-              // but the display name will match the requirement type
-              req.type.toLowerCase().contains('tutor') 
-                  ? SortField.tutoringHours 
-                  : SortField.serviceHours,
-              '${req.type} Hours'
-            ));
+                // We'll still use serviceHours or tutoringHours as the enum value,
+                // but the display name will match the requirement type
+                req.type.toLowerCase().contains('tutor')
+                    ? SortField.tutoringHours
+                    : SortField.serviceHours,
+                '${req.type} Hours'));
           }
         }
       }
     }
-    
+
     return Column(children: options);
   }
 
@@ -2137,9 +2335,12 @@ class _AdminListPageState extends State<AdminListPage> {
               ListTile(
                 leading: Icon(
                   user.hasPaidDues ? Icons.cancel : Icons.check_circle,
-                  color: user.hasPaidDues ? Theme.of(context).colorScheme.error : Colors.green,
+                  color: user.hasPaidDues
+                      ? Theme.of(context).colorScheme.error
+                      : Colors.green,
                 ),
-                title: Text(user.hasPaidDues ? 'Mark Dues Unpaid' : 'Mark Dues Paid'),
+                title: Text(
+                    user.hasPaidDues ? 'Mark Dues Unpaid' : 'Mark Dues Paid'),
                 onTap: () {
                   Navigator.pop(context);
                   _toggleDuesStatus(user);
@@ -2168,12 +2369,13 @@ class _AdminListPageState extends State<AdminListPage> {
 
   // Show detailed user information
   void _showUserDetailsDialog(UserProfile user) {
-    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     if (society == null) return;
 
     // Group hours by type
     final Map<String, List<CompletedUserHour>> hoursByType = {};
-    
+
     // Initialize with empty lists for all society requirement types
     hoursByType['Meeting'] = [];
 
@@ -2194,14 +2396,14 @@ class _AdminListPageState extends State<AdminListPage> {
           (k) => normalizeType(k) == normalizeType(type),
           orElse: () => 'Other',
         );
-        
+
         if (!hoursByType.containsKey(matchingType)) {
           hoursByType[matchingType] = [];
         }
         hoursByType[matchingType]!.add(hour);
       }
     }
-    
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -2250,11 +2452,16 @@ class _AdminListPageState extends State<AdminListPage> {
                                 const SizedBox(width: 12),
                                 Text(
                                   'Dues Paid: ',
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
                                 ),
                                 Icon(
-                                  user.hasPaidDues ? Icons.check_circle : Icons.cancel,
-                                  color: user.hasPaidDues ? Colors.green : Theme.of(context).colorScheme.error,
+                                  user.hasPaidDues
+                                      ? Icons.check_circle
+                                      : Icons.cancel,
+                                  color: user.hasPaidDues
+                                      ? Colors.green
+                                      : Theme.of(context).colorScheme.error,
                                   size: 16,
                                 ),
                                 Text(
@@ -2272,15 +2479,15 @@ class _AdminListPageState extends State<AdminListPage> {
                     ],
                   ),
                 ),
-                
+
                 const Divider(height: 1),
-                
+
                 // Hour summary
                 Padding(
                   padding: AppDesign.paddingMedium,
-                  child:_buildHourTypeCards(user),
+                  child: _buildHourTypeCards(user),
                 ),
-                
+
                 // Tab navigator for different hour types
                 Expanded(
                   child: DefaultTabController(
@@ -2300,7 +2507,8 @@ class _AdminListPageState extends State<AdminListPage> {
                               // All hours tab
                               _buildHoursList(user.completedHours),
                               // Type-specific tabs
-                              ...hoursByType.values.map((hours) => _buildHoursList(hours)),
+                              ...hoursByType.values
+                                  .map((hours) => _buildHoursList(hours)),
                             ],
                           ),
                         ),
@@ -2308,7 +2516,7 @@ class _AdminListPageState extends State<AdminListPage> {
                     ),
                   ),
                 ),
-                
+
                 // Bottom actions
                 Padding(
                   padding: AppDesign.paddingMedium,
@@ -2340,7 +2548,8 @@ class _AdminListPageState extends State<AdminListPage> {
   }
 
   // Helper to build hour summary card
-  Widget _buildHourSummaryCard(String title, String hours, IconData icon, Color color) {
+  Widget _buildHourSummaryCard(
+      String title, String hours, IconData icon, Color color) {
     return Card(
       elevation: 0,
       color: color.withOpacity(0.1),
@@ -2384,10 +2593,10 @@ class _AdminListPageState extends State<AdminListPage> {
         ),
       );
     }
-    
+
     // Sort hours by type (optional)
     hours.sort((a, b) => a.type.compareTo(b.type));
-    
+
     return ListView.builder(
       itemCount: hours.length,
       itemBuilder: (context, index) {
@@ -2404,19 +2613,19 @@ class _AdminListPageState extends State<AdminListPage> {
     );
   }
 
-
   // Helper to get color for hour type
   Color _getColorForHourType(String type, BuildContext context) {
     // Use the society's categories to determine colors systematically
-    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     if (society == null) return Theme.of(context).colorScheme.primary;
-    
+
     final normalizedType = type.toLowerCase();
-    
+
     // Meeting is special
-    if (normalizedType.contains('meet')) 
+    if (normalizedType.contains('meet'))
       return Theme.of(context).colorScheme.tertiary;
-    
+
     // Build color palette based on requirement index
     final List<Color> palette = [
       Theme.of(context).colorScheme.primary,
@@ -2427,19 +2636,18 @@ class _AdminListPageState extends State<AdminListPage> {
       Colors.pink,
       Colors.cyan,
     ];
-    
+
     // Find index of requirement
-    int index = society.hourRequirements.indexWhere(
-      (req) => normalizeType(req.type) == normalizeType(type)
-    );
-    
+    int index = society.hourRequirements
+        .indexWhere((req) => normalizeType(req.type) == normalizeType(type));
+
     // Default to primary if not found
     if (index == -1) return Theme.of(context).colorScheme.primary;
-    
+
     // Return color from palette, wrapping around if needed
     return palette[index % palette.length];
   }
-  
+
   // Existing method for order chip
   Widget _buildOrderChip(SortOrder order, String label, StateSetter setState) {
     return FilterChip(
@@ -2457,7 +2665,8 @@ class _AdminListPageState extends State<AdminListPage> {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppDesign.radiusXLarge)),
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppDesign.radiusXLarge)),
       ),
       builder: (context) {
         return StatefulBuilder(
@@ -2487,7 +2696,8 @@ class _AdminListPageState extends State<AdminListPage> {
                           selected: _selectedHourType == type,
                           label: Text(type),
                           onSelected: (selected) {
-                            setState(() => _selectedHourType = selected ? type : null);
+                            setState(() =>
+                                _selectedHourType = selected ? type : null);
                             this.setState(() {}); // Update main screen
                           },
                         );
@@ -2813,12 +3023,16 @@ class _EditHourDialogContentState extends State<_EditHourDialogContent> {
   void initState() {
     super.initState();
     _eventNameController = TextEditingController(text: widget.hour.eventName);
-    _hoursController = TextEditingController(text: widget.hour.hours.toString());
+    _hoursController =
+        TextEditingController(text: widget.hour.hours.toString());
     _selectedType = widget.hour.type;
 
     // Ensure the current type is available, otherwise default to the first available
     if (!widget.availableTypes.contains(_selectedType)) {
-      _selectedType = widget.availableTypes.isNotEmpty ? widget.availableTypes.firstWhere((t) => t != 'All', orElse: () => 'Service') : 'Service';
+      _selectedType = widget.availableTypes.isNotEmpty
+          ? widget.availableTypes
+              .firstWhere((t) => t != 'All', orElse: () => 'Service')
+          : 'Service';
     }
   }
 
@@ -2842,14 +3056,11 @@ class _EditHourDialogContentState extends State<_EditHourDialogContent> {
     final newType = _selectedType;
 
     try {
-      await supabase
-          .from('Service hours')
-          .update({
-            'event_name': newEventName,
-            'hours': newHours,
-            'type': newType,
-          })
-          .eq('id', widget.hour.id ?? 0); // Use the hour's ID to update
+      await supabase.from('Service hours').update({
+        'event_name': newEventName,
+        'hours': newHours,
+        'type': newType,
+      }).eq('id', widget.hour.id ?? 0); // Use the hour's ID to update
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2877,20 +3088,22 @@ class _EditHourDialogContentState extends State<_EditHourDialogContent> {
   @override
   Widget build(BuildContext context) {
     // Filter out 'All' from dropdown types
-    final dropdownTypes = widget.availableTypes.where((t) => t != 'All').toList();
+    final dropdownTypes =
+        widget.availableTypes.where((t) => t != 'All').toList();
     // Ensure the selected type is still valid after filtering
     if (!dropdownTypes.contains(_selectedType) && dropdownTypes.isNotEmpty) {
-       _selectedType = dropdownTypes.first;
-    } else if (dropdownTypes.isEmpty){
+      _selectedType = dropdownTypes.first;
+    } else if (dropdownTypes.isEmpty) {
       // Handle case where no types are available (should ideally not happen if 'Service' is default)
       _selectedType = 'Service';
-      if(!dropdownTypes.contains('Service')) dropdownTypes.add('Service'); // Add Service if missing
+      if (!dropdownTypes.contains('Service'))
+        dropdownTypes.add('Service'); // Add Service if missing
     }
-
 
     return Form(
       key: _formKey,
-      child: SingleChildScrollView( // Make content scrollable if needed
+      child: SingleChildScrollView(
+        // Make content scrollable if needed
         child: Column(
           mainAxisSize: MainAxisSize.min, // Important for dialog content
           children: <Widget>[
@@ -2916,9 +3129,11 @@ class _EditHourDialogContentState extends State<_EditHourDialogContent> {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.timer),
               ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')), // Allow numbers and decimal
+                FilteringTextInputFormatter.allow(
+                    RegExp(r'^\d+\.?\d{0,2}')), // Allow numbers and decimal
               ],
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
@@ -2932,7 +3147,8 @@ class _EditHourDialogContentState extends State<_EditHourDialogContent> {
               },
             ),
             const SizedBox(height: 16),
-             if (dropdownTypes.isNotEmpty) // Only show dropdown if there are types
+            if (dropdownTypes
+                .isNotEmpty) // Only show dropdown if there are types
               DropdownButtonFormField<String>(
                 value: _selectedType,
                 items: dropdownTypes.map((String type) {
@@ -2974,7 +3190,8 @@ class _EditHourDialogContentState extends State<_EditHourDialogContent> {
             ElevatedButton(
               onPressed: _isSaving ? null : _saveHourChanges,
               style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 48), // Make button larger
+                minimumSize:
+                    const Size(double.infinity, 48), // Make button larger
               ),
               child: _isSaving
                   ? const SizedBox(
