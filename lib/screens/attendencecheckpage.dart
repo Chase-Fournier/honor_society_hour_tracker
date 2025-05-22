@@ -120,6 +120,9 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
           : _presentAttendees.where((a) => !a.isPresent).toList();
 
       for (var attendee in attendeesToUpdate) {
+          final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+
         // Check if the attendee already has service hours for this event
         final existingHours = await Supabase.instance.client
             .from('Service hours')
@@ -137,6 +140,7 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
             'hours': _calculateHours(widget.timeSlot),
             'date': widget.event.date.toIso8601String(),
             'type': widget.event.type,
+            'society_id': society?.id,
           });
 
           await logactivity(
@@ -145,6 +149,7 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
             _calculateHours(widget.timeSlot),
             'attendance_marked',
             attendee.userId,
+            societyId: society?.id,
           );
         } else if (existingHours != null && !attendee.isPresent) {
           // Remove service hours
@@ -153,6 +158,7 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
               .delete()
               .eq('user_id', attendee.userId)
               .eq('timeslot_id', widget.timeSlot.id ?? 0);
+              
 
           await logactivity(
             widget.event.name,
@@ -160,6 +166,7 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
             _calculateHours(widget.timeSlot),
             'attendance_removed',
             attendee.userId,
+            societyId: society?.id,
           );
         }
 
@@ -244,6 +251,7 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
         _calculateHours(widget.timeSlot),
         'sync_attendees',
         Supabase.instance.client.auth.currentUser?.id ?? '',
+        societyId: society?.id,
       );
 
       ScaffoldMessenger.of(context).showSnackBar(

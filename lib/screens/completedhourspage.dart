@@ -107,8 +107,10 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
           .eq('society_id', society.id);
 
       final data = response;
+  
       Map<String, double> hoursMap = {};
       Map<String, List<CompletedHour>> hoursByType = {};
+  
 
       // Initialize maps with all requirement types
       for (final reqType in _requirementMap.keys) {
@@ -131,14 +133,11 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
         final DateTime date =
             dateString != null ? DateTime.parse(dateString) : DateTime.now();
 
-        // Use normalized type for consistent matching
-        final normalizedType = normalizeType(eventType);
-
-        if (hoursMap.containsKey(normalizedType)) {
-          hoursMap[normalizedType] = hoursMap[normalizedType]! + hours;
+        if (hoursMap.containsKey(eventType)) {
+          hoursMap[eventType] = hoursMap[eventType]! + hours;
 
           // Also store the individual hour entries
-          hoursByType[normalizedType]!.add(CompletedHour(
+          hoursByType[eventType]!.add(CompletedHour(
             title: eventName,
             date: date,
             hours: hours,

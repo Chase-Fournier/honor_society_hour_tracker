@@ -199,17 +199,14 @@ class _HomePageState extends State<HomePage> {
           final DateTime date =
               dateString != null ? DateTime.parse(dateString) : DateTime.now();
 
-          // Use normalized type for consistent matching
-          final normalizedType = normalizeType(eventType);
-
-          if (completedHoursMap.containsKey(normalizedType)) {
-            completedHoursMap[normalizedType] =
-                completedHoursMap[normalizedType]! + hours;
-            potentialHoursMap[normalizedType] =
-                potentialHoursMap[normalizedType]! + hours;
+          if (completedHoursMap.containsKey(eventType)) {
+            completedHoursMap[eventType] =
+                completedHoursMap[eventType]! + hours;
+            potentialHoursMap[eventType] =
+                potentialHoursMap[eventType]! + hours;
 
             // Also store the individual hour entries
-            hoursByTypeMap[normalizedType]!.add(CompletedHour(
+            hoursByTypeMap[eventType]!.add(CompletedHour(
               title: eventName,
               date: date,
               hours: hours,
@@ -229,12 +226,9 @@ class _HomePageState extends State<HomePage> {
               final duration = NhsFormatUtils.calculateDuration(
                   timeSlot.time, timeSlot.endTime);
 
-              // Use normalized type for consistent matching
-              final normalizedType = normalizeType(event.type);
-
-              if (potentialHoursMap.containsKey(normalizedType)) {
-                potentialHoursMap[normalizedType] =
-                    potentialHoursMap[normalizedType]! + duration;
+              if (potentialHoursMap.containsKey(event.type)) {
+                potentialHoursMap[event.type] =
+                    potentialHoursMap[event.type]! + duration;
               }
             }
           }
@@ -343,62 +337,129 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final societyName =
-        Provider.of<SocietyProvider>(context).currentSociety?.name ??
-            'Your Society';
-    final filteredEvents = _getFilteredEvents();
+Widget build(BuildContext context) {
+  final theme = Theme.of(context);
+  final societyName =
+      Provider.of<SocietyProvider>(context).currentSociety?.name ??
+          'Your Society';
+  
+  final collectionsWithEvents = _getCollectionsWithEvents();
+  final uncategorizedEvents = _getUncategorizedEvents();
+  final totalItems = collectionsWithEvents.length + uncategorizedEvents.length;
 
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
-        title: Text(
-          'Home',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 24.0,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
+  return Scaffold(
+    appBar: AppBar(
+      elevation: 0,
+      backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
+      title: Text(
+        'Home',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 24.0,
+          color: Theme.of(context).colorScheme.onSurface,
         ),
-        centerTitle: true,
       ),
-      body: _isLoading
-          ? Center(
-              child: CircularProgressIndicator(),
-            )
-          : RefreshIndicator(
-              onRefresh: _fetchData,
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    // Progress bars for each requirement type
-                    ..._buildProgressBars(),
+      centerTitle: true,
+    ),
+    body: _isLoading
+        ? Center(
+            child: CircularProgressIndicator(),
+          )
+        : RefreshIndicator(
+            onRefresh: _fetchData,
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  // Progress bars for each requirement type
+                  ..._buildProgressBars(),
 
-                    const SizedBox(height: 20),
-                    Wrap(
-                      spacing: 4,
-                      children: _buildEventTypeChips(Theme.of(context)),
-                    ),
-                    const SizedBox(height: 20),
+                  const SizedBox(height: 20),
+                  
+                  // Event type filter chips
+                  Wrap(
+                    spacing: 4,
+                    children: _buildEventTypeChips(Theme.of(context)),
+                  ),
+                  const SizedBox(height: 20),
 
-                    // Event listings
+                  // Collections and Events
+                  if (totalItems == 0)
+                    _buildEmptyState()
+                  else
                     ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _getFilteredEvents().length,
+                      itemCount: totalItems,
                       itemBuilder: (context, index) {
-                        return _buildEventCard(_getFilteredEvents()[index]);
+                        if (index < collectionsWithEvents.length) {
+                          // Render collection
+                          return _buildCollectionCard(collectionsWithEvents[index]);
+                        } else {
+                          // Render uncategorized event
+                          final eventIndex = index - collectionsWithEvents.length;
+                          return _buildEventCard(uncategorizedEvents[eventIndex]);
+                        }
                       },
                     ),
-                  ],
-                ),
+                ],
               ),
             ),
-    );
-  }
+          ),
+  );
+}
 
+Widget _buildEmptyState() {
+  return Container(
+    padding: const EdgeInsets.all(AppDesign.spacingXL),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(AppDesign.spacingL),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+            borderRadius: AppDesign.borderRound,
+          ),
+          child: Icon(
+            Icons.event_busy,
+            size: 64,
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+          ),
+        ),
+        const SizedBox(height: AppDesign.spacingL),
+        Text(
+          'No events found',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: AppDesign.spacingS),
+        Text(
+          _selectedEventType != 'All'
+              ? 'Try changing your filter or check back later'
+              : 'Check back later for upcoming events',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+          ),
+          textAlign: TextAlign.center,
+        ),
+        if (_selectedEventType != 'All') ...[
+          const SizedBox(height: AppDesign.spacingM),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.filter_alt_off),
+            label: const Text('Clear filter'),
+            onPressed: () {
+              setState(() {
+                _selectedEventType = 'All';
+              });
+            },
+          ),
+        ],
+      ],
+    ),
+  );
+}
   /// Retrieves all collections from the database.
   /// Updates the state with fetched collections.
   ///
@@ -408,8 +469,19 @@ class _HomePageState extends State<HomePage> {
   /// Throws:
   /// - DatabaseException if collection fetch fails
   Future<void> _fetchCollections() async {
-    final response =
-        await Supabase.instance.client.from('Collections').select('*');
+  try {
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    
+    if (society == null) {
+      setState(() => _collections = []);
+      return;
+    }
+
+    final response = await Supabase.instance.client
+        .from('Collections')
+        .select('*')
+        .eq('society_id', society.id);
 
     final List<dynamic> data = response;
     if (mounted) {
@@ -417,7 +489,25 @@ class _HomePageState extends State<HomePage> {
         _collections = data.map((json) => Collection.fromJson(json)).toList();
       });
     }
+  } catch (e) {
+    print('Error fetching collections: $e');
+    if (mounted) {
+      setState(() => _collections = []);
+    }
   }
+}
+
+List<Collection> _getCollectionsWithEvents() {
+  final filteredEvents = _getFilteredEvents();
+  return _collections.where((collection) {
+    return filteredEvents.any((event) => event.collectionId == collection.id);
+  }).toList();
+}
+
+List<Event> _getUncategorizedEvents() {
+  final filteredEvents = _getFilteredEvents();
+  return filteredEvents.where((event) => event.collectionId == null).toList();
+}
 
   // Updated method to create better looking progress bars with Material You styling
   List<Widget> _buildProgressBars() {
@@ -1796,31 +1886,130 @@ class _HomePageState extends State<HomePage> {
   /// Returns:
   /// - Widget
   Widget _buildCollectionCard(Collection collection) {
-    final collectionEvents =
-        _events.where((event) => event.collectionId == collection.id).toList();
+  final filteredEvents = _getFilteredEvents();
+  final collectionEvents = filteredEvents
+      .where((event) => event.collectionId == collection.id)
+      .toList();
 
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: AppDesign.borderXLarge,
-      ),
-      elevation: 2,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: CustomExpansionTile(
-        title: ListTile(
-          leading: const Icon(Icons.folder),
-          title: Text(
-            collection.name,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16.0,
-            ),
+  // Don't render if no events
+  if (collectionEvents.isEmpty) {
+    return const SizedBox.shrink();
+  }
+
+  // Get the earliest event date for sorting/display
+  final earliestDate = collectionEvents
+      .map((e) => e.date)
+      .reduce((a, b) => a.isBefore(b) ? a : b);
+
+  return Card(
+    elevation: 0,
+    shape: RoundedRectangleBorder(
+      borderRadius: AppDesign.borderLarge,
+    ),
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+    child: Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        initiallyExpanded: false,
+        shape: RoundedRectangleBorder(
+          borderRadius: AppDesign.borderLarge,
+        ),
+        collapsedShape: RoundedRectangleBorder(
+          borderRadius: AppDesign.borderLarge,
+        ),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        childrenPadding: const EdgeInsets.only(bottom: 8),
+        leading: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            borderRadius: AppDesign.borderMedium,
+          ),
+          child: Icon(
+            Icons.folder_open,
+            color: Theme.of(context).colorScheme.onPrimaryContainer,
+            size: 24,
           ),
         ),
-        children:
-            collectionEvents.map((event) => _buildEventCard(event)).toList(),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    collection.name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18.0,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    borderRadius: AppDesign.borderSmall,
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    '${collectionEvents.length} event${collectionEvents.length != 1 ? 's' : ''}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(
+                  Icons.schedule,
+                  size: 14,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Next: ${earliestDate.month}/${earliestDate.day}/${earliestDate.year}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        children: [
+          // Add a subtle divider
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Divider(
+              height: 1,
+              color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Render events in the collection
+          ...collectionEvents.map((event) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: _buildEventCard(event),
+            );
+          }),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _showSignUpForm(Event event, TimeSlot timeSlot) {
     showDialog(
@@ -1896,6 +2085,7 @@ class _HomePageState extends State<HomePage> {
     final userId = supabase.auth.currentUser?.id;
 
     if (userId != null) {
+      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
       await Supabase.instance.client
           .from('Attendees')
           .delete()
@@ -1913,6 +2103,7 @@ class _HomePageState extends State<HomePage> {
         NhsFormatUtils.calculateDuration(timeSlot.time, timeSlot.endTime),
         'unsignup',
         userId,
+        societyId: society?.id,
       );
 
       _fetchEvents();
@@ -2223,6 +2414,7 @@ class _HomePageState extends State<HomePage> {
       Map<String, dynamic> eventData,
       SwapRequest swapRequest) async {
     try {
+      final society =Provider.of<SocietyProvider>(context, listen: false).currentSociety;
       // Remove the current attendee
       await Supabase.instance.client
           .from('Attendees')
@@ -2248,6 +2440,7 @@ class _HomePageState extends State<HomePage> {
         currentAttendeeId,
         oldUserId: currentAttendeeId,
         newUserId: newAttendeeId,
+        societyId: society?.id,
       );
     } catch (e) {
       print('Error swapping attendees: $e');

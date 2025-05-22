@@ -279,7 +279,7 @@ class _LoginPageState extends State<LoginPage>
                 );
               },
               redirectTo: kIsWeb ? null : 'com.wheelermun.nhs://callback', // For email confirmation
-              resetPasswordRedirectTo: kIsWeb ? null : 'com.wheelermun.nhs://reset-password', // For password reset
+              resetPasswordRedirectTo: kIsWeb ? 'https://nhs.wheelermun.com/reset-password-handler' : 'com.wheelermun.nhs://reset-password', // For password reset
               onSignInComplete: (AuthResponse response) {
                 if (response.session != null) {
                   // Navigate to society selection on successful sign-in

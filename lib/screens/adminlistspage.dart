@@ -2964,12 +2964,15 @@ class _AdminListPageState extends State<AdminListPage> {
   }
 
   Future<void> _deleteServiceHour(CompletedUserHour hour, String userId) async {
+    final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     await logactivity(
       hour.eventName,
       'N/A',
       hour.hours,
       'manual_deletion',
       userId,
+      societyId: society?.id,
     );
 
     await Supabase.instance.client

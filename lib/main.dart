@@ -11,6 +11,7 @@ import 'screens/societyselectionpage.dart';
 import 'screens/reset_password_page.dart';
 import 'package:app_links/app_links.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
 
 enum SortOrder {
   ascending,
@@ -166,6 +167,8 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _handleDeepLink(Uri uri) {
+    bool isWebPasswordRecovery = false;
+    String? webAccessToken;
     debugPrint("Handling deep link: $uri");
     if (uri.scheme == 'com.wheelermun.nhs' && uri.host == 'reset-password') {
       if (mounted) {
@@ -179,6 +182,37 @@ class _MyAppState extends State<MyApp> {
         final fragmentParams = Uri.parse('?$uri.fragment').queryParameters;
         final accessToken = fragmentParams['access_token'];
         final type = fragmentParams['type']; // Should be 'recovery'
+
+                  if (kIsWeb && uri.hasFragment) {
+              final fragmentParams = Uri.parse('?$uri.fragment').queryParameters;
+              final type = fragmentParams['type'];
+              if (type == 'recovery' && fragmentParams.containsKey('access_token')) {
+                  isWebPasswordRecovery = true;
+                  webAccessToken = fragmentParams['access_token'];
+              }
+          }
+
+        if ((uri.scheme == 'com.wheelermun.nhs' && uri.host == 'reset-password') || isWebPasswordRecovery) {
+            if (mounted) {
+                setState(() { _isProcessingPasswordRecovery = true; });
+            }
+            debugPrint("Password reset link identified. Set _isProcessingPasswordRecovery=true.");
+
+            String? accessTokenToUse = (uri.scheme == 'com.wheelermun.nhs')
+                ? Uri.parse('?$uri.fragment').queryParameters['access_token'] // For custom scheme
+                : webAccessToken; // For web
+
+            if (accessTokenToUse != null) {
+                debugPrint("Access token for recovery found. Navigating to /reset-password.");
+                _navigatorKey.currentState?.pushNamed(
+                    '/reset-password',
+                    arguments: ResetPasswordPageArguments(accessToken: accessTokenToUse),
+                );
+            } else {
+                debugPrint('Access token missing in password reset link fragment.');
+                if (mounted) { setState(() { _isProcessingPasswordRecovery = false; }); }
+            }
+        }
 
         if (accessToken != null && type == 'recovery') {
           debugPrint("Access token for recovery found. Navigating to /reset-password.");
@@ -259,8 +293,7 @@ class _MyAppState extends State<MyApp> {
                       '/': (context) => const LoginPage(),
                       '/society_selection': (context) =>
                           const SocietySelectionPage(),
-                      // The ResetPasswordPage route definition
-                      // It will now receive arguments
+                      '/reset-password': (context) => const ResetPasswordPage(),
                     },
                     onGenerateRoute: (settings) {
                       if (settings.name == '/reset-password') {
