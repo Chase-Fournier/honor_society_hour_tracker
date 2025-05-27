@@ -1,15 +1,13 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
-import 'package:path/path.dart' as path;
 import '../main.dart';
 import 'JoinRequestsAdmin.dart';
 import '../providers/societyprovider.dart';
 import 'package:provider/provider.dart';
 import '../models/hourrequirement.dart';
 import '../common/iconselector.dart';
-
+import '../common/app_design.dart';
+import '../common/app_widgets.dart';
 
 class SocietyAdminPage extends StatefulWidget {
   const SocietyAdminPage({Key? key}) : super(key: key);
@@ -26,9 +24,8 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
   late TextEditingController _descriptionController;
   late TextEditingController _meetingRequirementController;
   late TextEditingController _errorFormUrlController;
+  late TextEditingController _imageUrlController;
   bool _isLoading = false;
-  File? _imageFile;
-  String? _imageUrl;
 
   @override
   void initState() {
@@ -46,7 +43,7 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
         TextEditingController(text: society?.errorFormUrl ?? '');
     _meetingRequirementController = TextEditingController(
         text: society?.meetingRequirement.toString() ?? '5');
-    _imageUrl = society?.imageUrl;
+    _imageUrlController = TextEditingController(text: society?.imageUrl ?? '');
   }
 
   @override
@@ -56,45 +53,8 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
     _descriptionController.dispose();
     _meetingRequirementController.dispose();
     _errorFormUrlController.dispose();
+    _imageUrlController.dispose();
     super.dispose();
-  }
-
-  Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? pickedFile =
-        await picker.pickImage(source: ImageSource.gallery);
-
-    if (pickedFile != null) {
-      setState(() {
-        _imageFile = File(pickedFile.path);
-      });
-    }
-  }
-
-  Future<String?> _uploadImage() async {
-    if (_imageFile == null) return _imageUrl;
-
-    try {
-      final String fileName =
-          '${DateTime.now().millisecondsSinceEpoch}_${path.basename(_imageFile!.path)}';
-      final String storagePath = 'society_images/$fileName';
-
-      await Supabase.instance.client.storage
-          .from('society_images')
-          .upload(storagePath, _imageFile!);
-
-      // Get public URL
-      final String publicUrl = Supabase.instance.client.storage
-          .from('society_images')
-          .getPublicUrl(storagePath);
-
-      return publicUrl;
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error uploading image: $e')),
-      );
-      return null;
-    }
   }
 
   Future<void> _saveSocietyDetails() async {
@@ -110,17 +70,16 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
         throw Exception('No society selected');
       }
 
-      // Upload image if selected
-      final imageUrl = await _uploadImage();
-
       // Update society details
       await Supabase.instance.client.from('honor_societies').update({
-        'name': _nameController.text,
-        'description': _descriptionController.text,
+        'name': _nameController.text.trim(),
+        'description': _descriptionController.text.trim(),
         'meeting_requirement': int.parse(_meetingRequirementController.text),
-        if (imageUrl != null) 'image_url': imageUrl,
-        'error_form_url': _errorFormUrlController.text.isNotEmpty
-            ? _errorFormUrlController.text
+        'image_url': _imageUrlController.text.trim().isNotEmpty
+            ? _imageUrlController.text.trim()
+            : null,
+        'error_form_url': _errorFormUrlController.text.trim().isNotEmpty
+            ? _errorFormUrlController.text.trim()
             : null,
       }).eq('id', society.id);
 
@@ -129,13 +88,21 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Society details updated successfully')),
+          SnackBar(
+            content: const Text('Society details updated successfully'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating society: $e')),
+          SnackBar(
+            content: Text('Error updating society: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } finally {
@@ -145,224 +112,390 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWideScreen = screenWidth > 900;
+
     return Consumer<SocietyProvider>(builder: (context, provider, _) {
       final society = provider.currentSociety;
 
       if (provider.isLoading || society == null) {
-        return const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Society Administration'),
+          ),
+          body: const Center(child: CircularProgressIndicator()),
         );
       }
 
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Society Administration'),
+          elevation: 0,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          title: Text(
+            'Society Administration',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          centerTitle: true,
           bottom: TabBar(
             controller: _tabController,
+            indicatorSize: TabBarIndicatorSize.tab,
+            dividerColor: Colors.transparent,
             tabs: const [
-              Tab(text: 'Society Details'),
-              Tab(text: 'Hour Requirements'),
+              Tab(
+                icon: Icon(Icons.settings),
+                text: 'Society Details',
+              ),
+              Tab(
+                icon: Icon(Icons.assignment),
+                text: 'Hour Requirements',
+              ),
             ],
           ),
         ),
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            _buildSocietyDetailsTab(),
-            const HourRequirementsPage(),
-          ],
+        body: Container(
+          constraints: BoxConstraints(
+            maxWidth: isWideScreen ? 1200 : double.infinity,
+          ),
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildSocietyDetailsTab(isWideScreen),
+              const HourRequirementsPage(),
+            ],
+          ),
         ),
       );
     });
   }
 
-  Widget _buildSocietyDetailsTab() {
+  Widget _buildSocietyDetailsTab(bool isWideScreen) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+      padding: EdgeInsets.all(isWideScreen ? AppDesign.spacingXL : AppDesign.spacingL),
+      child: Center(
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: isWideScreen ? 800 : double.infinity,
+          ),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header Section
+                _buildHeaderSection(),
+                
+                SizedBox(height: AppDesign.spacingXL),
+
+                // Society Image Section
+                _buildImageSection(),
+                
+                SizedBox(height: AppDesign.spacingXL),
+
+                // Basic Information Section
+                _buildBasicInfoSection(),
+                
+                SizedBox(height: AppDesign.spacingXL),
+
+                // Configuration Section
+                _buildConfigurationSection(),
+                
+                SizedBox(height: AppDesign.spacingXXL),
+
+                // Action Buttons
+                _buildActionButtons(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderSection() {
+    return Column(
+      children: [
+        Container(
+          padding: AppDesign.paddingLarge,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+            borderRadius: AppDesign.borderLarge,
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: AppDesign.paddingMedium,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  borderRadius: AppDesign.borderMedium,
+                ),
+                child: Icon(
+                  Icons.admin_panel_settings,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                  size: 28,
+                ),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
+              SizedBox(width: AppDesign.spacingM),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Society Information',
-                      style: TextStyle(
-                        fontSize: 18,
+                    Text(
+                      'Society Management',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    const SizedBox(height: 24),
-
-                    // Society Logo
-                    Center(
-                      child: GestureDetector(
-                        onTap: _pickImage,
-                        child: Stack(
-                          alignment: Alignment.bottomRight,
-                          children: [
-                            CircleAvatar(
-                              radius: 60,
-                              backgroundImage: _imageFile != null
-                                  ? FileImage(_imageFile!) as ImageProvider
-                                  : (_imageUrl != null
-                                      ? NetworkImage(_imageUrl!)
-                                          as ImageProvider
-                                      : const AssetImage(
-                                          'assets/placeholder.png')),
-                              child: _imageFile == null && _imageUrl == null
-                                  ? const Icon(Icons.school, size: 60)
-                                  : null,
-                            ),
-                            CircleAvatar(
-                              radius: 18,
-                              backgroundColor:
-                                  Theme.of(context).colorScheme.primary,
-                              child: const Icon(
-                                Icons.edit,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                            ),
-                          ],
-                        ),
+                    SizedBox(height: AppDesign.spacingXS),
+                    Text(
+                      'Configure your honor society settings and requirements',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.8),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Society Name
-                    TextFormField(
-                      controller: _nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Society Name',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter the society name';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Society Description
-                    TextFormField(
-                      controller: _descriptionController,
-                      decoration: const InputDecoration(
-                        labelText: 'Description',
-                        border: OutlineInputBorder(),
-                      ),
-                      maxLines: 3,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter a description';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Meeting Requirements
-                    TextFormField(
-                      controller: _meetingRequirementController,
-                      decoration: const InputDecoration(
-                        labelText: 'Meeting Requirement (number of meetings)',
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter the meeting requirement';
-                        }
-                        if (int.tryParse(value) == null) {
-                          return 'Please enter a valid number';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _errorFormUrlController,
-                      decoration: const InputDecoration(
-                        labelText: 'Error/Issue Form URL (Optional)',
-                        hintText: 'https://...',
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.url,
-                      // Optional: Add URL validation
-                      validator: (value) {
-                        if (value != null && value.isNotEmpty) {
-                          // Basic check if it looks like a URL
-                          if (!value.startsWith('http://') &&
-                              !value.startsWith('https://')) {
-                            return 'Please enter a valid URL (starting with http:// or https://)';
-                          }
-                        }
-                        return null; // No error
-                      },
                     ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-
-            // Join Requests Button
-            Center(
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const JoinRequestsAdminPage(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.person_add),
-                label: const Text('Manage Join Requests'),
-                style: ElevatedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  textStyle: const TextStyle(fontSize: 16),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Save Button
-            Center(
-              child: ElevatedButton.icon(
-                onPressed: _isLoading ? null : _saveSocietyDetails,
-                icon: _isLoading
-                    ? SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: Center(
-                          child: CircularProgressIndicator(),
-                        ))
-                    : const Icon(Icons.save),
-                label: const Text('Save Society Details'),
-                style: ElevatedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  textStyle: const TextStyle(fontSize: 16),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildImageSection() {
+    return AppSurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AppSectionHeader(
+            icon: Icons.image,
+            title: 'Society Logo',
+            subtitle: 'Add a logo to represent your honor society',
+          ),
+          SizedBox(height: AppDesign.spacingL),
+          
+          // Image Preview
+          Center(
+            child: Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                borderRadius: AppDesign.borderXLarge,
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                  width: 2,
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: AppDesign.borderXLarge,
+                child: _imageUrlController.text.trim().isNotEmpty
+                    ? Image.network(
+                        _imageUrlController.text.trim(),
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Theme.of(context).colorScheme.surfaceVariant,
+                            child: Icon(
+                              Icons.broken_image,
+                              size: 48,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          );
+                        },
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            color: Theme.of(context).colorScheme.surfaceVariant,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
+                              ),
+                            ),
+                          );
+                        },
+                      )
+                    : Container(
+                        color: Theme.of(context).colorScheme.surfaceVariant,
+                        child: Icon(
+                          Icons.school,
+                          size: 48,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+              ),
+            ),
+          ),
+          
+          SizedBox(height: AppDesign.spacingL),
+          
+          // Image URL Input
+          AppTextField(
+            label: 'Image URL',
+            hint: 'https://example.com/logo.png',
+            controller: _imageUrlController,
+            prefixIcon: Icons.link,
+            validator: (value) {
+              if (value != null && value.trim().isNotEmpty) {
+                final uri = Uri.tryParse(value.trim());
+                if (uri == null || !uri.hasScheme) {
+                  return 'Please enter a valid URL';
+                }
+              }
+              return null;
+            },
+            onChanged: (value) {
+              // Trigger rebuild to update image preview
+              setState(() {});
+            },
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildBasicInfoSection() {
+    return AppSurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AppSectionHeader(
+            icon: Icons.info_outline,
+            title: 'Basic Information',
+            subtitle: 'Essential details about your honor society',
+          ),
+          SizedBox(height: AppDesign.spacingL),
+          
+          AppTextField(
+            label: 'Society Name',
+            hint: 'Enter the official name of your society',
+            controller: _nameController,
+            prefixIcon: Icons.school,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Please enter the society name';
+              }
+              return null;
+            },
+          ),
+          
+          SizedBox(height: AppDesign.spacingM),
+          
+          AppTextField(
+            label: 'Description',
+            hint: 'Describe your society\'s mission and goals',
+            controller: _descriptionController,
+            prefixIcon: Icons.description,
+            keyboardType: TextInputType.multiline,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Please enter a description';
+              }
+              return null;
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConfigurationSection() {
+    return AppSurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AppSectionHeader(
+            icon: Icons.tune,
+            title: 'Configuration',
+            subtitle: 'Set requirements and external links',
+          ),
+          SizedBox(height: AppDesign.spacingL),
+          
+          AppTextField(
+            label: 'Meeting Requirement',
+            hint: '5',
+            controller: _meetingRequirementController,
+            prefixIcon: Icons.groups,
+            keyboardType: TextInputType.number,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Please enter the meeting requirement';
+              }
+              if (int.tryParse(value.trim()) == null) {
+                return 'Please enter a valid number';
+              }
+              return null;
+            },
+          ),
+          
+          SizedBox(height: AppDesign.spacingM),
+          
+          AppTextField(
+            label: 'Error/Issue Form URL',
+            hint: 'https://forms.google.com/...',
+            controller: _errorFormUrlController,
+            prefixIcon: Icons.bug_report,
+            keyboardType: TextInputType.url,
+            validator: (value) {
+              if (value != null && value.trim().isNotEmpty) {
+                final uri = Uri.tryParse(value.trim());
+                if (uri == null || !uri.hasScheme) {
+                  return 'Please enter a valid URL (starting with http:// or https://)';
+                }
+              }
+              return null;
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Column(
+      children: [
+        // Join Requests Button
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const JoinRequestsAdminPage(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.person_add),
+            label: const Text('Manage Join Requests'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppDesign.spacingL,
+                vertical: AppDesign.spacingM,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: AppDesign.borderMedium,
+              ),
+            ),
+          ),
+        ),
+        
+        SizedBox(height: AppDesign.spacingM),
+        
+        // Save Button
+        AppPrimaryButton(
+          text: 'Save Society Details',
+          icon: Icons.save,
+          isLoading: _isLoading,
+          onPressed: _saveSocietyDetails,
+        ),
+      ],
     );
   }
 }
@@ -378,7 +511,6 @@ class HourRequirementsPage extends StatefulWidget {
 class _HourRequirementsPageState extends State<HourRequirementsPage> {
   List<HourRequirement> _requirements = [];
   bool _isLoading = false;
-  bool _hasChanges = false;
 
   @override
   void initState() {
@@ -401,48 +533,59 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
     String description = requirement.description;
     double hours = requirement.hoursNeeded;
     bool isActive = requirement.isActive;
-    String iconName = requirement.iconName; // New field for icon
+    String iconName = requirement.iconName;
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text('Edit Hour Requirement'),
+          shape: RoundedRectangleBorder(
+            borderRadius: AppDesign.borderLarge,
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Type Name',
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(
+                      borderRadius: AppDesign.borderMedium,
+                    ),
+                    filled: true,
                   ),
                   controller: TextEditingController(text: type),
                   onChanged: (value) => type = value,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: AppDesign.spacingM),
                 TextField(
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Description',
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(
+                      borderRadius: AppDesign.borderMedium,
+                    ),
+                    filled: true,
                   ),
                   controller: TextEditingController(text: description),
                   maxLines: 2,
                   onChanged: (value) => description = value,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: AppDesign.spacingM),
                 TextField(
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Hours Required',
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(
+                      borderRadius: AppDesign.borderMedium,
+                    ),
+                    filled: true,
                   ),
                   controller: TextEditingController(text: hours.toString()),
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   onChanged: (value) => hours = double.tryParse(value) ?? hours,
                 ),
-                const SizedBox(height: 16),
-                // New icon selector component
+                SizedBox(height: AppDesign.spacingM),
                 IconSelector(
                   initialValue: iconName,
                   onChanged: (value) {
@@ -451,13 +594,19 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                     });
                   },
                 ),
-                const SizedBox(height: 16),
-                SwitchListTile(
-                  title: const Text('Active'),
-                  subtitle: const Text(
-                      'Inactive requirements won\'t be counted or displayed'),
-                  value: isActive,
-                  onChanged: (value) => setState(() => isActive = value),
+                SizedBox(height: AppDesign.spacingM),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                    borderRadius: AppDesign.borderMedium,
+                  ),
+                  child: SwitchListTile(
+                    title: const Text('Active'),
+                    subtitle: const Text(
+                        'Inactive requirements won\'t be counted or displayed'),
+                    value: isActive,
+                    onChanged: (value) => setState(() => isActive = value),
+                  ),
                 ),
               ],
             ),
@@ -476,7 +625,7 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
               ),
               child: const Text('Delete'),
             ),
-            ElevatedButton(
+            FilledButton(
               onPressed: () async {
                 if (type.isNotEmpty && hours > 0) {
                   setState(() => _isLoading = true);
@@ -486,7 +635,7 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                       'description': description,
                       'hours_needed': hours,
                       'is_active': isActive,
-                      'icon_name': iconName, // Update the icon name
+                      'icon_name': iconName,
                     }).eq('id', requirement.id);
 
                     setState(() {
@@ -499,16 +648,17 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                           description: description,
                           hoursNeeded: hours,
                           isActive: isActive,
-                          iconName: iconName, // Include the icon name
+                          iconName: iconName,
                         );
                       }
-                      _hasChanges = true;
                     });
 
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Requirement updated successfully')),
+                        SnackBar(
+                          content: const Text('Requirement updated successfully'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
                       );
                       Navigator.pop(context);
                     }
@@ -516,7 +666,10 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                            content: Text('Error updating requirement: $e')),
+                          content: Text('Error updating requirement: $e'),
+                          backgroundColor: Theme.of(context).colorScheme.error,
+                          behavior: SnackBarBehavior.floating,
+                        ),
                       );
                     }
                   } finally {
@@ -537,6 +690,9 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Requirement'),
+        shape: RoundedRectangleBorder(
+          borderRadius: AppDesign.borderLarge,
+        ),
         content: Text(
           'Are you sure you want to delete the ${requirement.type} requirement? '
           'This will affect all historical records using this type.',
@@ -546,7 +702,7 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
+          FilledButton(
             onPressed: () async {
               setState(() => _isLoading = true);
               try {
@@ -557,32 +713,36 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
 
                 setState(() {
                   _requirements.removeWhere((r) => r.id == requirement.id);
-                  _hasChanges = true;
                 });
 
-                // Refresh the society provider
                 await Provider.of<SocietyProvider>(context, listen: false)
                     .refreshCurrentSociety();
 
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Requirement deleted successfully')),
+                    SnackBar(
+                      content: const Text('Requirement deleted successfully'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
                   );
-                  Navigator.pop(context); // Close delete confirmation
-                  Navigator.pop(context); // Close edit dialog
+                  Navigator.pop(context);
+                  Navigator.pop(context);
                 }
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error deleting requirement: $e')),
+                    SnackBar(
+                      content: Text('Error deleting requirement: $e'),
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                      behavior: SnackBarBehavior.floating,
+                    ),
                   );
                 }
               } finally {
                 setState(() => _isLoading = false);
               }
             },
-            style: ElevatedButton.styleFrom(
+            style: FilledButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
             child: const Text('Delete'),
@@ -596,7 +756,7 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
     String type = '';
     String description = '';
     double hours = 0;
-    String iconName = 'workspaces'; // Default icon
+    String iconName = 'workspaces';
     final society =
         Provider.of<SocietyProvider>(context, listen: false).currentSociety;
 
@@ -605,41 +765,52 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text('Add Hour Requirement'),
+          shape: RoundedRectangleBorder(
+            borderRadius: AppDesign.borderLarge,
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Type Name',
                     hintText: 'E.g., Service, Tutoring, Leadership',
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(
+                      borderRadius: AppDesign.borderMedium,
+                    ),
+                    filled: true,
                   ),
                   onChanged: (value) => type = value,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: AppDesign.spacingM),
                 TextField(
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Description',
                     hintText: 'Describe what counts for this requirement',
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(
+                      borderRadius: AppDesign.borderMedium,
+                    ),
+                    filled: true,
                   ),
                   maxLines: 2,
                   onChanged: (value) => description = value,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: AppDesign.spacingM),
                 TextField(
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Hours Required',
                     hintText: 'E.g., 10.0',
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(
+                      borderRadius: AppDesign.borderMedium,
+                    ),
+                    filled: true,
                   ),
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   onChanged: (value) => hours = double.tryParse(value) ?? 0,
                 ),
-                const SizedBox(height: 16),
-                // New icon selector component
+                SizedBox(height: AppDesign.spacingM),
                 IconSelector(
                   initialValue: iconName,
                   onChanged: (value) {
@@ -656,7 +827,7 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancel'),
             ),
-            ElevatedButton(
+            FilledButton(
               onPressed: () async {
                 if (type.isNotEmpty && hours > 0) {
                   setState(() => _isLoading = true);
@@ -669,27 +840,32 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                           'description': description,
                           'hours_needed': hours,
                           'is_active': true,
-                          'icon_name': iconName, // Include the icon name
+                          'icon_name': iconName,
                         })
                         .select()
                         .single();
 
                     setState(() {
                       _requirements.add(HourRequirement.fromJson(response));
-                      _hasChanges = true;
                     });
 
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Requirement added successfully')),
+                        SnackBar(
+                          content: const Text('Requirement added successfully'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
                       );
                       Navigator.pop(context);
                     }
                   } catch (e) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error adding requirement: $e')),
+                        SnackBar(
+                          content: Text('Error adding requirement: $e'),
+                          backgroundColor: Theme.of(context).colorScheme.error,
+                          behavior: SnackBarBehavior.floating,
+                        ),
                       );
                     }
                   } finally {
@@ -708,19 +884,16 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
   @override
   Widget build(BuildContext context) {
     return Consumer<SocietyProvider>(builder: (context, provider, _) {
-      // Refresh requirements list when society changes
       if (_requirements.isEmpty && provider.currentSociety != null) {
         _requirements = List.from(provider.currentSociety!.hourRequirements);
       }
 
       return Scaffold(
         body: _isLoading
-            ? Center(
-                child: CircularProgressIndicator(),
-              )
+            ? const Center(child: CircularProgressIndicator())
             : RefreshIndicator(
+                color: Theme.of(context).colorScheme.primary,
                 onRefresh: () async {
-                  // Refresh society data and update local requirements
                   await provider.refreshCurrentSociety();
                   if (provider.currentSociety != null) {
                     setState(() {
@@ -730,89 +903,168 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                   }
                 },
                 child: _requirements.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.playlist_add,
-                                size: 64, color: Colors.grey),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No requirements defined',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Tap the + button to add requirements',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    color: Colors.grey,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: _requirements.length,
-                        itemBuilder: (context, index) {
-                          final requirement = _requirements[index];
-                          return Card(
-                            margin: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: requirement.isActive
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Colors.grey,
-                                foregroundColor: Colors.white,
-                                child: const Icon(Icons.access_time),
-                              ),
-                              title: Text(
-                                requirement.type,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color:
-                                      requirement.isActive ? null : Colors.grey,
-                                ),
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(requirement.description),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${requirement.hoursNeeded} hours required',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: requirement.isActive
-                                          ? Theme.of(context)
-                                              .colorScheme
-                                              .primary
-                                          : Colors.grey,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.edit),
-                                onPressed: () =>
-                                    _showEditRequirementDialog(requirement),
-                              ),
-                              onTap: () =>
-                                  _showEditRequirementDialog(requirement),
-                            ),
-                          );
-                        },
-                      ),
+                    ? _buildEmptyState()
+                    : _buildRequirementsList(),
               ),
-        floatingActionButton: FloatingActionButton(
+        floatingActionButton: FloatingActionButton.extended(
           onPressed: _showAddRequirementDialog,
-          tooltip: 'Add Requirement',
-          child: const Icon(Icons.add),
+          icon: const Icon(Icons.add),
+          label: const Text('Add Requirement'),
         ),
       );
     });
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: AppDesign.paddingLarge,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: AppDesign.paddingLarge,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                borderRadius: AppDesign.borderRound,
+              ),
+              child: Icon(
+                Icons.assignment_add,
+                size: 64,
+                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+              ),
+            ),
+            SizedBox(height: AppDesign.spacingL),
+            Text(
+              'No Requirements Defined',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            SizedBox(height: AppDesign.spacingS),
+            Text(
+              'Create hour requirements to track student progress',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: AppDesign.spacingL),
+            FilledButton.icon(
+              onPressed: _showAddRequirementDialog,
+              icon: const Icon(Icons.add),
+              label: const Text('Add Your First Requirement'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRequirementsList() {
+    return ListView.builder(
+      padding: AppDesign.paddingMedium,
+      itemCount: _requirements.length,
+      itemBuilder: (context, index) {
+        final requirement = _requirements[index];
+        return Container(
+          margin: const EdgeInsets.only(bottom: AppDesign.spacingM),
+          child: AppCard(
+            onTap: () => _showEditRequirementDialog(requirement),
+            child: Row(
+              children: [
+                Container(
+                  padding: AppDesign.paddingMedium,
+                  decoration: BoxDecoration(
+                    color: requirement.isActive
+                        ? Theme.of(context).colorScheme.primaryContainer
+                        : Theme.of(context).colorScheme.surfaceVariant,
+                    borderRadius: AppDesign.borderMedium,
+                  ),
+                  child: Icon(
+                    Icons.access_time,
+                    color: requirement.isActive
+                        ? Theme.of(context).colorScheme.onPrimaryContainer
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                    size: 24,
+                  ),
+                ),
+                SizedBox(width: AppDesign.spacingM),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              requirement.type,
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: requirement.isActive
+                                    ? Theme.of(context).colorScheme.onSurface
+                                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                          if (!requirement.isActive)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppDesign.spacingS,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surfaceVariant,
+                                borderRadius: AppDesign.borderSmall,
+                              ),
+                              child: Text(
+                                'Inactive',
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      SizedBox(height: AppDesign.spacingXS),
+                      Text(
+                        requirement.description,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      SizedBox(height: AppDesign.spacingXS),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppDesign.spacingS,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                          borderRadius: AppDesign.borderSmall,
+                        ),
+                        child: Text(
+                          '${requirement.hoursNeeded} hours required',
+                          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: AppDesign.spacingS),
+                Icon(
+                  Icons.edit,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }

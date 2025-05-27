@@ -58,59 +58,106 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     super.dispose();
   }
 
-  /// Fetches the current user's email from Supabase
   Future<void> _fetchCurrentUserEmail() async {
-    final user = supabase.auth.currentUser;
-    if (user != null) {
+  final user = supabase.auth.currentUser;
+  if (user == null) return;
+
+  String email = '';
+  
+  // First try to get from profiles table (prioritized)
+  try {
+    final profileResponse = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('user_id', user.id)
+        .single();
+    
+    email = profileResponse['email'] ?? '';
+  } catch (profileError) {
+    print('Error fetching email from profiles table: $profileError');
+    // Fallback to auth email if profiles table fails
+    email = user.email ?? '';
+  }
+
+  // If profiles table email is empty, fallback to auth email
+  if (email.isEmpty) {
+    email = user.email ?? '';
+  }
+
+  setState(() {
+    _currentEmail = email;
+    _newEmailController.text = email;
+  });
+}
+  
+  Future<void> _fetchUserProfileDetails() async {
+  setState(() => _isLoadingProfile = true);
+
+  final user = supabase.auth.currentUser;
+  if (user == null) {
+    setState(() => _isLoadingProfile = false);
+    return;
+  }
+
+  try {
+    String graduationYear = '';
+    
+    // First try to get from profiles table (prioritized)
+    try {
+      final profileResponse = await supabase
+          .from('profiles')
+          .select('graduation_year, name, email')
+          .eq('user_id', user.id)
+          .single();
+      
+      graduationYear = profileResponse['graduation_year']?.toString() ?? '';
+    } catch (profileError) {
+      print('Error fetching from profiles table: $profileError');
+      
+      // Fallback to auth metadata if profiles table fails
+      final userMetadata = user.userMetadata;
+      graduationYear = userMetadata?['graduation_year']?.toString() ?? '';
+    }
+
+    if (mounted) {
       setState(() {
-        _currentEmail = user.email ?? '';
-        _newEmailController.text = _currentEmail;
+        _graduationYearController.text = graduationYear;
+        _isLoadingProfile = false;
       });
     }
-  }
-
-  Future<void> _fetchUserProfileDetails() async {
-    setState(() => _isLoadingProfile = true);
-
-    final user = supabase.auth.currentUser;
-    if (user == null) {
+  } catch (e) {
+    if (mounted) {
+      _showToast('Error fetching profile details');
       setState(() => _isLoadingProfile = false);
-      return;
-    }
-
-    try {
-      // Get graduation year from user metadata
-      final userMetadata = user.userMetadata;
-
-      if (mounted) {
-        setState(() {
-          _graduationYearController.text =
-              userMetadata?['graduation_year']?.toString() ?? '';
-          _isLoadingProfile = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        _showToast('Error fetching profile details');
-        setState(() => _isLoadingProfile = false);
-      }
     }
   }
+}
 
-// Replace _updateProfileDetails method with:
-  Future<void> _updateProfileDetails() async {
-    if (!_profileFormKey.currentState!.validate()) return;
-    setState(() => _isLoadingProfile = true);
-    final user = supabase.auth.currentUser;
-    if (user == null) {
-      setState(() => _isLoadingProfile = false);
-      return;
+Future<void> _updateProfileDetails() async {
+  if (!_profileFormKey.currentState!.validate()) return;
+  setState(() => _isLoadingProfile = true);
+  
+  final user = supabase.auth.currentUser;
+  if (user == null) {
+    setState(() => _isLoadingProfile = false);
+    return;
+  }
+
+  try {
+    final gradYear = int.tryParse(_graduationYearController.text.trim());
+
+    // Update profiles table first (prioritized)
+    try {
+      await supabase.from('profiles').update({
+        'graduation_year': gradYear,
+      }).eq('user_id', user.id);
+    } catch (profileError) {
+      print('Error updating profiles table: $profileError');
+      // Continue to update auth metadata even if profiles table update fails
     }
 
+    // Also update user metadata for consistency
     try {
-      final gradYear = int.tryParse(_graduationYearController.text.trim());
-
-      // Update user metadata
       await supabase.auth.updateUser(
         UserAttributes(
           data: {
@@ -119,21 +166,25 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
           },
         ),
       );
+    } catch (authError) {
+      print('Error updating auth metadata: $authError');
+      // Continue since profiles table is prioritized
+    }
 
-      if (mounted) {
-        _showToast('Profile Updated Successfully!');
-      }
-    } catch (e) {
-      if (mounted) {
-        _showToast('Profile Update Failed: $e');
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoadingProfile = false);
-      }
+    if (mounted) {
+      _showToast('Profile Updated Successfully!');
+    }
+  } catch (e) {
+    if (mounted) {
+      _showToast('Profile Update Failed: $e');
+    }
+  } finally {
+    if (mounted) {
+      setState(() => _isLoadingProfile = false);
     }
   }
-
+}
+ 
   /// Updates the user's email address
   Future<void> _updateEmail() async {
     if (!_emailFormKey.currentState!.validate()) return;
