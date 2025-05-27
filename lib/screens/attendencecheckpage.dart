@@ -376,9 +376,14 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
   }
 
   Future<List<UserProfile>> _fetchAllUsers() async {
+    final societyId = Provider.of<SocietyProvider>(context, listen: false)
+          .currentSociety
+          ?.id;
+
     final response = await Supabase.instance.client
         .from('profiles')
         .select('user_id, name')
+        .eq('society_id', societyId ?? 0)
         .order('name');
 
     return (response as List)

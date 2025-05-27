@@ -104,6 +104,7 @@ class SocietyProvider extends ChangeNotifier {
           imageUrl: societyData['image_url'],
           hourRequirements: hourRequirements,
           meetingRequirement: societyData['meeting_requirement'],
+          errorFormUrl: societyData['error_form_url'],
           createdAt: DateTime.parse(societyData['created_at']),
         );
 
@@ -218,6 +219,7 @@ class SocietyProvider extends ChangeNotifier {
           imageUrl: societyData['image_url'],
           hourRequirements: hourRequirements,
           meetingRequirement: societyData['meeting_requirement'],
+          errorFormUrl: societyData['error_form_url'],
           createdAt: DateTime.parse(societyData['created_at']),
         );
 
@@ -278,6 +280,7 @@ class SocietyProvider extends ChangeNotifier {
         imageUrl: response['image_url'],
         hourRequirements: hourRequirements,
         meetingRequirement: response['meeting_requirement'],
+        errorFormUrl: response['error_form_url'],
         createdAt: DateTime.parse(response['created_at']),
       );
 

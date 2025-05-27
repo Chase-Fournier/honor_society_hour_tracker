@@ -338,11 +338,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
 Widget build(BuildContext context) {
-  final theme = Theme.of(context);
-  final societyName =
-      Provider.of<SocietyProvider>(context).currentSociety?.name ??
-          'Your Society';
-  
   final collectionsWithEvents = _getCollectionsWithEvents();
   final uncategorizedEvents = _getUncategorizedEvents();
   final totalItems = collectionsWithEvents.length + uncategorizedEvents.length;
@@ -363,7 +358,7 @@ Widget build(BuildContext context) {
     ),
     body: _isLoading
         ? Center(
-            child: CircularProgressIndicator(),
+            child: CircularProgressIndicator(year2023: false,),
           )
         : RefreshIndicator(
             onRefresh: _fetchData,
@@ -863,22 +858,6 @@ List<Event> _getUncategorizedEvents() {
     );
   }
 
-  /// Returns unique collections from a list of events.
-  ///
-  /// Parameters:
-  /// - events: List<Event> - Events to process
-  ///
-  /// Returns:
-  /// - List<Collection>
-  List<Collection> _getUniqueCollections(List<Event> events) {
-    final collectionIds =
-        events.map((event) => event.collectionId).whereType<int>().toSet();
-    return collectionIds
-        .map((id) =>
-            _collections.firstWhere((collection) => collection.id == id))
-        .toList();
-  }
-
   /// Finds the earliest event date in a collection.
   ///
   /// Parameters:
@@ -896,7 +875,7 @@ List<Event> _getUncategorizedEvents() {
 
   Widget _buildEventCard(Event event) {
     final bool isNew = event.createdAt
-        .isAfter(DateTime.now().subtract(const Duration(days: 3)));
+        .isAfter(DateTime.now().subtract(const Duration(days: 2)));
     final bool isMandatory = event.isMandatory;
     final currentUserId = supabase.auth.currentUser?.id;
 
@@ -981,7 +960,7 @@ List<Event> _getUncategorizedEvents() {
                                 _buildBadge('Required', Icons.priority_high,
                                     Theme.of(context).colorScheme.tertiary)
                               else if (isNew)
-                                _buildBadge('New', Icons.fiber_new,
+                                _buildBadge('New', Icons.new_releases,
                                     Theme.of(context).colorScheme.secondary),
                             ],
                           ),
@@ -1443,7 +1422,7 @@ List<Event> _getUncategorizedEvents() {
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting &&
                           allUsers.isEmpty) {
-                        return const CircularProgressIndicator();
+                        return const CircularProgressIndicator(year2023: false,);
                       } else if (snapshot.hasError) {
                         return Text('Error: ${snapshot.error}');
                       } else {
@@ -1731,150 +1710,6 @@ List<Event> _getUncategorizedEvents() {
         SnackBar(content: Text('Error updating form status: $e')),
       );
     }
-  }
-
-  Widget _buildCollectionEventCard(Event event) {
-    final bool isNew = event.createdAt
-        .isAfter(DateTime.now().subtract(const Duration(days: 7)));
-    final bool isMandatory = event.isMandatory;
-
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: AppDesign.borderXLarge,
-      ),
-      elevation: 2,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Stack(
-        children: [
-          if (isMandatory)
-            Positioned(
-              left: 255,
-              top: 32,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  color: Colors.amber,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.star,
-                  color: Theme.of(context).colorScheme.onError,
-                  size: 16,
-                ),
-              ),
-            )
-          else if (isNew)
-            Positioned(
-              left: 250,
-              top: 32,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.errorContainer,
-                  borderRadius: AppDesign.borderXLarge,
-                ),
-                child: Text(
-                  'New',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          CustomExpansionTile(
-            title: ListTile(
-              title: Text(
-                "${event.name} - ${event.date.month}/${event.date.day}/${event.date.year}",
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16.0,
-                ),
-              ),
-              subtitle: Text(
-                event.description,
-                style: TextStyle(
-                  fontSize: 14.0,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ),
-            children: event.timeSlots.map((timeSlot) {
-              final isSignedUp = timeSlot.attendees.any(
-                  (attendee) => attendee.name == supabase.auth.currentUser?.id);
-              final isEventInFuture = event.date
-                  .isAfter(DateTime.now().add(const Duration(days: 1)));
-              final isMandatory = event.isMandatory;
-              final isMeeting = event.type == 'Meeting';
-
-              return ListTile(
-                title: Text(
-                  event.type == 'Meeting'
-                      ? 'Time: ${timeSlot.time.format(context)}'
-                      : 'Time: ${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
-                  style: const TextStyle(
-                    fontSize: 14.0,
-                  ),
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Number of People: ${timeSlot.numberOfPeople}',
-                      style: TextStyle(
-                        fontSize: 12.0,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    if (timeSlot.notes.isNotEmpty)
-                      Text(
-                        'Notes: ${timeSlot.notes}',
-                        style: TextStyle(
-                          fontSize: 12.0,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                  ],
-                ),
-                trailing: isSignedUp
-                    ? Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.calendar_today),
-                            onPressed: () {
-                              _addEventToCalendar(event, timeSlot);
-                            },
-                          ),
-                          if (isEventInFuture && !isMandatory && !isMeeting)
-                            IconButton(
-                              icon: const Icon(Icons.cancel),
-                              onPressed: () {
-                                _removeAttendee(event, timeSlot);
-                              },
-                            ),
-                        ],
-                      )
-                    : isMandatory || isMeeting
-                        ? const Text('Automatically Signed Up')
-                        : ElevatedButton(
-                            onPressed: () {
-                              _showSignUpForm(event, timeSlot);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: AppDesign.borderXLarge,
-                              ),
-                            ),
-                            child: Text('  Sign Up  '),
-                          ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
   }
 
   /// Creates a widget displaying collection information and associated events.

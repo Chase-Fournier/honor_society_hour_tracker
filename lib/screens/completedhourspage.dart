@@ -130,8 +130,9 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
         final eventType = entry['type'] as String;
         final eventName = entry['event_name'] as String? ?? 'Unknown Event';
         final dateString = entry['date'] as String?;
+
         final DateTime date =
-            dateString != null ? DateTime.parse(dateString) : DateTime.now();
+            dateString != null ? DateTime.parse(dateString) : DateTime(0);
 
         if (hoursMap.containsKey(eventType)) {
           hoursMap[eventType] = hoursMap[eventType]! + hours;
@@ -799,6 +800,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
                     valueColor: AlwaysStoppedAnimation<Color>(
                       Theme.of(context).colorScheme.primary,
                     ),
+                    year2023: false,
                   );
                 },
               ),
@@ -933,6 +935,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
     final society =
         Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     final customUrl = society?.errorFormUrl;
+    print(customUrl);
     if (customUrl == null) {
       return SizedBox();
     }

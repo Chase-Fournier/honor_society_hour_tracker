@@ -341,7 +341,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                       Expanded(
                         child: Text(
                           _startDate == null
-                              ? 'Start Date'
+                              ? 'Start'
                               : DateFormat('MMM d, y').format(_startDate!),
                           style: TextStyle(
                             fontWeight: FontWeight.w500,
@@ -421,7 +421,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                       Expanded(
                         child: Text(
                           _endDate == null
-                              ? 'End Date'
+                              ? 'End'
                               : DateFormat('MMM d, y').format(_endDate!),
                           style: TextStyle(
                             fontWeight: FontWeight.w500,

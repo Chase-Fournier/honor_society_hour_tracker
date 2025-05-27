@@ -1166,42 +1166,6 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
     );
   }
 
-  Widget _buildQuickActions() {
-    return Wrap(
-      spacing: 16,
-      runSpacing: 16,
-      children: [
-        _buildActionButton(
-          'Manage Members',
-          Icons.people,
-          _navigateToMembers,
-          Colors.blue,
-        ),
-        _buildActionButton(
-          'Manage Events',
-          Icons.event_note,
-          _navigateToEvents,
-          Colors.green,
-        ),
-        _buildActionButton(
-          'Join Requests',
-          Icons.person_add,
-          _navigateToJoinRequests,
-          Colors.purple,
-          badge: _stats.pendingRequests > 0
-              ? _stats.pendingRequests.toString()
-              : null,
-        ),
-        _buildActionButton(
-          'Society Settings',
-          Icons.settings,
-          _navigateToSocietySettings,
-          Colors.orange,
-        ),
-      ],
-    );
-  }
-
   Widget _buildActionButton(
       String label, IconData icon, VoidCallback onPressed, Color color,
       {String? badge}) {

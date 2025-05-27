@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../providers/societyprovider.dart';
 import '../common/app_design.dart';
+import '../common/iconutils.dart';
 import '../models/userprofile.dart';
 import '../models/logactivity.dart';
 
@@ -24,7 +25,7 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
   String eventName = '';
   TimeOfDay? selectedTime;
   double hours = 0;
-  String type = 'Service';
+  String type = 'Meeting';
   List<String> selectedUserIds = [];
   String searchQuery = '';
   bool _isLoading = false;
@@ -50,6 +51,7 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
       types.add('Service');
     }
 
+    print(types);
     return types;
   }
 
@@ -228,7 +230,7 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                             value: type,
                             onChanged: (value) {
                               setState(() {
-                                type = value ?? "Meeting";
+                                type = value ?? types[1];
                               });
                             },
                             items: types
@@ -237,10 +239,10 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                                       child: Text(type),
                                     ))
                                 .toList(),
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               labelText: 'Event Type',
                               border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.category),
+                              prefixIcon: Icon(getIconForType(type, context)),
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
