@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
+import 'package:supabase_auth_ui/supabase_auth_ui.dart' as supabase;
 import '../main.dart';
 import 'JoinRequestsAdmin.dart';
 import '../providers/societyprovider.dart';
@@ -8,6 +8,7 @@ import '../models/hourrequirement.dart';
 import '../common/iconselector.dart';
 import '../common/app_design.dart';
 import '../common/app_widgets.dart';
+import '../screens/adminleadershippage.dart';
 
 class SocietyAdminPage extends StatefulWidget {
   const SocietyAdminPage({Key? key}) : super(key: key);
@@ -71,7 +72,7 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
       }
 
       // Update society details
-      await Supabase.instance.client.from('honor_societies').update({
+      await supabase.Supabase.instance.client.from('honor_societies').update({
         'name': _nameController.text.trim(),
         'description': _descriptionController.text.trim(),
         'meeting_requirement': int.parse(_meetingRequirementController.text),
@@ -487,6 +488,33 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
         ),
         
         SizedBox(height: AppDesign.spacingM),
+
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AdminLeadershipPage(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.groups_3),
+            label: const Text('Manage Leadership'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppDesign.spacingL,
+                vertical: AppDesign.spacingM,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: AppDesign.borderMedium,
+              ),
+            ),
+          ),
+        ),
+
+        SizedBox(height: AppDesign.spacingM),
         
         // Save Button
         AppPrimaryButton(
@@ -630,7 +658,7 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                 if (type.isNotEmpty && hours > 0) {
                   setState(() => _isLoading = true);
                   try {
-                    await supabase.from('hour_requirements').update({
+                    await supabase.Supabase.instance.client.from('hour_requirements').update({
                       'type': type,
                       'description': description,
                       'hours_needed': hours,
@@ -706,7 +734,7 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
             onPressed: () async {
               setState(() => _isLoading = true);
               try {
-                await Supabase.instance.client
+                await supabase.Supabase.instance.client
                     .from('hour_requirements')
                     .delete()
                     .eq('id', requirement.id);
@@ -832,7 +860,7 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                 if (type.isNotEmpty && hours > 0) {
                   setState(() => _isLoading = true);
                   try {
-                    final response = await supabase
+                    final response = await supabase.Supabase.instance.client
                         .from('hour_requirements')
                         .insert({
                           'society_id': society!.id,

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:nhs_tracker/screens/leadershippage.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
@@ -9,7 +10,6 @@ import '../models/completedhour.dart';
 import '../models/meetingnote.dart';
 import 'leaderboardpage.dart';
 import '../common/iconutils.dart';
-import '../common/normalizetype.dart';
 
 
 final supabase = Supabase.instance.client;
@@ -217,6 +217,16 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
       ),
     );
   }
+  void _openLeadership() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LeadershipPage(
+        ),
+      ),
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -234,6 +244,12 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
         ),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.groups_3),
+            color: Theme.of(context).colorScheme.primary,
+            tooltip: 'View Leadership',
+            onPressed: _openLeadership,
+          ),
           IconButton(
             icon: const Icon(Icons.leaderboard),
             color: Theme.of(context).colorScheme.primary,
@@ -414,7 +430,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
                     color: color,
                   ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             Text(
               subtitle,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(

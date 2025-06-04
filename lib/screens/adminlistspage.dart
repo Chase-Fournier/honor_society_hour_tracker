@@ -6,7 +6,7 @@ import '../providers/societyprovider.dart';
 import '../common/app_design.dart';
 import '../models/completeduserhour.dart';
 import '../models/userprofile.dart';
-import 'bulkediteventspage.dart';
+import '../bulkediteventspage.dart';
 import 'customeventformpage.dart';
 import '../models/logactivity.dart';
 import '../exporttoexcel.dart';
