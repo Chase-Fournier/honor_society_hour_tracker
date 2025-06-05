@@ -197,9 +197,15 @@ Future<void> _updateProfileDetails() async {
       return;
     }
 
+    final user = supabase.auth.currentUser;
+
     setState(() => _isLoadingEmail = true);
 
     try {
+      await supabase.from('profiles').update({
+        'email': newEmail,
+      }).eq('user_id', user!.id);
+
       await supabase.auth.updateUser(
         UserAttributes(email: newEmail),
       );
