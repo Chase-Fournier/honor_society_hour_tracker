@@ -1089,155 +1089,230 @@ class _AdminListPageState extends State<AdminListPage> {
     );
   }
 
-  Widget _buildHourFilterCard(String title, String type) {
-    final isTotal = type == 'total';
-    final condition = isTotal ? _totalHoursCondition : (_hoursConditionByType[title] ?? 'atLeast');
-    final minValue = isTotal ? _minimumTotalHours : (_minimumHoursByType[title] ?? 0);
-    final maxValue = isTotal ? _maximumTotalHours : (_maximumHoursByType[title] ?? 50);
-    final maxLimit = isTotal ? 50.0 : (_maximumHoursByType[title] ?? 50);
+ Widget _buildHourFilterCard(String title, String type) {
+  final isTotal = type == 'total';
+  
+  // Clean up the title to prevent duplication
+  String cleanTitle = title;
+  if (!isTotal) {
+    // Remove any existing "Hours" and add it once
+    cleanTitle = title.replaceAll(RegExp(r'\s*hours?\s*', caseSensitive: false), '').trim();
+    cleanTitle = '$cleanTitle Hours';
+  }
+  
+  return StatefulBuilder(
+    builder: (context, setCardState) {
+      final condition = isTotal ? _totalHoursCondition : (_hoursConditionByType[type] ?? 'atLeast');
+      final minValue = isTotal ? _minimumTotalHours : (_minimumHoursByType[type] ?? 0);
+      final maxValue = isTotal ? _maximumTotalHours : (_maximumHoursByType[type] ?? 50);
+      final maxLimit = isTotal ? 50.0 : (_maximumHoursByType[type] ?? 50);
 
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Card(
-        elevation: 0,
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  if (!isTotal)
-                    Icon(
-                      getIconForType(title, context),
-                      size: 18,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  if (!isTotal) const SizedBox(width: 8),
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: condition,
-                decoration: const InputDecoration(
-                  labelText: 'Condition',
-                  isDense: true,
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'atLeast', child: Text('At least')),
-                  DropdownMenuItem(value: 'atMost', child: Text('At most')),
-                  DropdownMenuItem(value: 'between', child: Text('Between')),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    if (isTotal) {
-                      _totalHoursCondition = value!;
-                    } else {
-                      _hoursConditionByType[title] = value!;
-                    }
-                  });
-                },
-              ),
-              const SizedBox(height: 8),
-              if (condition == 'atLeast')
-                _buildFilterSlider(
-                  'Minimum Value',
-                  minValue,
-                  0,
-                  maxLimit,
-                  (value) {
-                    setState(() {
-                      if (isTotal) {
-                        _minimumTotalHours = value;
-                      } else {
-                        _minimumHoursByType[title] = value;
-                      }
-                    });
-                  },
-                )
-              else if (condition == 'atMost')
-                _buildFilterSlider(
-                  'Maximum Value',
-                  maxValue,
-                  0,
-                  maxLimit,
-                  (value) {
-                    setState(() {
-                      if (isTotal) {
-                        _maximumTotalHours = value;
-                      } else {
-                        _maximumHoursByType[title] = value;
-                      }
-                    });
-                  },
-                )
-              else if (condition == 'between')
-                Column(
+      return Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Card(
+          elevation: 0,
+          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    _buildFilterSlider(
-                      'Minimum Value',
-                      minValue,
-                      0,
-                      maxLimit,
-                      (value) {
-                        setState(() {
-                          if (isTotal) {
-                            _minimumTotalHours = value;
-                            if (_maximumTotalHours < _minimumTotalHours) {
-                              _maximumTotalHours = _minimumTotalHours;
-                            }
-                          } else {
-                            _minimumHoursByType[title] = value;
-                            if ((_maximumHoursByType[title] ?? 0) < value) {
-                              _maximumHoursByType[title] = value;
-                            }
-                          }
-                        });
-                      },
-                    ),
-                    _buildFilterSlider(
-                      'Maximum Value',
-                      maxValue,
-                      0,
-                      maxLimit,
-                      (value) {
-                        setState(() {
-                          if (isTotal) {
-                            _maximumTotalHours = value;
-                            if (_minimumTotalHours > _maximumTotalHours) {
-                              _minimumTotalHours = _maximumTotalHours;
-                            }
-                          } else {
-                            _maximumHoursByType[title] = value;
-                            if ((_minimumHoursByType[title] ?? 0) > value) {
-                              _minimumHoursByType[title] = value;
-                            }
-                          }
-                        });
-                      },
+                    if (!isTotal)
+                      Icon(
+                        getIconForType(type, context), // Use 'type' instead of 'title'
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    if (!isTotal) const SizedBox(width: 8),
+                    Text(
+                      cleanTitle, // Use the cleaned title
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     ),
                   ],
                 ),
-            ],
+                // ... rest of the card content remains the same
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: condition,
+                  decoration: const InputDecoration(
+                    labelText: 'Condition',
+                    isDense: true,
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'atLeast', child: Text('At least')),
+                    DropdownMenuItem(value: 'atMost', child: Text('At most')),
+                    DropdownMenuItem(value: 'between', child: Text('Between')),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      if (isTotal) {
+                        _totalHoursCondition = value!;
+                      } else {
+                        _hoursConditionByType[type] = value!; // Use 'type' instead of 'title'
+                      }
+                    });
+                    setCardState(() {});
+                  },
+                ),
+                const SizedBox(height: 8),
+                if (condition == 'atLeast')
+                  _buildRealtimeFilterInput(
+                    'Minimum Value',
+                    minValue,
+                    0,
+                    maxLimit,
+                    (value) {
+                      setState(() {
+                        if (isTotal) {
+                          _minimumTotalHours = value;
+                        } else {
+                          _minimumHoursByType[type] = value; // Use 'type' instead of 'title'
+                        }
+                      });
+                      setCardState(() {});
+                    },
+                  )
+                else if (condition == 'atMost')
+                  _buildRealtimeFilterInput(
+                    'Maximum Value',
+                    maxValue,
+                    0,
+                    maxLimit,
+                    (value) {
+                      setState(() {
+                        if (isTotal) {
+                          _maximumTotalHours = value;
+                        } else {
+                          _maximumHoursByType[type] = value; // Use 'type' instead of 'title'
+                        }
+                      });
+                      setCardState(() {});
+                    },
+                  )
+                else if (condition == 'between')
+                  Column(
+                    children: [
+                      _buildRealtimeFilterInput(
+                        'Minimum Value',
+                        minValue,
+                        0,
+                        maxLimit,
+                        (value) {
+                          setState(() {
+                            if (isTotal) {
+                              _minimumTotalHours = value;
+                              if (_maximumTotalHours < _minimumTotalHours) {
+                                _maximumTotalHours = _minimumTotalHours;
+                              }
+                            } else {
+                              _minimumHoursByType[type] = value; // Use 'type' instead of 'title'
+                              if ((_maximumHoursByType[type] ?? 0) < value) {
+                                _maximumHoursByType[type] = value;
+                              }
+                            }
+                          });
+                          setCardState(() {});
+                        },
+                      ),
+                      _buildRealtimeFilterInput(
+                        'Maximum Value',
+                        maxValue,
+                        0,
+                        maxLimit,
+                        (value) {
+                          setState(() {
+                            if (isTotal) {
+                              _maximumTotalHours = value;
+                              if (_minimumTotalHours > _maximumTotalHours) {
+                                _minimumTotalHours = _maximumTotalHours;
+                              }
+                            } else {
+                              _maximumHoursByType[type] = value; // Use 'type' instead of 'title'
+                              if ((_minimumHoursByType[type] ?? 0) > value) {
+                                _minimumHoursByType[type] = value;
+                              }
+                            }
+                          });
+                          setCardState(() {});
+                        },
+                      ),
+                    ],
+                  ),
+              ],
+            ),
           ),
         ),
-      ),
-    );
-  }
+      );
+    },
+  );
+}
 
+Widget _buildRealtimeFilterInput(String label, double value, double min, double max,
+    Function(double) onChanged) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          key: ValueKey('${label}_${value.toStringAsFixed(1)}'),
+          initialValue: value.toStringAsFixed(1),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: AppDesign.borderSmall,
+            ),
+            isDense: true,
+            suffixText: 'hrs',
+            hintText: '${min.toStringAsFixed(1)} - ${max.toStringAsFixed(1)}',
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          ),
+          onChanged: (text) {
+            // Real-time update as user types
+            final newValue = double.tryParse(text);
+            if (newValue != null && newValue >= min && newValue <= max) {
+              onChanged(newValue);
+            }
+          },
+          validator: (text) {
+            final newValue = double.tryParse(text ?? '');
+            if (newValue == null) return null; // Don't show error while typing
+            if (newValue < min || newValue > max) {
+              return 'Must be between ${min.toStringAsFixed(1)} and ${max.toStringAsFixed(1)}';
+            }
+            return null;
+          },
+        ),
+      ],
+    ),
+  );
+}
   List<Widget> _buildDynamicHourFilters() {
-    return _minimumHoursByType.keys.map((hourType) {
-      return _buildHourFilterCard('$hourType Hours', hourType);
-    }).toList();
-  }
+  return _minimumHoursByType.keys.map((hourType) {
+    // Don't add "Hours" if it's already there, and handle the title properly
+    String displayTitle;
+    if (hourType.toLowerCase().contains('hour')) {
+      displayTitle = hourType; // Use as-is if it already contains "hour"
+    } else {
+      displayTitle = '$hourType Hours'; // Add "Hours" if it doesn't contain it
+    }
+    
+    return _buildHourFilterCard(displayTitle, hourType);
+  }).toList();
+}
 
   Widget _buildGraduationYearFilterCard() {
     return Padding(
@@ -1521,33 +1596,48 @@ class _AdminListPageState extends State<AdminListPage> {
     );
   }
 
-  Widget _buildFilterSlider(String label, double value, double min, double max,
-      Function(double) onChanged) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(label),
-              Text(value.toStringAsFixed(1)),
-            ],
+  Widget _buildFilterInput(String label, double value, double min, double max,
+    Function(double) onChanged) {
+  // Create a controller with the current value
+  final controller = TextEditingController(text: value.toStringAsFixed(1));
+  
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
-          Slider(
-            value: value,
-            min: min,
-            max: max,
-            divisions: (max - min).toInt() * 2,
-            label: value.toStringAsFixed(1),
-            onChanged: onChanged,
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: AppDesign.borderSmall,
+            ),
+            isDense: true,
+            suffixText: 'hrs',
+            hintText: '${min.toStringAsFixed(1)} - ${max.toStringAsFixed(1)}',
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           ),
-        ],
-      ),
-    );
-  }
-
+          onChanged: (text) {
+            final newValue = double.tryParse(text);
+            if (newValue != null && newValue >= min && newValue <= max) {
+              onChanged(newValue);
+            }
+          },
+        ),
+      ],
+    ),
+  );
+}
+ 
   Widget _buildUserTable(List<UserProfile> users) {
     // Enhanced table for wide screens with fixed header
     return Column(
@@ -1857,7 +1947,7 @@ class _AdminListPageState extends State<AdminListPage> {
 
                         // Actions column
                         SizedBox(
-                          width: 100,
+                          width: 120,
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -1870,6 +1960,15 @@ class _AdminListPageState extends State<AdminListPage> {
                                 constraints: const BoxConstraints(),
                                 padding: AppDesign.paddingSmall,
                               ),
+                               IconButton(
+                                  icon: const Icon(Icons.edit),
+                                  tooltip: 'Edit Hours',
+                                  onPressed: () {
+                                    _showUserHoursEditDialog(user);
+                                  },
+                                  constraints: const BoxConstraints(),
+                                  padding: AppDesign.paddingSmall,
+                                ),
                               IconButton(
                                 icon: const Icon(Icons.more_vert),
                                 tooltip: 'More Options',
@@ -1893,6 +1992,131 @@ class _AdminListPageState extends State<AdminListPage> {
       ],
     );
   }
+
+  void _showUserHoursEditDialog(UserProfile user) {
+  if (user.completedHours.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${user.name} has no hours to edit')),
+    );
+    return;
+  }
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 500),
+          child: Column(
+            children: [
+              // Header
+              Padding(
+                padding: AppDesign.paddingMedium,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.edit,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Edit Hours for ${user.name}',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              
+              // Hours list
+              Expanded(
+                child: ListView.builder(
+                  padding: AppDesign.paddingMedium,
+                  itemCount: user.completedHours.length,
+                  itemBuilder: (context, index) {
+                    final hour = user.completedHours[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                        borderRadius: AppDesign.borderMedium,
+                      ),
+                      child: ListTile(
+                        title: Text(
+                          hour.eventName,
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        subtitle: Text('${hour.hours} hours - ${hour.type}'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                Icons.edit,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              onPressed: () {
+                                Navigator.pop(context); // Close hours dialog
+                                _showEditHourDialog(context, user, hour);
+                              },
+                              tooltip: 'Edit This Hour',
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.delete,
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                              onPressed: () {
+                                Navigator.pop(context); // Close hours dialog
+                                _deleteServiceHour(hour, user.id);
+                              },
+                              tooltip: 'Delete This Hour',
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              
+              // Footer
+              Padding(
+                padding: AppDesign.paddingMedium,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Close'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _openCustomEventForm(context, user.id);
+                      },
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Hours'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
 
   
 
