@@ -430,7 +430,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
                     color: color,
                   ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 2),
             Text(
               subtitle,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(

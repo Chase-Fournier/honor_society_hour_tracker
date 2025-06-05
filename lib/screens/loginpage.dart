@@ -141,12 +141,15 @@ class _LoginPageState extends State<LoginPage>
           color: Theme.of(context).colorScheme.primary,
         ),
         const SizedBox(height: AppDesign.spacingM),
-        Text(
-          'Society Hour Tracking',
-          style: TextStyle(
-            fontSize: 28.0,
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.primary,
+        Center(
+          child: Text(
+            'Society Hour Tracking',
+            style: TextStyle(
+              fontSize: 28.0,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            textAlign: TextAlign.center,
           ),
         ),
         const SizedBox(height: AppDesign.spacingXS),
