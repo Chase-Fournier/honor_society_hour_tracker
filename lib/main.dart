@@ -343,21 +343,21 @@ class _LoginPageState extends State<LoginPage> {
                   }
                 },
               ),
-              SupaSocialsAuth(
-                socialProviders: const [],
-                colored: true,
-                onSuccess: (Session response) {
-                  // Navigate to the home page on successful social sign-in
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => SocietySelectionPage()),
-                  );
-                },
-                onError: (error) {
-                  // Handle the error
-                  print('Social sign-in error: $error');
-                },
-              ),
+              // SupaSocialsAuth(
+              //   socialProviders: const [],
+              //   colored: true,
+              //   onSuccess: (Session response) {
+              //     // Navigate to the home page on successful social sign-in
+              //     Navigator.pushReplacement(
+              //       context,
+              //       MaterialPageRoute(builder: (context) => SocietySelectionPage()),
+              //     );
+              //   },
+              //   onError: (error) {
+              //     // Handle the error
+              //     print('Social sign-in error: $error');
+              //   },
+              // ),
             ],
           ),
         ),
@@ -1764,7 +1764,7 @@ class _HomePageState extends State<HomePage> {
   /// Returns:
   /// - void
   void _addEventToCalendar(Event event, TimeSlot timeSlot) {
-    final calendarEventp = add2cal.addEvent(
+    final calendarEventp = add2cal.Event(
       title: event.name,
       description: event.description,
       startDate: DateTime(
@@ -1786,7 +1786,7 @@ class _HomePageState extends State<HomePage> {
       ),
       androidParams: const add2cal.AndroidParams(
         emailInvites: [],
-      ),
+      )
     );
 
     add2cal.Add2Calendar.addEvent2Cal(calendarEventp);
@@ -5747,7 +5747,7 @@ class _AdminListPageState extends State<AdminListPage> {
 
       Map<String, List<CompletedUserHour>> userHoursMap = {};
       for (final hourData in hoursResponse) {
-        final userId = hourData['user_id'] as String;
+        final userId = (hourData['user_id'] ?? "{eventName: 'none', hours: 0, type: 'none'}") as String;
         final hour = CompletedUserHour.fromJson(hourData);
         userHoursMap.putIfAbsent(userId, () => []).add(hour);
       }
@@ -5758,7 +5758,7 @@ class _AdminListPageState extends State<AdminListPage> {
             profileResponse.map<UserProfile>((profileJson) {
               final userId = profileJson['user_id'] as String;
               return UserProfile(
-                name: profileJson['name'] as String,
+                name: (profileJson['name'] ?? "") as String,
                 id: userId,
                 completedHours: userHoursMap[userId] ?? [],
                 hasPaidDues: profileJson['has_paid_dues'] ?? false,
