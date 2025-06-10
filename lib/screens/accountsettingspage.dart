@@ -378,7 +378,7 @@ Future<void> _updateProfileDetails() async {
   Widget _buildProfileSection() {
     final currentYear = DateTime.now().year;
     final List<String> graduationYears =
-        List.generate(4, (i) => (currentYear + i).toString());
+        List.generate(2, (i) => (currentYear + i + 1).toString());
     return AppSurfaceCard(
       child: Form(
         key: _profileFormKey,
