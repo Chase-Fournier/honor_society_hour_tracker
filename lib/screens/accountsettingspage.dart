@@ -27,7 +27,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
   final _passwordFormKey = GlobalKey<FormState>();
   final _profileFormKey = GlobalKey<FormState>();
-  final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _newEmailController = TextEditingController();
@@ -50,7 +49,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
   @override
   void dispose() {
-    _currentPasswordController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
     _newEmailController.dispose();
@@ -225,8 +223,6 @@ Future<void> _updateProfileDetails() async {
   /// Updates the user's password
   Future<void> _updatePassword() async {
     if (!_passwordFormKey.currentState!.validate()) return;
-
-    final currentPassword = _currentPasswordController.text;
     final newPassword = _newPasswordController.text;
 
     setState(() => _isLoadingPassword = true);
@@ -242,7 +238,6 @@ Future<void> _updateProfileDetails() async {
       );
 
       // Clear the form
-      _currentPasswordController.clear();
       _newPasswordController.clear();
       _confirmPasswordController.clear();
 
@@ -613,40 +608,6 @@ Future<void> _updateProfileDetails() async {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Current Password
-                  TextFormField(
-                    controller: _currentPasswordController,
-                    obscureText: _obscureCurrentPassword,
-                    decoration: InputDecoration(
-                      labelText: 'Current Password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureCurrentPassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscureCurrentPassword = !_obscureCurrentPassword;
-                          });
-                        },
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: Theme.of(context).colorScheme.surface,
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your current password';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
                   // New Password
                   TextFormField(
                     controller: _newPasswordController,
