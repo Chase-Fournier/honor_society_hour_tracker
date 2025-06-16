@@ -14,7 +14,6 @@ The app is packed with features to enhance the NHS experience:
 * **Notifications:** Receive timely notifications for upcoming volunteer opportunities and important announcements.
 * **Theme Customization:** Personalize the app's appearance by choosing a custom theme color.
 * **Hour Swapping:** Request to swap time slots with other members if unable to attend.
-* **QR Code/Barcode Scanning:** (If implemented) Potentially use QR codes or barcodes for quick event check-ins.
 
 **For Administrators:**
 * **Event Management:** Create, manage, and edit volunteer events, including descriptions, dates, and multiple time slots.
@@ -109,7 +108,6 @@ This project utilizes the following key dependencies (see `pubspec.yaml` for a f
 * `shared_preferences`: For persistent local storage.
 * `add_2_calendar`: For adding events to the device calendar.
 * `excel`: For exporting data to Excel format.
-* `mobile_scanner`: For QR code/barcode scanning functionalities.
 * `google_fonts`: For custom fonts.
 
 ## 🤝 Contributing
