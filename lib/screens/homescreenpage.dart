@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:add_2_calendar/add_2_calendar.dart' as add2cal;
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
@@ -22,6 +21,8 @@ import '../common/nhsformatutils.dart';
 import '../models/logactivity.dart';
 import '../common/iconutils.dart';
 import '../common/normalizetype.dart';
+import 'package:provider/provider.dart';
+import '../providers/hapticsprovider.dart';
 
 
 final supabase = Supabase.instance.client;
@@ -301,8 +302,8 @@ class _HomePageState extends State<HomePage> {
 
     return GestureDetector(
       onTap: () {
-        // Optional: Add haptic feedback for a more tactile feel
-        // HapticFeedback.lightImpact();
+        final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+        hapticsProvider.light();
         onSelected();
       },
       child: AnimatedContainer(
@@ -445,6 +446,8 @@ Widget _buildEmptyState() {
             icon: const Icon(Icons.filter_alt_off),
             label: const Text('Clear filter'),
             onPressed: () {
+              final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
               setState(() {
                 _selectedEventType = 'All';
               });
@@ -1156,8 +1159,11 @@ List<Event> _getUncategorizedEvents() {
                       padding: const EdgeInsets.all(4),
                       constraints: const BoxConstraints(),
                       tooltip: 'Add to Calendar',
-                      onPressed: () => _addEventToCalendar(event, timeSlot),
-                    ),
+                      onPressed: () {
+                        final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                              hapticsProvider.selection();
+                      _addEventToCalendar(event, timeSlot);
+    }),
 
                   // Capacity info
                   if (!(event.type == 'Meeting'))
@@ -1223,9 +1229,12 @@ List<Event> _getUncategorizedEvents() {
                               minimumSize: Size(0, 28),
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
-                            onPressed: () =>
-                                _showSwapRequestDialog(event, timeSlot),
-                          ),
+                            onPressed: () {
+                              
+                            final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                              hapticsProvider.selection();
+                                _showSwapRequestDialog(event, timeSlot);
+    }),
                         if (isTimeSlotInFuture &&
                             !isMandatory &&
                             event.type != 'Meeting' &&
@@ -1242,8 +1251,12 @@ List<Event> _getUncategorizedEvents() {
                                   Theme.of(context).colorScheme.error,
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
-                            onPressed: () => _removeAttendee(event, timeSlot),
-                          ),
+                            onPressed: ()  {
+
+                             _removeAttendee(event, timeSlot);
+                             final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                              hapticsProvider.selection();
+    }),
                         if (event.requiresForms)
                           OutlinedButton.icon(
                             icon: Icon(
@@ -1264,8 +1277,11 @@ List<Event> _getUncategorizedEvents() {
                                   : Theme.of(context).colorScheme.error,
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
-                            onPressed: () => _showUploadFormsDialog(
-                                event, timeSlot, timeSlotFormsCompleted),
+                            onPressed: () {_showUploadFormsDialog(
+                                event, timeSlot, timeSlotFormsCompleted);
+                                final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                              hapticsProvider.selection();
+                            }
                           ),
                       ],
                     )
@@ -1326,7 +1342,11 @@ List<Event> _getUncategorizedEvents() {
                               ),
                             )
                           : ElevatedButton.icon(
-                              onPressed: () => _showSignUpForm(event, timeSlot),
+                              onPressed: () {
+                              _showSignUpForm(event, timeSlot);
+                              final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                              hapticsProvider.medium();
+                              },
                               icon: const Icon(Icons.add, size: 16),
                               label: const Text('Sign Up'),
                               style: ElevatedButton.styleFrom(
@@ -1456,6 +1476,8 @@ List<Event> _getUncategorizedEvents() {
                 TextButton(
                   child: const Text('Cancel'),
                   onPressed: () {
+                    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
                     Navigator.of(context).pop();
                   },
                 ),
@@ -1480,12 +1502,16 @@ List<Event> _getUncategorizedEvents() {
             TextButton(
               child: const Text('Cancel'),
               onPressed: () {
+                final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 Navigator.of(context).pop();
               },
             ),
             ElevatedButton(
               child: const Text('Confirm'),
               onPressed: () async {
+                final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 // Check if the user has already requested a swap for this time slot
                 final hasPendingSwap =
                     await _checkPendingSwap(event.id, timeSlot.id ?? 0);
@@ -1619,6 +1645,8 @@ List<Event> _getUncategorizedEvents() {
                 TextButton(
                   child: const Text('Cancel'),
                   onPressed: () {
+                    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
                     Navigator.of(context).pop();
                   },
                 ),
@@ -1629,6 +1657,8 @@ List<Event> _getUncategorizedEvents() {
                   ElevatedButton(
                     child: const Text('Fill Out'),
                     onPressed: () {
+                      final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                      hapticsProvider.selection();
                       Navigator.of(context).pop();
                       _launchFormLink(event.formLink!);
                     },
@@ -1639,6 +1669,8 @@ List<Event> _getUncategorizedEvents() {
                   ElevatedButton(
                     child: const Text('Complete'),
                     onPressed: () {
+                      final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                      hapticsProvider.selection();
                       Navigator.of(context).pop();
                       _markFormsAsCompleted(event, timeSlot, true);
                     },
@@ -1647,6 +1679,8 @@ List<Event> _getUncategorizedEvents() {
                   ElevatedButton(
                     child: const Text('Remove Completion'),
                     onPressed: () {
+                      final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                      hapticsProvider.selection();
                       Navigator.of(context).pop();
                       _markFormsAsCompleted(event, timeSlot, false);
                     },
@@ -1870,6 +1904,8 @@ List<Event> _getUncategorizedEvents() {
                   TextButton(
                     child: const Text('Cancel'),
                     onPressed: () {
+                      final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                      hapticsProvider.selection();
                       Navigator.of(context).pop();
                     },
                   ),
@@ -1877,6 +1913,8 @@ List<Event> _getUncategorizedEvents() {
                   ElevatedButton(
                     child: const Text('Sign Up'),
                     onPressed: () {
+                      final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                      hapticsProvider.selection();
                       _signUpForTimeSlot(event, timeSlot);
                       Navigator.of(context).pop();
                     },
@@ -1890,6 +1928,8 @@ List<Event> _getUncategorizedEvents() {
                 icon: const Icon(Icons.calendar_today),
                 label: const Text('Add to Calendar'),
                 onPressed: () {
+                  final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                  hapticsProvider.selection();
                   _signUpForTimeSlot(event, timeSlot);
                   _addEventToCalendar(event, timeSlot);
                   Navigator.of(context).pop();
@@ -1918,30 +1958,39 @@ List<Event> _getUncategorizedEvents() {
   /// - Future<void>
   Future<void> _removeAttendee(Event event, TimeSlot timeSlot) async {
     final userId = supabase.auth.currentUser?.id;
+    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
 
-    if (userId != null) {
-      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
-      await Supabase.instance.client
-          .from('Attendees')
-          .delete()
-          .eq('timeslot_id', timeSlot?.id ?? 0)
-          .eq('user_id', userId);
+    try {
+  if (userId != null) {
+    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    await Supabase.instance.client
+        .from('Attendees')
+        .delete()
+        .eq('timeslot_id', timeSlot?.id ?? 0)
+        .eq('user_id', userId);
+  
+    await Supabase.instance.client
+        .from('Time slots')
+        .update({'number_of_people': timeSlot.numberOfPeople + 1}).eq(
+            'id', timeSlot?.id ?? 0);
+  
+    await logactivity(
+      event.name,
+      '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
+      NhsFormatUtils.calculateDuration(timeSlot.time, timeSlot.endTime),
+      'unsignup',
+      userId,
+      societyId: society?.id,
+    );
+  
+    _fetchEvents();
+  }
+    } catch (e) {
+      hapticsProvider.error();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error cancelling: $e')),
+        );
 
-      await Supabase.instance.client
-          .from('Time slots')
-          .update({'number_of_people': timeSlot.numberOfPeople + 1}).eq(
-              'id', timeSlot?.id ?? 0);
-
-      await logactivity(
-        event.name,
-        '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
-        NhsFormatUtils.calculateDuration(timeSlot.time, timeSlot.endTime),
-        'unsignup',
-        userId,
-        societyId: society?.id,
-      );
-
-      _fetchEvents();
     }
   }
 
@@ -1957,90 +2006,98 @@ List<Event> _getUncategorizedEvents() {
   Future<void> _signUpForTimeSlot(Event event, TimeSlot timeSlot) async {
     final User? user = supabase.auth.currentUser;
     final userId = user?.id;
+    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
 
-    if (userId != null) {
-      // Check if the user has completed requirements using existing state
-      // Replace the hardcoded requirement check with this dynamic version:
-
-      // Get society's requirements
-      final society =
-          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
-      bool hasCompletedRequirements = false;
-
-      if (society != null) {
-        // For Meeting type, use the society's meeting requirement
-        if (event.type == 'Meeting') {
-          final meetingsCompleted = _completedHoursMap['Meeting'] ?? 0.0;
-          hasCompletedRequirements =
-              meetingsCompleted >= society.meetingRequirement;
-        } else {
-          // For other types, find the matching requirement in the society
-          final matchingRequirement = society.hourRequirements.firstWhere(
-            (req) => normalizeType(req.type) == normalizeType(event.type),
-            orElse: () => HourRequirement(
-              id: -1,
-              type: event.type,
-              hoursNeeded: 0,
-              description: '',
-              isActive: false,
-            ),
-          );
-
-          // Check if user has completed the required hours for this type
-          final completedHours =
-              _completedHoursMap[normalizeType(event.type)] ?? 0.0;
-          hasCompletedRequirements =
-              completedHours >= matchingRequirement.hoursNeeded;
-        }
-      }
-
-// Check if signup is delayed
-      final canSignUp = !hasCompletedRequirements ||
-          !event.hasDelay ||
-          event.canSignUpForTimeSlot(timeSlot);
-      if (!canSignUp) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Signup will be available ${event.delayHours} hours before the event',
-            ),
+    try {
+  if (userId != null) {
+    // Check if the user has completed requirements using existing state
+    
+    // Get society's requirements
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    bool hasCompletedRequirements = false;
+  
+    if (society != null) {
+      // For Meeting type, use the society's meeting requirement
+      if (event.type == 'Meeting') {
+        final meetingsCompleted = _completedHoursMap['Meeting'] ?? 0.0;
+        hasCompletedRequirements =
+            meetingsCompleted >= society.meetingRequirement;
+      } else {
+        // For other types, find the matching requirement in the society
+        final matchingRequirement = society.hourRequirements.firstWhere(
+          (req) => normalizeType(req.type) == normalizeType(event.type),
+          orElse: () => HourRequirement(
+            id: -1,
+            type: event.type,
+            hoursNeeded: 0,
+            description: '',
+            isActive: false,
           ),
         );
-        return;
-      }
-      // Check if the user is already signed up
-      final existingAttendee = await Supabase.instance.client
-          .from('Attendees')
-          .select()
-          .eq('timeslot_id', timeSlot.id ?? 0)
-          .eq('user_id', userId)
-          .maybeSingle();
-
-      if (existingAttendee == null) {
-        // Add the user to the Attendees table
-        await Supabase.instance.client.from('Attendees').insert({
-          'timeslot_id': timeSlot?.id ?? 0,
-          'user_id': userId,
-          'is_present': false,
-        });
-
-        // Update the number of people in the time slot
-        await Supabase.instance.client
-            .from('Time slots')
-            .update({'number_of_people': timeSlot.numberOfPeople - 1}).eq(
-                'id', timeSlot?.id ?? 0);
-
-        await logactivity(
-          event.name,
-          '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
-          NhsFormatUtils.calculateDuration(timeSlot.time, timeSlot.endTime),
-          'signup',
-          userId,
-        );
-
-        _fetchEvents();
+  
+        // Check if user has completed the required hours for this type
+        final completedHours =
+            _completedHoursMap[normalizeType(event.type)] ?? 0.0;
+        hasCompletedRequirements =
+            completedHours >= matchingRequirement.hoursNeeded;
       }
     }
+  
+  // Check if signup is delayed
+    final canSignUp = !hasCompletedRequirements ||
+        !event.hasDelay ||
+        event.canSignUpForTimeSlot(timeSlot);
+    if (!canSignUp) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Signup will be available ${event.delayHours} hours before the event',
+          ),
+        ),
+      );
+      return;
+    }
+    // Check if the user is already signed up
+    final existingAttendee = await Supabase.instance.client
+        .from('Attendees')
+        .select()
+        .eq('timeslot_id', timeSlot.id ?? 0)
+        .eq('user_id', userId)
+        .maybeSingle();
+  
+    if (existingAttendee == null) {
+      // Add the user to the Attendees table
+      await Supabase.instance.client.from('Attendees').insert({
+        'timeslot_id': timeSlot?.id ?? 0,
+        'user_id': userId,
+        'is_present': false,
+      });
+  
+      // Update the number of people in the time slot
+      await Supabase.instance.client
+          .from('Time slots')
+          .update({'number_of_people': timeSlot.numberOfPeople - 1}).eq(
+              'id', timeSlot?.id ?? 0);
+  
+      await logactivity(
+        event.name,
+        '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
+        NhsFormatUtils.calculateDuration(timeSlot.time, timeSlot.endTime),
+        'signup',
+        userId,
+      );
+      hapticsProvider.success();
+      _fetchEvents();
+    }
+  }
+  
+} catch (e) {
+  hapticsProvider.error();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error signing up: $e')),
+    );
+}
   }
 
   /// Adds an event to the device calendar.
@@ -2153,7 +2210,8 @@ List<Event> _getUncategorizedEvents() {
             TextButton(
               child: const Text('Decline'),
               onPressed: () {
-                // Handle decline action
+                final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 _declineSwapRequest(swapRequest);
                 Navigator.of(context).pop();
               },
@@ -2163,7 +2221,8 @@ List<Event> _getUncategorizedEvents() {
               child: ElevatedButton(
                 child: const Text('Accept'),
                 onPressed: () {
-                  // Handle accept action
+                  final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                  hapticsProvider.selection();
                   _acceptSwapRequest(swapRequest, eventData);
                   Navigator.of(context).pop();
                 },
@@ -2206,6 +2265,7 @@ List<Event> _getUncategorizedEvents() {
 
   void _acceptSwapRequest(
       SwapRequest swapRequest, Map<String, dynamic> eventData) async {
+        final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
     try {
       await Supabase.instance.client
           .from('swap_requests')
@@ -2218,6 +2278,7 @@ List<Event> _getUncategorizedEvents() {
           swapRequest.timeSlotId,
           eventData,
           swapRequest);
+      hapticsProvider.success();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Swap request accepted')),
@@ -2226,6 +2287,8 @@ List<Event> _getUncategorizedEvents() {
       // Refresh the UI
       await _fetchEvents();
     } catch (e) {
+
+      hapticsProvider.error();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error accepting swap request: $e')),
       );

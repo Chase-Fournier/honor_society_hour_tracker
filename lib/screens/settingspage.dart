@@ -15,6 +15,7 @@ import '../providers/themenotifier.dart';
 import 'societyselectionpage.dart';
 import '../common/app_widgets.dart';
 import '../providers/societyprovider.dart';
+import '../providers/hapticsprovider.dart';
 
 
 final supabase = Supabase.instance.client;
@@ -155,6 +156,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _handleColorChange(Color color) {
+    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+    hapticsProvider.selection(); // Add haptic feedback
+    
     setState(() {
       _selectedColor = color;
     });
@@ -168,6 +172,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _openSocietyAdmin() {
+    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+    hapticsProvider.selection(); // Add haptic feedback
+    
     if (widget.society != null) {
       Navigator.push(
         context,
@@ -179,11 +186,15 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _navigateToAccountSettings() {
+    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+    hapticsProvider.selection(); // Add haptic feedback
+    
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const AccountSettingsPage()),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -309,6 +320,9 @@ class _SettingsPageState extends State<SettingsPage> {
           // Snake game button
           ElevatedButton.icon(
             onPressed: () {
+              final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection(); 
+
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const SnakePage()),
@@ -392,6 +406,9 @@ class _SettingsPageState extends State<SettingsPage> {
                 icon: const Icon(Icons.switch_account),
                 color: Theme.of(context).colorScheme.primary,
                 onPressed: () {
+                  final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                  hapticsProvider.selection();
+
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(
@@ -546,11 +563,33 @@ class _SettingsPageState extends State<SettingsPage> {
                         TextButton(
                           child: const Text('OK'),
                           onPressed: () {
+                            final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                            hapticsProvider.selection();
                             Navigator.of(context).pop();
                           },
                         ),
                       ],
                     );
+                  },
+                );
+              },
+            ),
+
+            const Divider(),
+
+            // Haptics Toggle
+            Consumer<HapticsProvider>(
+              builder: (context, hapticsProvider, child) {
+                return SwitchListTile(
+                  title: const Text('Haptic Feedback'),
+                  subtitle: const Text('Vibrate on interactions'),
+                  secondary: Icon(
+                    Icons.vibration,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  value: hapticsProvider.isHapticsEnabled,
+                  onChanged: (bool value) {
+                    hapticsProvider.toggleHaptics(value);
                   },
                 );
               },
@@ -573,6 +612,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   groupValue: Provider.of<themeprovider.ThemeProvider>(context)
                       .themeMode,
                   onChanged: (value) {
+                    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection(); 
                     Provider.of<themeprovider.ThemeProvider>(context,
                             listen: false)
                         .setThemeMode(themeprovider.ThemeMode.light);
@@ -584,6 +625,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   groupValue: Provider.of<themeprovider.ThemeProvider>(context)
                       .themeMode,
                   onChanged: (value) {
+                    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
                     Provider.of<themeprovider.ThemeProvider>(context,
                             listen: false)
                         .setThemeMode(themeprovider.ThemeMode.dark);
@@ -595,6 +638,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   groupValue: Provider.of<themeprovider.ThemeProvider>(context)
                       .themeMode,
                   onChanged: (value) {
+                    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
                     Provider.of<themeprovider.ThemeProvider>(context,
                             listen: false)
                         .setThemeMode(themeprovider.ThemeMode.midnight);
@@ -641,6 +686,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   Icons.videogame_asset,
                   Colors.green,
                   () {
+                    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -715,6 +762,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _signOut() async {
     final navigationState = Navigator.of(context);
+    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+    hapticsProvider.warning();
 
     try {
       // Clear provider data
@@ -727,11 +776,13 @@ class _SettingsPageState extends State<SettingsPage> {
 
       // Sign out from Supabase
       await supabase.auth.signOut();
+      hapticsProvider.success();
 
       // Navigate to login page
       navigationState.pushNamedAndRemoveUntil('/', (route) => false);
     } catch (e) {
       print('Error during logout: $e');
+      hapticsProvider.error();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error during logout: $e')),
       );

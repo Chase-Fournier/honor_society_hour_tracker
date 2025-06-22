@@ -70,7 +70,7 @@ class AppTheme {
       ),
 
       // More expressive card design
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 2,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
@@ -122,7 +122,7 @@ class AppTheme {
       ),
 
       // More expressive dialog theme
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         backgroundColor: colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../common/app_design.dart';
 import '../common/app_widgets.dart';
+import 'package:provider/provider.dart';
+import '../providers/hapticsprovider.dart';
 
 
 // Import your shared constants/styles
@@ -373,7 +375,7 @@ Future<void> _updateProfileDetails() async {
   Widget _buildProfileSection() {
     final currentYear = DateTime.now().year;
     final List<String> graduationYears =
-        List.generate(2, (i) => (currentYear + i + 1).toString());
+        List.generate(3, (i) => (currentYear + i + 1).toString());
     return AppSurfaceCard(
       child: Form(
         key: _profileFormKey,
@@ -424,7 +426,11 @@ Future<void> _updateProfileDetails() async {
             AppPrimaryButton(
               text: 'Update Profile',
               isLoading: _isLoadingProfile,
-              onPressed: _updateProfileDetails,
+              onPressed: () {
+                final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
+                _updateProfileDetails;
+              },
             ),
           ],
         ),
@@ -542,7 +548,11 @@ Future<void> _updateProfileDetails() async {
                 AppPrimaryButton(
                   text: 'Update Email',
                   isLoading: _isLoadingEmail,
-                  onPressed: _updateEmail,
+                  onPressed: () {
+                  final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                  hapticsProvider.selection();
+                   _updateEmail;
+                  },
                 ),
 
                 const SizedBox(height: AppDesign.spacingS),
@@ -622,6 +632,8 @@ Future<void> _updateProfileDetails() async {
                               : Icons.visibility,
                         ),
                         onPressed: () {
+                          final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                          hapticsProvider.selection();
                           setState(() {
                             _obscureNewPassword = !_obscureNewPassword;
                           });
@@ -659,6 +671,8 @@ Future<void> _updateProfileDetails() async {
                               : Icons.visibility,
                         ),
                         onPressed: () {
+                          final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                          hapticsProvider.selection();
                           setState(() {
                             _obscureConfirmPassword = !_obscureConfirmPassword;
                           });
@@ -697,14 +711,14 @@ Future<void> _updateProfileDetails() async {
                         ),
                       ),
                       child: _isLoadingPassword
-                          ? Row(
+                          ? const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Center(
                                   child: CircularProgressIndicator(),
                                 ),
-                                const SizedBox(width: 16),
-                                const Text('Processing...'),
+                                SizedBox(width: 16),
+                                Text('Processing...'),
                               ],
                             )
                           : const Text('Update Password'),

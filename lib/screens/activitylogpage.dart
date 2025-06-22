@@ -233,7 +233,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                                   ),
                                   dialogBackgroundColor:
                                       Theme.of(context).colorScheme.surface,
-                                  dialogTheme: DialogTheme(
+                                  dialogTheme: DialogThemeData(
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(24),
                                     ),

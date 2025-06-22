@@ -767,7 +767,9 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                   );
                 }
               } finally {
-                setState(() => _isLoading = false);
+                if(mounted){
+                  setState(() => _isLoading = false);
+                }
               }
             },
             style: FilledButton.styleFrom(

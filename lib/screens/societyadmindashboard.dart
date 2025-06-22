@@ -497,7 +497,7 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
               color: Theme.of(context).colorScheme.primary,
             ),
             _buildClickableStatCard(
-              'Service Hours',
+              'Hours',
               formatter.format(_stats.totalHours),
               Icons.volunteer_activism,
               _navigateToTotalHours,

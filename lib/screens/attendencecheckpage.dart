@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 import '../common/app_design.dart';
 import '../models/timeslot.dart';
 import '../models/event.dart';
@@ -34,7 +33,6 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
   bool _isLoading = true;
   bool _isSaving = false;
   bool _isSyncing = false;
-  final MobileScannerController _scannerController = MobileScannerController();
 
   @override
   void initState() {
@@ -46,7 +44,6 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
   @override
   void dispose() {
     _tabController.dispose();
-    _scannerController.dispose();
     super.dispose();
   }
 

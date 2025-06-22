@@ -6,6 +6,7 @@ import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import 'providers/societyprovider.dart';
 import 'providers/themeprovider.dart' as themeprovider;
 import 'providers/themenotifier.dart';
+import 'providers/hapticsprovider.dart';  // Add this import
 import 'screens/loginpage.dart';
 import 'screens/societyselectionpage.dart';
 import 'screens/reset_password_page.dart';
@@ -38,6 +39,7 @@ void main() async {
   final themeNotifier = ThemeNotifier();
   final themeProvider = themeprovider.ThemeProvider();
   final societyProvider = SocietyProvider();
+  final hapticsProvider = HapticsProvider();  // Add this line
 
   runApp(
     MultiProvider(
@@ -45,6 +47,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => themeNotifier),
         ChangeNotifierProvider(create: (_) => themeProvider),
         ChangeNotifierProvider(create: (_) => societyProvider),
+        ChangeNotifierProvider(create: (_) => hapticsProvider),  // Add this line
       ],
       child: MyApp(themeNotifier: themeNotifier),
     ),

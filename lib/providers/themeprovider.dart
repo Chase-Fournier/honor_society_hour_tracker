@@ -80,10 +80,10 @@ class ThemeProvider extends ChangeNotifier {
           scaffoldBackgroundColor: const Color(0xFF000000),
           canvasColor: const Color(0xFF121212),
           useMaterial3: true,
-          cardTheme: const CardTheme(
+          cardTheme: const CardThemeData(
             color: Color(0xFF121212),
           ),
-          dialogTheme: const DialogTheme(
+          dialogTheme: const DialogThemeData(
             backgroundColor: Color(0xFF121212),
           ),
         );

@@ -10,6 +10,7 @@ import '../models/completedhour.dart';
 import '../models/meetingnote.dart';
 import 'leaderboardpage.dart';
 import '../common/iconutils.dart';
+import '../providers/hapticsprovider.dart';
 
 
 final supabase = Supabase.instance.client;
@@ -154,6 +155,9 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
   }
 
   void _showMeetingNotesDialog() {
+    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+    hapticsProvider.selection();
+
     showDialog(
       context: context,
       builder: (context) {
@@ -166,6 +170,8 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
                 return ListTile(
                   title: Text(note.title),
                   onTap: () {
+                    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.light();
                     Navigator.of(context).pop();
                     _showNoteDetailsDialog(note);
                   },
@@ -177,6 +183,8 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
             TextButton(
               child: const Text('Close'),
               onPressed: () {
+                final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 Navigator.of(context).pop();
               },
             ),
@@ -198,6 +206,8 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
             TextButton(
               child: const Text('Close'),
               onPressed: () {
+                final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 Navigator.of(context).pop();
               },
             ),
@@ -208,6 +218,9 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
   }
 
   void _openLeaderboard() {
+    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+    hapticsProvider.selection();
+    
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -218,6 +231,9 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
     );
   }
   void _openLeadership() {
+    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+    hapticsProvider.selection();
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -460,7 +476,11 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: _showMeetingNotesDialog,
+          onTap: () {
+              final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.light(); // Light haptic for tapping meeting notes
+              _showMeetingNotesDialog();
+            },
           borderRadius: AppDesign.borderLarge,
           child: Padding(
             padding: AppDesign.paddingLarge,
@@ -972,6 +992,8 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
   }
 
   void _openWebsite() async {
+    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+    hapticsProvider.selection();
     // Get the current society from the provider
     final society =
         Provider.of<SocietyProvider>(context, listen: false).currentSociety;
