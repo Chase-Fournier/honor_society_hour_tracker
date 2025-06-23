@@ -24,7 +24,6 @@ import '../common/normalizetype.dart';
 import 'package:provider/provider.dart';
 import '../providers/hapticsprovider.dart';
 
-
 final supabase = Supabase.instance.client;
 
 class HomePage extends StatefulWidget {
@@ -302,7 +301,8 @@ class _HomePageState extends State<HomePage> {
 
     return GestureDetector(
       onTap: () {
-        final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+        final hapticsProvider =
+            Provider.of<HapticsProvider>(context, listen: false);
         hapticsProvider.light();
         onSelected();
       },
@@ -338,126 +338,141 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
-Widget build(BuildContext context) {
-  final collectionsWithEvents = _getCollectionsWithEvents();
-  final uncategorizedEvents = _getUncategorizedEvents();
-  final totalItems = collectionsWithEvents.length + uncategorizedEvents.length;
+  Widget build(BuildContext context) {
+    final collectionsWithEvents = _getCollectionsWithEvents();
+    final uncategorizedEvents = _getUncategorizedEvents();
+    final totalItems =
+        collectionsWithEvents.length + uncategorizedEvents.length;
 
-  return Scaffold(
-    appBar: AppBar(
-      elevation: 0,
-      backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
-      title: Text(
-        'Home',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 24.0,
-          color: Theme.of(context).colorScheme.onSurface,
+    return Scaffold(
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
+        title: Text(
+          'Home',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 24.0,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
         ),
+        centerTitle: true,
       ),
-      centerTitle: true,
-    ),
-    body: _isLoading
-        ? Center(
-            child: CircularProgressIndicator(year2023: false,),
-          )
-        : RefreshIndicator(
-            onRefresh: _fetchData,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  // Progress bars for each requirement type
-                  ..._buildProgressBars(),
+      body: _isLoading
+          ? Center(
+              child: CircularProgressIndicator(
+                year2023: false,
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _fetchData,
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // Progress bars for each requirement type
+                    ..._buildProgressBars(),
 
-                  const SizedBox(height: 20),
-                  
-                  // Event type filter chips
-                  Wrap(
-                    spacing: 4,
-                    children: _buildEventTypeChips(Theme.of(context)),
-                  ),
-                  const SizedBox(height: 20),
+                    const SizedBox(height: 20),
 
-                  // Collections and Events
-                  if (totalItems == 0)
-                    _buildEmptyState()
-                  else
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: totalItems,
-                      itemBuilder: (context, index) {
-                        if (index < collectionsWithEvents.length) {
-                          // Render collection
-                          return _buildCollectionCard(collectionsWithEvents[index]);
-                        } else {
-                          // Render uncategorized event
-                          final eventIndex = index - collectionsWithEvents.length;
-                          return _buildEventCard(uncategorizedEvents[eventIndex]);
-                        }
-                      },
+                    // Event type filter chips
+                    Wrap(
+                      spacing: 4,
+                      children: _buildEventTypeChips(Theme.of(context)),
                     ),
-                ],
+                    const SizedBox(height: 20),
+
+                    // Collections and Events
+                    if (totalItems == 0)
+                      _buildEmptyState()
+                    else
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: totalItems,
+                        itemBuilder: (context, index) {
+                          if (index < collectionsWithEvents.length) {
+                            // Render collection
+                            return _buildCollectionCard(
+                                collectionsWithEvents[index]);
+                          } else {
+                            // Render uncategorized event
+                            final eventIndex =
+                                index - collectionsWithEvents.length;
+                            return _buildEventCard(
+                                uncategorizedEvents[eventIndex]);
+                          }
+                        },
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
-  );
-}
+    );
+  }
 
-Widget _buildEmptyState() {
-  return Container(
-    padding: const EdgeInsets.all(AppDesign.spacingXL),
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(AppDesign.spacingL),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-            borderRadius: AppDesign.borderRound,
+  Widget _buildEmptyState() {
+    return Container(
+      padding: const EdgeInsets.all(AppDesign.spacingXL),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppDesign.spacingL),
+            decoration: BoxDecoration(
+              color:
+                  Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+              borderRadius: AppDesign.borderRound,
+            ),
+            child: Icon(
+              Icons.event_busy,
+              size: 64,
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurfaceVariant
+                  .withOpacity(0.6),
+            ),
           ),
-          child: Icon(
-            Icons.event_busy,
-            size: 64,
-            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+          const SizedBox(height: AppDesign.spacingL),
+          Text(
+            'No events found',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.bold,
+                ),
           ),
-        ),
-        const SizedBox(height: AppDesign.spacingL),
-        Text(
-          'No events found',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontWeight: FontWeight.bold,
+          const SizedBox(height: AppDesign.spacingS),
+          Text(
+            _selectedEventType != 'All'
+                ? 'Try changing your filter or check back later'
+                : 'Check back later for upcoming events',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurfaceVariant
+                      .withOpacity(0.7),
+                ),
+            textAlign: TextAlign.center,
           ),
-        ),
-        const SizedBox(height: AppDesign.spacingS),
-        Text(
-          _selectedEventType != 'All'
-              ? 'Try changing your filter or check back later'
-              : 'Check back later for upcoming events',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
-          ),
-          textAlign: TextAlign.center,
-        ),
-        if (_selectedEventType != 'All') ...[
-          const SizedBox(height: AppDesign.spacingM),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.filter_alt_off),
-            label: const Text('Clear filter'),
-            onPressed: () {
-              final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-              hapticsProvider.selection();
-              setState(() {
-                _selectedEventType = 'All';
-              });
-            },
-          ),
+          if (_selectedEventType != 'All') ...[
+            const SizedBox(height: AppDesign.spacingM),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.filter_alt_off),
+              label: const Text('Clear filter'),
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                setState(() {
+                  _selectedEventType = 'All';
+                });
+              },
+            ),
+          ],
         ],
-      ],
-    ),
-  );
-}
+      ),
+    );
+  }
+
   /// Retrieves all collections from the database.
   /// Updates the state with fetched collections.
   ///
@@ -467,45 +482,45 @@ Widget _buildEmptyState() {
   /// Throws:
   /// - DatabaseException if collection fetch fails
   Future<void> _fetchCollections() async {
-  try {
-    final society =
-        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
-    
-    if (society == null) {
-      setState(() => _collections = []);
-      return;
-    }
+    try {
+      final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
 
-    final response = await Supabase.instance.client
-        .from('Collections')
-        .select('*')
-        .eq('society_id', society.id);
+      if (society == null) {
+        setState(() => _collections = []);
+        return;
+      }
 
-    final List<dynamic> data = response;
-    if (mounted) {
-      setState(() {
-        _collections = data.map((json) => Collection.fromJson(json)).toList();
-      });
-    }
-  } catch (e) {
-    print('Error fetching collections: $e');
-    if (mounted) {
-      setState(() => _collections = []);
+      final response = await Supabase.instance.client
+          .from('Collections')
+          .select('*')
+          .eq('society_id', society.id);
+
+      final List<dynamic> data = response;
+      if (mounted) {
+        setState(() {
+          _collections = data.map((json) => Collection.fromJson(json)).toList();
+        });
+      }
+    } catch (e) {
+      print('Error fetching collections: $e');
+      if (mounted) {
+        setState(() => _collections = []);
+      }
     }
   }
-}
 
-List<Collection> _getCollectionsWithEvents() {
-  final filteredEvents = _getFilteredEvents();
-  return _collections.where((collection) {
-    return filteredEvents.any((event) => event.collectionId == collection.id);
-  }).toList();
-}
+  List<Collection> _getCollectionsWithEvents() {
+    final filteredEvents = _getFilteredEvents();
+    return _collections.where((collection) {
+      return filteredEvents.any((event) => event.collectionId == collection.id);
+    }).toList();
+  }
 
-List<Event> _getUncategorizedEvents() {
-  final filteredEvents = _getFilteredEvents();
-  return filteredEvents.where((event) => event.collectionId == null).toList();
-}
+  List<Event> _getUncategorizedEvents() {
+    final filteredEvents = _getFilteredEvents();
+    return filteredEvents.where((event) => event.collectionId == null).toList();
+  }
 
   // Updated method to create better looking progress bars with Material You styling
   List<Widget> _buildProgressBars() {
@@ -1150,20 +1165,22 @@ List<Event> _getUncategorizedEvents() {
                   // Add to Calendar icon for signed up users
                   if (isSignedUp)
                     IconButton(
-                      icon: Icon(
-                        Icons.calendar_today,
-                        size: 18,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.all(4),
-                      constraints: const BoxConstraints(),
-                      tooltip: 'Add to Calendar',
-                      onPressed: () {
-                        final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-                              hapticsProvider.selection();
-                      _addEventToCalendar(event, timeSlot);
-    }),
+                        icon: Icon(
+                          Icons.calendar_today,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.all(4),
+                        constraints: const BoxConstraints(),
+                        tooltip: 'Add to Calendar',
+                        onPressed: () {
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
+                          hapticsProvider.selection();
+                          _addEventToCalendar(event, timeSlot);
+                        }),
 
                   // Capacity info
                   if (!(event.type == 'Meeting'))
@@ -1221,68 +1238,75 @@ List<Event> _getUncategorizedEvents() {
                             event.type != 'Meeting' &&
                             !isMandatory)
                           OutlinedButton.icon(
-                            icon: Icon(Icons.swap_horiz, size: 14),
-                            label: Text('Swap', style: TextStyle(fontSize: 12)),
-                            style: OutlinedButton.styleFrom(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              minimumSize: Size(0, 28),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            onPressed: () {
-                              
-                            final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-                              hapticsProvider.selection();
+                              icon: Icon(Icons.swap_horiz, size: 14),
+                              label:
+                                  Text('Swap', style: TextStyle(fontSize: 12)),
+                              style: OutlinedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                minimumSize: Size(0, 28),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              onPressed: () {
+                                final hapticsProvider =
+                                    Provider.of<HapticsProvider>(context,
+                                        listen: false);
+                                hapticsProvider.selection();
                                 _showSwapRequestDialog(event, timeSlot);
-    }),
+                              }),
                         if (isTimeSlotInFuture &&
                             !isMandatory &&
                             event.type != 'Meeting' &&
                             !canRequestSwap)
                           OutlinedButton.icon(
-                            icon: Icon(Icons.cancel, size: 14),
-                            label:
-                                Text('Cancel', style: TextStyle(fontSize: 12)),
-                            style: OutlinedButton.styleFrom(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              minimumSize: Size(0, 28),
-                              foregroundColor:
-                                  Theme.of(context).colorScheme.error,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            onPressed: ()  {
-
-                             _removeAttendee(event, timeSlot);
-                             final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-                              hapticsProvider.selection();
-    }),
+                              icon: Icon(Icons.cancel, size: 14),
+                              label: Text('Cancel',
+                                  style: TextStyle(fontSize: 12)),
+                              style: OutlinedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                minimumSize: Size(0, 28),
+                                foregroundColor:
+                                    Theme.of(context).colorScheme.error,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              onPressed: () {
+                                _removeAttendee(event, timeSlot);
+                                final hapticsProvider =
+                                    Provider.of<HapticsProvider>(context,
+                                        listen: false);
+                                hapticsProvider.selection();
+                              }),
                         if (event.requiresForms)
                           OutlinedButton.icon(
-                            icon: Icon(
-                              timeSlotFormsCompleted
-                                  ? Icons.inventory
-                                  : Icons.pending_actions,
-                              size: 14,
-                            ),
-                            label: Text(
-                                timeSlotFormsCompleted ? 'Forms' : 'Need Forms',
-                                style: TextStyle(fontSize: 12)),
-                            style: OutlinedButton.styleFrom(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              minimumSize: Size(0, 28),
-                              foregroundColor: timeSlotFormsCompleted
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Theme.of(context).colorScheme.error,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            onPressed: () {_showUploadFormsDialog(
-                                event, timeSlot, timeSlotFormsCompleted);
-                                final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-                              hapticsProvider.selection();
-                            }
-                          ),
+                              icon: Icon(
+                                timeSlotFormsCompleted
+                                    ? Icons.inventory
+                                    : Icons.pending_actions,
+                                size: 14,
+                              ),
+                              label: Text(
+                                  timeSlotFormsCompleted
+                                      ? 'Forms'
+                                      : 'Need Forms',
+                                  style: TextStyle(fontSize: 12)),
+                              style: OutlinedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                minimumSize: Size(0, 28),
+                                foregroundColor: timeSlotFormsCompleted
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context).colorScheme.error,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              onPressed: () {
+                                _showUploadFormsDialog(
+                                    event, timeSlot, timeSlotFormsCompleted);
+                                final hapticsProvider =
+                                    Provider.of<HapticsProvider>(context,
+                                        listen: false);
+                                hapticsProvider.selection();
+                              }),
                       ],
                     )
                   : isMandatory || event.type == 'Meeting'
@@ -1343,9 +1367,11 @@ List<Event> _getUncategorizedEvents() {
                             )
                           : ElevatedButton.icon(
                               onPressed: () {
-                              _showSignUpForm(event, timeSlot);
-                              final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-                              hapticsProvider.medium();
+                                _showSignUpForm(event, timeSlot);
+                                final hapticsProvider =
+                                    Provider.of<HapticsProvider>(context,
+                                        listen: false);
+                                hapticsProvider.medium();
                               },
                               icon: const Icon(Icons.add, size: 16),
                               label: const Text('Sign Up'),
@@ -1442,7 +1468,9 @@ List<Event> _getUncategorizedEvents() {
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting &&
                           allUsers.isEmpty) {
-                        return const CircularProgressIndicator(year2023: false,);
+                        return const CircularProgressIndicator(
+                          year2023: false,
+                        );
                       } else if (snapshot.hasError) {
                         return Text('Error: ${snapshot.error}');
                       } else {
@@ -1460,6 +1488,10 @@ List<Event> _getUncategorizedEvents() {
                               return ListTile(
                                 title: Text(user.name),
                                 onTap: () {
+                                  final hapticsProvider =
+                                      Provider.of<HapticsProvider>(context,
+                                          listen: false);
+                                  hapticsProvider.selection();
                                   _showSwapConfirmationDialog(
                                       event, timeSlot, user);
                                 },
@@ -1476,7 +1508,8 @@ List<Event> _getUncategorizedEvents() {
                 TextButton(
                   child: const Text('Cancel'),
                   onPressed: () {
-                    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
                     hapticsProvider.selection();
                     Navigator.of(context).pop();
                   },
@@ -1502,7 +1535,8 @@ List<Event> _getUncategorizedEvents() {
             TextButton(
               child: const Text('Cancel'),
               onPressed: () {
-                final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
                 hapticsProvider.selection();
                 Navigator.of(context).pop();
               },
@@ -1510,7 +1544,8 @@ List<Event> _getUncategorizedEvents() {
             ElevatedButton(
               child: const Text('Confirm'),
               onPressed: () async {
-                final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
                 hapticsProvider.selection();
                 // Check if the user has already requested a swap for this time slot
                 final hasPendingSwap =
@@ -1645,7 +1680,8 @@ List<Event> _getUncategorizedEvents() {
                 TextButton(
                   child: const Text('Cancel'),
                   onPressed: () {
-                    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
                     hapticsProvider.selection();
                     Navigator.of(context).pop();
                   },
@@ -1657,7 +1693,8 @@ List<Event> _getUncategorizedEvents() {
                   ElevatedButton(
                     child: const Text('Fill Out'),
                     onPressed: () {
-                      final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                      final hapticsProvider =
+                          Provider.of<HapticsProvider>(context, listen: false);
                       hapticsProvider.selection();
                       Navigator.of(context).pop();
                       _launchFormLink(event.formLink!);
@@ -1669,7 +1706,8 @@ List<Event> _getUncategorizedEvents() {
                   ElevatedButton(
                     child: const Text('Complete'),
                     onPressed: () {
-                      final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                      final hapticsProvider =
+                          Provider.of<HapticsProvider>(context, listen: false);
                       hapticsProvider.selection();
                       Navigator.of(context).pop();
                       _markFormsAsCompleted(event, timeSlot, true);
@@ -1679,7 +1717,8 @@ List<Event> _getUncategorizedEvents() {
                   ElevatedButton(
                     child: const Text('Remove Completion'),
                     onPressed: () {
-                      final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                      final hapticsProvider =
+                          Provider.of<HapticsProvider>(context, listen: false);
                       hapticsProvider.selection();
                       Navigator.of(context).pop();
                       _markFormsAsCompleted(event, timeSlot, false);
@@ -1755,130 +1794,137 @@ List<Event> _getUncategorizedEvents() {
   /// Returns:
   /// - Widget
   Widget _buildCollectionCard(Collection collection) {
-  final filteredEvents = _getFilteredEvents();
-  final collectionEvents = filteredEvents
-      .where((event) => event.collectionId == collection.id)
-      .toList();
+    final filteredEvents = _getFilteredEvents();
+    final collectionEvents = filteredEvents
+        .where((event) => event.collectionId == collection.id)
+        .toList();
 
-  // Don't render if no events
-  if (collectionEvents.isEmpty) {
-    return const SizedBox.shrink();
-  }
+    // Don't render if no events
+    if (collectionEvents.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
-  // Get the earliest event date for sorting/display
-  final earliestDate = collectionEvents
-      .map((e) => e.date)
-      .reduce((a, b) => a.isBefore(b) ? a : b);
+    // Get the earliest event date for sorting/display
+    final earliestDate = collectionEvents
+        .map((e) => e.date)
+        .reduce((a, b) => a.isBefore(b) ? a : b);
 
-  return Card(
-    elevation: 0,
-    shape: RoundedRectangleBorder(
-      borderRadius: AppDesign.borderLarge,
-    ),
-    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-    child: Theme(
-      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-      child: ExpansionTile(
-        initiallyExpanded: false,
-        shape: RoundedRectangleBorder(
-          borderRadius: AppDesign.borderLarge,
-        ),
-        collapsedShape: RoundedRectangleBorder(
-          borderRadius: AppDesign.borderLarge,
-        ),
-        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        childrenPadding: const EdgeInsets.only(bottom: 8),
-        leading: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primaryContainer,
-            borderRadius: AppDesign.borderMedium,
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppDesign.borderLarge,
+      ),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: false,
+          shape: RoundedRectangleBorder(
+            borderRadius: AppDesign.borderLarge,
           ),
-          child: Icon(
-            Icons.folder_open,
-            color: Theme.of(context).colorScheme.onPrimaryContainer,
-            size: 24,
+          collapsedShape: RoundedRectangleBorder(
+            borderRadius: AppDesign.borderLarge,
           ),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    collection.name,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18.0,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                    borderRadius: AppDesign.borderSmall,
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    '${collectionEvents.length} event${collectionEvents.length != 1 ? 's' : ''}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                ),
-              ],
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          childrenPadding: const EdgeInsets.only(bottom: 8),
+          leading: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              borderRadius: AppDesign.borderMedium,
             ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(
-                  Icons.schedule,
-                  size: 14,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  'Next: ${earliestDate.month}/${earliestDate.day}/${earliestDate.year}',
-                  style: TextStyle(
-                    fontSize: 13,
+            child: Icon(
+              Icons.folder_open,
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+              size: 24,
+            ),
+          ),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      collection.name,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18.0,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.1),
+                      borderRadius: AppDesign.borderSmall,
+                      border: Border.all(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withOpacity(0.2),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      '${collectionEvents.length} event${collectionEvents.length != 1 ? 's' : ''}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(
+                    Icons.schedule,
+                    size: 14,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 4),
+                  Text(
+                    'Next: ${earliestDate.month}/${earliestDate.day}/${earliestDate.year}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          children: [
+            // Add a subtle divider
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Divider(
+                height: 1,
+                color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+              ),
             ),
+            const SizedBox(height: 8),
+            // Render events in the collection
+            ...collectionEvents.map((event) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: _buildEventCard(event),
+              );
+            }),
           ],
         ),
-        children: [
-          // Add a subtle divider
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Divider(
-              height: 1,
-              color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Render events in the collection
-          ...collectionEvents.map((event) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: _buildEventCard(event),
-            );
-          }),
-        ],
       ),
-    ),
-  );
-}
+    );
+  }
 
   void _showSignUpForm(Event event, TimeSlot timeSlot) {
     showDialog(
@@ -1904,7 +1950,8 @@ List<Event> _getUncategorizedEvents() {
                   TextButton(
                     child: const Text('Cancel'),
                     onPressed: () {
-                      final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                      final hapticsProvider =
+                          Provider.of<HapticsProvider>(context, listen: false);
                       hapticsProvider.selection();
                       Navigator.of(context).pop();
                     },
@@ -1913,7 +1960,8 @@ List<Event> _getUncategorizedEvents() {
                   ElevatedButton(
                     child: const Text('Sign Up'),
                     onPressed: () {
-                      final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                      final hapticsProvider =
+                          Provider.of<HapticsProvider>(context, listen: false);
                       hapticsProvider.selection();
                       _signUpForTimeSlot(event, timeSlot);
                       Navigator.of(context).pop();
@@ -1928,7 +1976,8 @@ List<Event> _getUncategorizedEvents() {
                 icon: const Icon(Icons.calendar_today),
                 label: const Text('Add to Calendar'),
                 onPressed: () {
-                  final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                  final hapticsProvider =
+                      Provider.of<HapticsProvider>(context, listen: false);
                   hapticsProvider.selection();
                   _signUpForTimeSlot(event, timeSlot);
                   _addEventToCalendar(event, timeSlot);
@@ -1958,39 +2007,40 @@ List<Event> _getUncategorizedEvents() {
   /// - Future<void>
   Future<void> _removeAttendee(Event event, TimeSlot timeSlot) async {
     final userId = supabase.auth.currentUser?.id;
-    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+    final hapticsProvider =
+        Provider.of<HapticsProvider>(context, listen: false);
 
     try {
-  if (userId != null) {
-    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
-    await Supabase.instance.client
-        .from('Attendees')
-        .delete()
-        .eq('timeslot_id', timeSlot?.id ?? 0)
-        .eq('user_id', userId);
-  
-    await Supabase.instance.client
-        .from('Time slots')
-        .update({'number_of_people': timeSlot.numberOfPeople + 1}).eq(
-            'id', timeSlot?.id ?? 0);
-  
-    await logactivity(
-      event.name,
-      '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
-      NhsFormatUtils.calculateDuration(timeSlot.time, timeSlot.endTime),
-      'unsignup',
-      userId,
-      societyId: society?.id,
-    );
-  
-    _fetchEvents();
-  }
-    } catch (e) {
-      hapticsProvider.error();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error cancelling: $e')),
+      if (userId != null) {
+        final society =
+            Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+        await Supabase.instance.client
+            .from('Attendees')
+            .delete()
+            .eq('timeslot_id', timeSlot?.id ?? 0)
+            .eq('user_id', userId);
+
+        await Supabase.instance.client
+            .from('Time slots')
+            .update({'number_of_people': timeSlot.numberOfPeople + 1}).eq(
+                'id', timeSlot?.id ?? 0);
+
+        await logactivity(
+          event.name,
+          '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
+          NhsFormatUtils.calculateDuration(timeSlot.time, timeSlot.endTime),
+          'unsignup',
+          userId,
+          societyId: society?.id,
         );
 
+        _fetchEvents();
+      }
+    } catch (e) {
+      hapticsProvider.error();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error cancelling: $e')),
+      );
     }
   }
 
@@ -2006,98 +2056,98 @@ List<Event> _getUncategorizedEvents() {
   Future<void> _signUpForTimeSlot(Event event, TimeSlot timeSlot) async {
     final User? user = supabase.auth.currentUser;
     final userId = user?.id;
-    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+    final hapticsProvider =
+        Provider.of<HapticsProvider>(context, listen: false);
 
     try {
-  if (userId != null) {
-    // Check if the user has completed requirements using existing state
-    
-    // Get society's requirements
-    final society =
-        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
-    bool hasCompletedRequirements = false;
-  
-    if (society != null) {
-      // For Meeting type, use the society's meeting requirement
-      if (event.type == 'Meeting') {
-        final meetingsCompleted = _completedHoursMap['Meeting'] ?? 0.0;
-        hasCompletedRequirements =
-            meetingsCompleted >= society.meetingRequirement;
-      } else {
-        // For other types, find the matching requirement in the society
-        final matchingRequirement = society.hourRequirements.firstWhere(
-          (req) => normalizeType(req.type) == normalizeType(event.type),
-          orElse: () => HourRequirement(
-            id: -1,
-            type: event.type,
-            hoursNeeded: 0,
-            description: '',
-            isActive: false,
-          ),
-        );
-  
-        // Check if user has completed the required hours for this type
-        final completedHours =
-            _completedHoursMap[normalizeType(event.type)] ?? 0.0;
-        hasCompletedRequirements =
-            completedHours >= matchingRequirement.hoursNeeded;
+      if (userId != null) {
+        // Check if the user has completed requirements using existing state
+
+        // Get society's requirements
+        final society =
+            Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+        bool hasCompletedRequirements = false;
+
+        if (society != null) {
+          // For Meeting type, use the society's meeting requirement
+          if (event.type == 'Meeting') {
+            final meetingsCompleted = _completedHoursMap['Meeting'] ?? 0.0;
+            hasCompletedRequirements =
+                meetingsCompleted >= society.meetingRequirement;
+          } else {
+            // For other types, find the matching requirement in the society
+            final matchingRequirement = society.hourRequirements.firstWhere(
+              (req) => normalizeType(req.type) == normalizeType(event.type),
+              orElse: () => HourRequirement(
+                id: -1,
+                type: event.type,
+                hoursNeeded: 0,
+                description: '',
+                isActive: false,
+              ),
+            );
+
+            // Check if user has completed the required hours for this type
+            final completedHours =
+                _completedHoursMap[normalizeType(event.type)] ?? 0.0;
+            hasCompletedRequirements =
+                completedHours >= matchingRequirement.hoursNeeded;
+          }
+        }
+
+        // Check if signup is delayed
+        final canSignUp = !hasCompletedRequirements ||
+            !event.hasDelay ||
+            event.canSignUpForTimeSlot(timeSlot);
+        if (!canSignUp) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Signup will be available ${event.delayHours} hours before the event',
+              ),
+            ),
+          );
+          return;
+        }
+        // Check if the user is already signed up
+        final existingAttendee = await Supabase.instance.client
+            .from('Attendees')
+            .select()
+            .eq('timeslot_id', timeSlot.id ?? 0)
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (existingAttendee == null) {
+          // Add the user to the Attendees table
+          await Supabase.instance.client.from('Attendees').insert({
+            'timeslot_id': timeSlot?.id ?? 0,
+            'user_id': userId,
+            'is_present': false,
+          });
+
+          // Update the number of people in the time slot
+          await Supabase.instance.client
+              .from('Time slots')
+              .update({'number_of_people': timeSlot.numberOfPeople - 1}).eq(
+                  'id', timeSlot?.id ?? 0);
+
+          await logactivity(
+            event.name,
+            '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
+            NhsFormatUtils.calculateDuration(timeSlot.time, timeSlot.endTime),
+            'signup',
+            userId,
+          );
+          hapticsProvider.success();
+          _fetchEvents();
+        }
       }
-    }
-  
-  // Check if signup is delayed
-    final canSignUp = !hasCompletedRequirements ||
-        !event.hasDelay ||
-        event.canSignUpForTimeSlot(timeSlot);
-    if (!canSignUp) {
+    } catch (e) {
+      hapticsProvider.error();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Signup will be available ${event.delayHours} hours before the event',
-          ),
-        ),
+        SnackBar(content: Text('Error signing up: $e')),
       );
-      return;
     }
-    // Check if the user is already signed up
-    final existingAttendee = await Supabase.instance.client
-        .from('Attendees')
-        .select()
-        .eq('timeslot_id', timeSlot.id ?? 0)
-        .eq('user_id', userId)
-        .maybeSingle();
-  
-    if (existingAttendee == null) {
-      // Add the user to the Attendees table
-      await Supabase.instance.client.from('Attendees').insert({
-        'timeslot_id': timeSlot?.id ?? 0,
-        'user_id': userId,
-        'is_present': false,
-      });
-  
-      // Update the number of people in the time slot
-      await Supabase.instance.client
-          .from('Time slots')
-          .update({'number_of_people': timeSlot.numberOfPeople - 1}).eq(
-              'id', timeSlot?.id ?? 0);
-  
-      await logactivity(
-        event.name,
-        '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
-        NhsFormatUtils.calculateDuration(timeSlot.time, timeSlot.endTime),
-        'signup',
-        userId,
-      );
-      hapticsProvider.success();
-      _fetchEvents();
-    }
-  }
-  
-} catch (e) {
-  hapticsProvider.error();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error signing up: $e')),
-    );
-}
   }
 
   /// Adds an event to the device calendar.
@@ -2210,7 +2260,8 @@ List<Event> _getUncategorizedEvents() {
             TextButton(
               child: const Text('Decline'),
               onPressed: () {
-                final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
                 hapticsProvider.selection();
                 _declineSwapRequest(swapRequest);
                 Navigator.of(context).pop();
@@ -2221,7 +2272,8 @@ List<Event> _getUncategorizedEvents() {
               child: ElevatedButton(
                 child: const Text('Accept'),
                 onPressed: () {
-                  final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                  final hapticsProvider =
+                      Provider.of<HapticsProvider>(context, listen: false);
                   hapticsProvider.selection();
                   _acceptSwapRequest(swapRequest, eventData);
                   Navigator.of(context).pop();
@@ -2265,7 +2317,8 @@ List<Event> _getUncategorizedEvents() {
 
   void _acceptSwapRequest(
       SwapRequest swapRequest, Map<String, dynamic> eventData) async {
-        final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+    final hapticsProvider =
+        Provider.of<HapticsProvider>(context, listen: false);
     try {
       await Supabase.instance.client
           .from('swap_requests')
@@ -2287,7 +2340,6 @@ List<Event> _getUncategorizedEvents() {
       // Refresh the UI
       await _fetchEvents();
     } catch (e) {
-
       hapticsProvider.error();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error accepting swap request: $e')),
@@ -2312,7 +2364,8 @@ List<Event> _getUncategorizedEvents() {
       Map<String, dynamic> eventData,
       SwapRequest swapRequest) async {
     try {
-      final society =Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
       // Remove the current attendee
       await Supabase.instance.client
           .from('Attendees')

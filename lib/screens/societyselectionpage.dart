@@ -8,6 +8,7 @@ import '../common/app_design.dart';
 import '../models/honorsociety.dart';
 import 'societyjoinrequestpage.dart';
 import 'mainscreen.dart';
+import '../providers/hapticsprovider.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -24,7 +25,12 @@ class SocietySelectionPage extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Log Out',
-            onPressed: () => _confirmLogout(context),
+            onPressed: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
+              _confirmLogout(context);
+            },
           ),
         ],
       ),
@@ -56,6 +62,9 @@ class SocietySelectionPage extends StatelessWidget {
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
                     onPressed: () {
+                      final hapticsProvider =
+                          Provider.of<HapticsProvider>(context, listen: false);
+                      hapticsProvider.selection();
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -149,6 +158,9 @@ class SocietySelectionPage extends StatelessWidget {
       color: Theme.of(context).colorScheme.surface,
       child: InkWell(
         onTap: () {
+          final hapticsProvider =
+              Provider.of<HapticsProvider>(context, listen: false);
+          hapticsProvider.selection();
           _selectSociety(context, society);
         },
         child: Column(
@@ -249,7 +261,13 @@ class SocietySelectionPage extends StatelessWidget {
                       color: Colors.transparent,
                       child: InkWell(
                         borderRadius: BorderRadius.circular(20),
-                        onTap: () => _selectSociety(context, society),
+                        onTap: () {
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
+                          hapticsProvider.selection();
+                          _selectSociety(context, society);
+                        },
                         child: Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: Icon(
@@ -362,6 +380,9 @@ class SocietySelectionPage extends StatelessWidget {
               constraints: const BoxConstraints(maxWidth: 400),
               child: ElevatedButton.icon(
                 onPressed: () {
+                  final hapticsProvider =
+                      Provider.of<HapticsProvider>(context, listen: false);
+                  hapticsProvider.selection();
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -388,7 +409,12 @@ class SocietySelectionPage extends StatelessWidget {
             Container(
               constraints: const BoxConstraints(maxWidth: 200),
               child: OutlinedButton.icon(
-                onPressed: () => _confirmLogout(context),
+                onPressed: () {
+                  final hapticsProvider =
+                      Provider.of<HapticsProvider>(context, listen: false);
+                  hapticsProvider.selection();
+                  _confirmLogout(context);
+                },
                 icon: const Icon(Icons.logout),
                 label: const Text('Log Out'),
                 style: OutlinedButton.styleFrom(
@@ -441,6 +467,9 @@ class SocietySelectionPage extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
+                  final hapticsProvider =
+                      Provider.of<HapticsProvider>(context, listen: false);
+                  hapticsProvider.selection();
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -466,7 +495,12 @@ class SocietySelectionPage extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () => _confirmLogout(context),
+                onPressed: () {
+                  final hapticsProvider =
+                      Provider.of<HapticsProvider>(context, listen: false);
+                  hapticsProvider.selection();
+                  _confirmLogout(context);
+                },
                 icon: const Icon(Icons.logout),
                 label: const Text('Log Out'),
                 style: OutlinedButton.styleFrom(
@@ -494,11 +528,19 @@ class SocietySelectionPage extends StatelessWidget {
           content: const Text('Are you sure you want to log out?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                Navigator.pop(context);
+              },
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () async {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 Navigator.pop(context); // Close dialog
 
                 // Show loading indicator

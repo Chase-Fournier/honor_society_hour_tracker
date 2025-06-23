@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import 'loginpage.dart'; // Or your desired page after successful reset
+import '../providers/hapticsprovider.dart';
 
 // Helper class for passing arguments
 class ResetPasswordPageArguments {
@@ -34,14 +35,13 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     final token = widget.accessToken;
 
     if (token == null || token.isEmpty) {
-
-      
       // This can happen if the page is accessed directly or token is missing
       WidgetsBinding.instance.addPostFrameCallback((_) {
         widget.onPasswordResetFlowComplete?.call();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Invalid or missing password reset token.')),
+            const SnackBar(
+                content: Text('Invalid or missing password reset token.')),
           );
           Navigator.pushReplacement(
             context,
@@ -63,7 +63,9 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               widget.onPasswordResetFlowComplete?.call();
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Password reset successfully! Please sign in.')),
+                  const SnackBar(
+                      content:
+                          Text('Password reset successfully! Please sign in.')),
                 );
                 Navigator.pushAndRemoveUntil(
                   context,
@@ -75,7 +77,9 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             onError: (error) {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Password reset failed: ${error.toString()}')),
+                  SnackBar(
+                      content:
+                          Text('Password reset failed: ${error.toString()}')),
                 );
               }
             },

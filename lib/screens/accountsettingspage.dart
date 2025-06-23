@@ -5,7 +5,6 @@ import '../common/app_widgets.dart';
 import 'package:provider/provider.dart';
 import '../providers/hapticsprovider.dart';
 
-
 // Import your shared constants/styles
 final supabase = Supabase.instance.client;
 final lowModeShadow = [
@@ -59,132 +58,132 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   }
 
   Future<void> _fetchCurrentUserEmail() async {
-  final user = supabase.auth.currentUser;
-  if (user == null) return;
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
 
-  String email = '';
-  
-  // First try to get from profiles table (prioritized)
-  try {
-    final profileResponse = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('user_id', user.id)
-        .single();
-    
-    email = profileResponse['email'] ?? '';
-  } catch (profileError) {
-    print('Error fetching email from profiles table: $profileError');
-    // Fallback to auth email if profiles table fails
-    email = user.email ?? '';
-  }
+    String email = '';
 
-  // If profiles table email is empty, fallback to auth email
-  if (email.isEmpty) {
-    email = user.email ?? '';
-  }
-
-  setState(() {
-    _currentEmail = email;
-    _newEmailController.text = email;
-  });
-}
-  
-  Future<void> _fetchUserProfileDetails() async {
-  setState(() => _isLoadingProfile = true);
-
-  final user = supabase.auth.currentUser;
-  if (user == null) {
-    setState(() => _isLoadingProfile = false);
-    return;
-  }
-
-  try {
-    String graduationYear = '';
-    
     // First try to get from profiles table (prioritized)
     try {
       final profileResponse = await supabase
           .from('profiles')
-          .select('graduation_year, name, email')
+          .select('email')
           .eq('user_id', user.id)
           .single();
-      
-      graduationYear = profileResponse['graduation_year']?.toString() ?? '';
+
+      email = profileResponse['email'] ?? '';
     } catch (profileError) {
-      print('Error fetching from profiles table: $profileError');
-      
-      // Fallback to auth metadata if profiles table fails
-      final userMetadata = user.userMetadata;
-      graduationYear = userMetadata?['graduation_year']?.toString() ?? '';
+      print('Error fetching email from profiles table: $profileError');
+      // Fallback to auth email if profiles table fails
+      email = user.email ?? '';
     }
 
-    if (mounted) {
-      setState(() {
-        _graduationYearController.text = graduationYear;
-        _isLoadingProfile = false;
-      });
+    // If profiles table email is empty, fallback to auth email
+    if (email.isEmpty) {
+      email = user.email ?? '';
     }
-  } catch (e) {
-    if (mounted) {
-      _showToast('Error fetching profile details');
+
+    setState(() {
+      _currentEmail = email;
+      _newEmailController.text = email;
+    });
+  }
+
+  Future<void> _fetchUserProfileDetails() async {
+    setState(() => _isLoadingProfile = true);
+
+    final user = supabase.auth.currentUser;
+    if (user == null) {
       setState(() => _isLoadingProfile = false);
+      return;
+    }
+
+    try {
+      String graduationYear = '';
+
+      // First try to get from profiles table (prioritized)
+      try {
+        final profileResponse = await supabase
+            .from('profiles')
+            .select('graduation_year, name, email')
+            .eq('user_id', user.id)
+            .single();
+
+        graduationYear = profileResponse['graduation_year']?.toString() ?? '';
+      } catch (profileError) {
+        print('Error fetching from profiles table: $profileError');
+
+        // Fallback to auth metadata if profiles table fails
+        final userMetadata = user.userMetadata;
+        graduationYear = userMetadata?['graduation_year']?.toString() ?? '';
+      }
+
+      if (mounted) {
+        setState(() {
+          _graduationYearController.text = graduationYear;
+          _isLoadingProfile = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        _showToast('Error fetching profile details');
+        setState(() => _isLoadingProfile = false);
+      }
     }
   }
-}
 
-Future<void> _updateProfileDetails() async {
-  if (!_profileFormKey.currentState!.validate()) return;
-  setState(() => _isLoadingProfile = true);
-  
-  final user = supabase.auth.currentUser;
-  if (user == null) {
-    setState(() => _isLoadingProfile = false);
-    return;
-  }
+  Future<void> _updateProfileDetails() async {
+    if (!_profileFormKey.currentState!.validate()) return;
+    setState(() => _isLoadingProfile = true);
 
-  try {
-    final gradYear = int.tryParse(_graduationYearController.text.trim());
-
-    // Update profiles table first (prioritized)
-    try {
-      await supabase.from('profiles').update({
-        'graduation_year': gradYear,
-      }).eq('user_id', user.id);
-    } catch (profileError) {
-      print('Error updating profiles table: $profileError');
-      // Continue to update auth metadata even if profiles table update fails
-    }
-
-    // Also update user metadata for consistency
-    try {
-      await supabase.auth.updateUser(
-        UserAttributes(
-          data: {
-            ...user.userMetadata ?? {}, // Preserve existing metadata
-            'graduation_year': gradYear
-          },
-        ),
-      );
-    } catch (authError) {
-      print('Error updating auth metadata: $authError');
-      // Continue since profiles table is prioritized
-    }
-
-    if (mounted) {
-      _showToast('Profile Updated Successfully!');
-    }
-  } catch (e) {
-    if (mounted) {
-      _showToast('Profile Update Failed: $e');
-    }
-  } finally {
-    if (mounted) {
+    final user = supabase.auth.currentUser;
+    if (user == null) {
       setState(() => _isLoadingProfile = false);
+      return;
+    }
+
+    try {
+      final gradYear = int.tryParse(_graduationYearController.text.trim());
+
+      // Update profiles table first (prioritized)
+      try {
+        await supabase.from('profiles').update({
+          'graduation_year': gradYear,
+        }).eq('user_id', user.id);
+      } catch (profileError) {
+        print('Error updating profiles table: $profileError');
+        // Continue to update auth metadata even if profiles table update fails
+      }
+
+      // Also update user metadata for consistency
+      try {
+        await supabase.auth.updateUser(
+          UserAttributes(
+            data: {
+              ...user.userMetadata ?? {}, // Preserve existing metadata
+              'graduation_year': gradYear
+            },
+          ),
+        );
+      } catch (authError) {
+        print('Error updating auth metadata: $authError');
+        // Continue since profiles table is prioritized
+      }
+
+      if (mounted) {
+        _showToast('Profile Updated Successfully!');
+      }
+    } catch (e) {
+      if (mounted) {
+        _showToast('Profile Update Failed: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingProfile = false);
+      }
     }
   }
-}
- 
+
   /// Updates the user's email address
   Future<void> _updateEmail() async {
     if (!_emailFormKey.currentState!.validate()) return;
@@ -427,8 +426,9 @@ Future<void> _updateProfileDetails() async {
               text: 'Update Profile',
               isLoading: _isLoadingProfile,
               onPressed: () {
-                final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-              hapticsProvider.selection();
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 _updateProfileDetails;
               },
             ),
@@ -549,9 +549,10 @@ Future<void> _updateProfileDetails() async {
                   text: 'Update Email',
                   isLoading: _isLoadingEmail,
                   onPressed: () {
-                  final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-                  hapticsProvider.selection();
-                   _updateEmail;
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
+                    _updateEmail;
                   },
                 ),
 
@@ -632,7 +633,9 @@ Future<void> _updateProfileDetails() async {
                               : Icons.visibility,
                         ),
                         onPressed: () {
-                          final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
                           hapticsProvider.selection();
                           setState(() {
                             _obscureNewPassword = !_obscureNewPassword;
@@ -671,7 +674,9 @@ Future<void> _updateProfileDetails() async {
                               : Icons.visibility,
                         ),
                         onPressed: () {
-                          final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
                           hapticsProvider.selection();
                           setState(() {
                             _obscureConfirmPassword = !_obscureConfirmPassword;

@@ -13,7 +13,7 @@ import '../models/event.dart';
 import '../models/attendee.dart';
 import '../common/normalizetype.dart';
 import '../common/iconutils.dart';
-
+import '../providers/hapticsprovider.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -160,14 +160,26 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                       leading: Icon(Icons.add,
                           color: Theme.of(context).colorScheme.primary),
                       title: const Text('Add Event'),
-                      onTap: _showAddEventDialog,
+                      onTap: () {
+                        final hapticsProvider = Provider.of<HapticsProvider>(
+                            context,
+                            listen: false);
+                        hapticsProvider.selection();
+                        _showAddEventDialog;
+                      },
                       dense: true,
                     ),
                     ListTile(
                       leading: Icon(Icons.create_new_folder,
                           color: Theme.of(context).colorScheme.primary),
                       title: const Text('Add Collection'),
-                      onTap: _showAddCollectionDialog,
+                      onTap: () {
+                        final hapticsProvider = Provider.of<HapticsProvider>(
+                            context,
+                            listen: false);
+                        hapticsProvider.selection();
+                        _showAddCollectionDialog;
+                      },
                       dense: true,
                     ),
                   ],
@@ -253,6 +265,11 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                                                 Icons.filter_alt_off),
                                             label: const Text('Clear filter'),
                                             onPressed: () {
+                                              final hapticsProvider =
+                                                  Provider.of<HapticsProvider>(
+                                                      context,
+                                                      listen: false);
+                                              hapticsProvider.selection();
                                               setState(() {
                                                 _selectedEventType = 'All';
                                               });
@@ -291,13 +308,23 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 FloatingActionButton(
-                  onPressed: _showAddEventDialog,
+                  onPressed: () {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
+                    _showAddEventDialog;
+                  },
                   heroTag: 'addEvent',
                   child: const Icon(Icons.add),
                 ),
                 const SizedBox(width: 16),
                 FloatingActionButton(
-                  onPressed: _showAddCollectionDialog,
+                  onPressed: () {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
+                    _showAddCollectionDialog;
+                  },
                   heroTag: 'addCollection',
                   child: const Icon(Icons.create_new_folder),
                 ),
@@ -588,7 +615,13 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.edit, size: 20),
-                      onPressed: () => _showEditEventDialog(event),
+                      onPressed: () {
+                        final hapticsProvider = Provider.of<HapticsProvider>(
+                            context,
+                            listen: false);
+                        hapticsProvider.selection();
+                        _showEditEventDialog(event);
+                      },
                       tooltip: 'Edit Event',
                       padding: AppDesign.paddingSmall,
                       constraints: const BoxConstraints(),
@@ -596,7 +629,13 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.delete, size: 20),
-                      onPressed: () => _deleteEvent(event),
+                      onPressed: () {
+                        final hapticsProvider = Provider.of<HapticsProvider>(
+                            context,
+                            listen: false);
+                        hapticsProvider.selection();
+                        _deleteEvent(event);
+                      },
                       tooltip: 'Delete Event',
                       padding: AppDesign.paddingSmall,
                       constraints: const BoxConstraints(),
@@ -667,8 +706,13 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                           ),
                           trailing: IconButton(
                             icon: const Icon(Icons.edit, size: 20),
-                            onPressed: () =>
-                                _showEditTimeSlotDialog(event, timeSlot),
+                            onPressed: () {
+                              final hapticsProvider =
+                                  Provider.of<HapticsProvider>(context,
+                                      listen: false);
+                              hapticsProvider.selection();
+                              _showEditTimeSlotDialog(event, timeSlot);
+                            },
                             visualDensity: VisualDensity.standard,
                           ),
                         ),
@@ -756,7 +800,12 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.delete),
-                    onPressed: () => _showDeleteCollectionDialog(collection),
+                    onPressed: () {
+                      final hapticsProvider =
+                          Provider.of<HapticsProvider>(context, listen: false);
+                      hapticsProvider.selection();
+                      _showDeleteCollectionDialog(collection);
+                    },
                     tooltip: 'Delete Collection',
                   ),
                   const Icon(Icons.expand_more),
@@ -925,6 +974,10 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                             ? 'Select Date'
                             : '${_eventDate.toString().substring(0, 10)}'),
                         onPressed: () async {
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
+                          hapticsProvider.selection();
                           final DateTime? picked = await showDatePicker(
                             context: context,
                             initialDate: _eventDate,
@@ -1066,8 +1119,13 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                       ),
                       ElevatedButton(
                         child: const Text('Add Time Slot'),
-                        onPressed: () =>
-                            _showAddTimeSlotDialog(setState, _timeSlots),
+                        onPressed: () {
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
+                          hapticsProvider.selection();
+                          _showAddTimeSlotDialog(setState, _timeSlots);
+                        },
                       ),
                       ..._timeSlots.map((timeSlot) => ListTile(
                             title: Text(
@@ -1076,8 +1134,13 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                                 Text('Capacity: ${timeSlot.numberOfPeople}'),
                             trailing: IconButton(
                               icon: const Icon(Icons.delete),
-                              onPressed: () =>
-                                  setState(() => _timeSlots.remove(timeSlot)),
+                              onPressed: () {
+                                final hapticsProvider =
+                                    Provider.of<HapticsProvider>(context,
+                                        listen: false);
+                                hapticsProvider.selection();
+                                setState(() => _timeSlots.remove(timeSlot));
+                              },
                             ),
                           )),
                     ],
@@ -1087,11 +1150,19 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
               actions: [
                 TextButton(
                   child: const Text('Cancel'),
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
+                    Navigator.of(context).pop();
+                  },
                 ),
                 ElevatedButton(
                   child: const Text('Add Event'),
                   onPressed: () {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
                     if (_formKey.currentState!.validate()) {
                       _formKey.currentState!.save();
                       _addEvent(
@@ -1435,11 +1506,19 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
+              Navigator.pop(context);
+            },
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
               _deleteCollection(collection);
               Navigator.pop(context);
             },
@@ -1506,6 +1585,9 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                   trailing: IconButton(
                     icon: const Icon(Icons.delete),
                     onPressed: () {
+                      final hapticsProvider =
+                          Provider.of<HapticsProvider>(context, listen: false);
+                      hapticsProvider.selection();
                       _removeEventFromCollection(event, collection);
                     },
                   ),
@@ -1517,6 +1599,9 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
             TextButton(
               child: const Text('Close'),
               onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 Navigator.of(context).pop();
               },
             ),
@@ -1646,6 +1731,10 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                     ElevatedButton(
                       child: Text('Start Time: ${_startTime.format(context)}'),
                       onPressed: () async {
+                        final hapticsProvider = Provider.of<HapticsProvider>(
+                            context,
+                            listen: false);
+                        hapticsProvider.selection();
                         final TimeOfDay? picked = await showTimePicker(
                           context: context,
                           initialTime: _startTime,
@@ -1659,6 +1748,10 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                     ElevatedButton(
                       child: Text('End Time: ${_endTime.format(context)}'),
                       onPressed: () async {
+                        final hapticsProvider = Provider.of<HapticsProvider>(
+                            context,
+                            listen: false);
+                        hapticsProvider.selection();
                         final TimeOfDay? picked = await showTimePicker(
                           context: context,
                           initialTime: _endTime,
@@ -1686,11 +1779,19 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
               actions: [
                 TextButton(
                   child: const Text('Cancel'),
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
+                    Navigator.of(context).pop();
+                  },
                 ),
                 ElevatedButton(
                   child: const Text('Add Time Slot'),
                   onPressed: () {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
                     if (_formKey.currentState!.validate()) {
                       _formKey.currentState!.save();
                       parentSetState(() {
@@ -1777,6 +1878,10 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                           child: Text(
                               'Date: ${_eventDate.toString().substring(0, 10)}'),
                           onPressed: () async {
+                            final hapticsProvider =
+                                Provider.of<HapticsProvider>(context,
+                                    listen: false);
+                            hapticsProvider.selection();
                             final DateTime? picked = await showDatePicker(
                               context: context,
                               initialDate: _eventDate,
@@ -1896,8 +2001,13 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                           ),
                         ElevatedButton(
                           child: const Text('Add Time Slot'),
-                          onPressed: () =>
-                              _showAddTimeSlotDialog(setState, _timeSlots),
+                          onPressed: () {
+                            final hapticsProvider =
+                                Provider.of<HapticsProvider>(context,
+                                    listen: false);
+                            hapticsProvider.selection();
+                            _showAddTimeSlotDialog(setState, _timeSlots);
+                          },
                         ),
                         ..._timeSlots.map((timeSlot) => ListTile(
                               title: Text(
@@ -1906,8 +2016,13 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                                   Text('Capacity: ${timeSlot.numberOfPeople}'),
                               trailing: IconButton(
                                 icon: const Icon(Icons.delete),
-                                onPressed: () =>
-                                    setState(() => _timeSlots.remove(timeSlot)),
+                                onPressed: () {
+                                  final hapticsProvider =
+                                      Provider.of<HapticsProvider>(context,
+                                          listen: false);
+                                  hapticsProvider.selection();
+                                  setState(() => _timeSlots.remove(timeSlot));
+                                },
                               ),
                             )),
                       ],
@@ -1917,11 +2032,19 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                 actions: [
                   TextButton(
                     child: const Text('Cancel'),
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () {
+                      final hapticsProvider =
+                          Provider.of<HapticsProvider>(context, listen: false);
+                      hapticsProvider.selection();
+                      Navigator.of(context).pop();
+                    },
                   ),
                   ElevatedButton(
                     child: const Text('Update'),
                     onPressed: () {
+                      final hapticsProvider =
+                          Provider.of<HapticsProvider>(context, listen: false);
+                      hapticsProvider.selection();
                       if (_formKey.currentState!.validate()) {
                         _formKey.currentState!.save();
                         _updateEvent(
@@ -2103,12 +2226,18 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
             TextButton(
               child: const Text('Cancel'),
               onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 Navigator.of(context).pop();
               },
             ),
             ElevatedButton(
               child: const Text('Add'),
               onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 if (collectionName.isNotEmpty) {
                   _addCollection(collectionName);
                   Navigator.of(context).pop();
@@ -2354,6 +2483,9 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                 ElevatedButton(
                   child: Text('Start Time: ${_startTime.format(context)}'),
                   onPressed: () async {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
                     final TimeOfDay? picked = await showTimePicker(
                       context: context,
                       initialTime: _startTime,
@@ -2367,6 +2499,9 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                 ElevatedButton(
                   child: Text('End Time: ${_endTime.format(context)}'),
                   onPressed: () async {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
                     final TimeOfDay? picked = await showTimePicker(
                       context: context,
                       initialTime: _endTime,
@@ -2396,11 +2531,19 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
           actions: [
             TextButton(
               child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                Navigator.of(context).pop();
+              },
             ),
             ElevatedButton(
               child: const Text('Update Time Slot'),
               onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 if (_formKey.currentState!.validate()) {
                   _formKey.currentState!.save();
                   _updateTimeSlot(

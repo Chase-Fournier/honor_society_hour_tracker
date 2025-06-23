@@ -9,6 +9,7 @@ import 'dart:io';
 import 'providers/societyprovider.dart';
 import 'models/userprofile.dart';
 import 'common/normalizetype.dart';
+import '../providers/hapticsprovider.dart';
 
 Future<void> exportToExcel(
     BuildContext context, List<UserProfile> users) async {

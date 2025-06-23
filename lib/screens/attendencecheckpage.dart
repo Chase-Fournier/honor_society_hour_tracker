@@ -9,7 +9,7 @@ import '../models/attendee.dart';
 import '../models/logactivity.dart';
 import 'package:provider/provider.dart';
 import '../providers/societyprovider.dart';
-
+import '../providers/hapticsprovider.dart';
 
 class AttendanceCheckPage extends StatefulWidget {
   final Event event;
@@ -117,8 +117,8 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
           : _presentAttendees.where((a) => !a.isPresent).toList();
 
       for (var attendee in attendeesToUpdate) {
-          final society =
-          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+        final society =
+            Provider.of<SocietyProvider>(context, listen: false).currentSociety;
 
         // Check if the attendee already has service hours for this event
         final existingHours = await Supabase.instance.client
@@ -155,7 +155,6 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
               .delete()
               .eq('user_id', attendee.userId)
               .eq('timeslot_id', widget.timeSlot.id ?? 0);
-              
 
           await logactivity(
             widget.event.name,
@@ -361,6 +360,9 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
                 TextButton(
                   child: const Text('Cancel'),
                   onPressed: () {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
                     Navigator.of(context).pop();
                   },
                 ),
@@ -373,9 +375,8 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
   }
 
   Future<List<UserProfile>> _fetchAllUsers() async {
-    final societyId = Provider.of<SocietyProvider>(context, listen: false)
-          .currentSociety
-          ?.id;
+    final societyId =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety?.id;
 
     final response = await Supabase.instance.client
         .from('profiles')
@@ -586,6 +587,9 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
                       ? Icons.inventory
                       : Icons.pending_actions),
                   onPressed: () {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
                     _toggleFormCompletionStatus(attendee);
                   },
                 ),

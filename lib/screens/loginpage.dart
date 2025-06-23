@@ -5,6 +5,7 @@ import '../common/app_design.dart';
 import '../common/app_widgets.dart';
 import 'societyselectionpage.dart';
 import 'waitingpage.dart';
+import '../providers/hapticsprovider.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -281,8 +282,12 @@ class _LoginPageState extends State<LoginPage>
                   MaterialPageRoute(builder: (context) => const WaitingPage()),
                 );
               },
-              redirectTo: kIsWeb ? null : 'com.wheelermun.nhs://callback', // For email confirmation
-              resetPasswordRedirectTo: kIsWeb ? 'https://nhs.wheelermun.com/reset-password-handler' : 'com.wheelermun.nhs://reset-password', // For password reset
+              redirectTo: kIsWeb
+                  ? null
+                  : 'com.wheelermun.nhs://callback', // For email confirmation
+              resetPasswordRedirectTo: kIsWeb
+                  ? 'https://nhs.wheelermun.com/reset-password-handler'
+                  : 'com.wheelermun.nhs://reset-password', // For password reset
               onSignInComplete: (AuthResponse response) {
                 if (response.session != null) {
                   // Navigate to society selection on successful sign-in
@@ -318,7 +323,7 @@ class _LoginPageState extends State<LoginPage>
               ],
             ),
           ),
-          
+
           const SizedBox(height: AppDesign.spacingM),
 
           // Optional social login section

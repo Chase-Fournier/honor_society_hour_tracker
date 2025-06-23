@@ -13,7 +13,7 @@ import 'attendencecheckpage.dart';
 import '../common/nhsformatutils.dart';
 import '../common/iconutils.dart';
 import '../common/normalizetype.dart';
-
+import '../providers/hapticsprovider.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -256,6 +256,10 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                                     icon: const Icon(Icons.filter_alt_off),
                                     label: const Text('Clear filter'),
                                     onPressed: () {
+                                      final hapticsProvider =
+                                          Provider.of<HapticsProvider>(context,
+                                              listen: false);
+                                      hapticsProvider.selection();
                                       setState(() {
                                         _selectedEventType = 'All';
                                       });
@@ -1068,6 +1072,10 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                           icon: const Icon(Icons.checklist, size: 20),
                           color: Theme.of(context).colorScheme.onSurface,
                           onPressed: () {
+                            final hapticsProvider =
+                                Provider.of<HapticsProvider>(context,
+                                    listen: false);
+                            hapticsProvider.selection();
                             Navigator.push(
                               context,
                               MaterialPageRoute(

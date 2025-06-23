@@ -11,8 +11,7 @@ import '../models/meetingnote.dart';
 import 'admineventspage.dart';
 import 'activitylogpage.dart';
 import "adminlistspage.dart";
-
-
+import '../providers/hapticsprovider.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -232,7 +231,6 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
     }
   }
 
-
   Future<List<ActivitySummary>> _fetchRecentActivity(int societyId) async {
     try {
       // Get recent activity from activity_logs
@@ -319,11 +317,21 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
             IconButton(
               icon: const Icon(Icons.note_add),
               tooltip: 'Add Note',
-              onPressed: _showAddNotesDialog,
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                _showAddNotesDialog;
+              },
             ),
             IconButton(
               icon: const Icon(Icons.refresh),
-              onPressed: _fetchDashboardData,
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                _fetchDashboardData;
+              },
               tooltip: 'Refresh',
             ),
           ],
@@ -425,7 +433,13 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.add),
-                        onPressed: _showAddNotesDialog,
+                        onPressed: () {
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
+                          hapticsProvider.selection();
+                          _showAddNotesDialog;
+                        },
                         tooltip: 'Add Note',
                       ),
                     ],
@@ -455,7 +469,13 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
                       TextButton.icon(
                         icon: const Icon(Icons.history),
                         label: const Text('View All'),
-                        onPressed: () => _navigateToActivityLog(),
+                        onPressed: () {
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
+                          hapticsProvider.selection();
+                          _navigateToActivityLog();
+                        },
                       ),
                     ],
                   ),
@@ -538,7 +558,12 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
             TextButton.icon(
               icon: const Icon(Icons.history),
               label: const Text('View All'),
-              onPressed: () => _navigateToActivityLog(),
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                _navigateToActivityLog();
+              },
             ),
           ],
         ),
@@ -558,7 +583,12 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
             ),
             IconButton(
               icon: const Icon(Icons.add),
-              onPressed: _showAddNotesDialog,
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                _showAddNotesDialog;
+              },
               tooltip: 'Add Note',
             ),
           ],
@@ -715,11 +745,16 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
             ),
             IconButton(
               icon: const Icon(Icons.settings),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const SocietyAdminPage()),
-              ).then((_) => _fetchDashboardData()),
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const SocietyAdminPage()),
+                ).then((_) => _fetchDashboardData());
+              },
               tooltip: 'Society Settings',
             ),
           ],
@@ -761,7 +796,13 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
                     ),
                     const SizedBox(height: 8),
                     ElevatedButton(
-                      onPressed: _showAddNotesDialog,
+                      onPressed: () {
+                        final hapticsProvider = Provider.of<HapticsProvider>(
+                            context,
+                            listen: false);
+                        hapticsProvider.selection();
+                        _showAddNotesDialog;
+                      },
                       child: const Text('Add New Note'),
                     ),
                   ],
@@ -797,7 +838,13 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.edit),
-                      onPressed: () => _showEditNotesDialog(note),
+                      onPressed: () {
+                        final hapticsProvider = Provider.of<HapticsProvider>(
+                            context,
+                            listen: false);
+                        hapticsProvider.selection();
+                        _showEditNotesDialog(note);
+                      },
                     ),
                     Text(
                       _getTimeAgo(note.createdAt),
@@ -805,7 +852,12 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
                     ),
                   ],
                 ),
-                onTap: () => _showNoteDetailsDialog(note),
+                onTap: () {
+                  final hapticsProvider =
+                      Provider.of<HapticsProvider>(context, listen: false);
+                  hapticsProvider.selection();
+                  _showNoteDetailsDialog(note);
+                },
               );
             },
           ),
@@ -901,11 +953,19 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                Navigator.pop(context);
+              },
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () async {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 if (title.isNotEmpty && content.isNotEmpty) {
                   await _saveNote(title, content);
                   if (context.mounted) {
@@ -959,11 +1019,19 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                Navigator.pop(context);
+              },
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () async {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 if (title.isNotEmpty && content.isNotEmpty) {
                   await _updateNote(note.id, title, content);
                   if (context.mounted) {
@@ -991,11 +1059,19 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                Navigator.pop(context);
+              },
               child: const Text('Close'),
             ),
             ElevatedButton(
               onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 Navigator.pop(context);
                 _showEditNotesDialog(note);
               },

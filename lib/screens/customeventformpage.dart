@@ -7,7 +7,7 @@ import '../common/app_design.dart';
 import '../common/iconutils.dart';
 import '../models/userprofile.dart';
 import '../models/logactivity.dart';
-
+import '../providers/hapticsprovider.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -258,6 +258,10 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                           flex: 1,
                           child: InkWell(
                             onTap: () async {
+                              final hapticsProvider =
+                                  Provider.of<HapticsProvider>(context,
+                                      listen: false);
+                              hapticsProvider.selection();
                               final TimeOfDay? pickedTime =
                                   await showTimePicker(
                                 context: context,
@@ -278,6 +282,11 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                                     ? IconButton(
                                         icon: const Icon(Icons.clear),
                                         onPressed: () {
+                                          final hapticsProvider =
+                                              Provider.of<HapticsProvider>(
+                                                  context,
+                                                  listen: false);
+                                          hapticsProvider.selection();
                                           setState(() {
                                             selectedTime = null;
                                           });
@@ -401,6 +410,10 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                       icon: const Icon(Icons.check_circle_outline),
                       label: const Text('Select Filtered'),
                       onPressed: () {
+                        final hapticsProvider = Provider.of<HapticsProvider>(
+                            context,
+                            listen: false);
+                        hapticsProvider.selection();
                         setState(() {
                           for (final user in filteredUsers) {
                             if (!selectedUserIds.contains(user.id)) {
@@ -414,6 +427,10 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                       icon: const Icon(Icons.cancel_outlined),
                       label: const Text('Clear Filtered'),
                       onPressed: () {
+                        final hapticsProvider = Provider.of<HapticsProvider>(
+                            context,
+                            listen: false);
+                        hapticsProvider.selection();
                         setState(() {
                           selectedUserIds.removeWhere((id) =>
                               filteredUsers.any((user) => user.id == id));
@@ -519,7 +536,12 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
+                    Navigator.of(context).pop();
+                  },
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),

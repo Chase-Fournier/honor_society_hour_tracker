@@ -13,7 +13,7 @@ import '../exporttoexcel.dart';
 import '../common/normalizetype.dart';
 import 'package:flutter/services.dart';
 import '../common/iconutils.dart';
-
+import '../providers/hapticsprovider.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -35,7 +35,8 @@ class ColoringRule {
   final String name;
   final String colorType; // Instead of storing Color directly
   final String description;
-  final bool Function(UserProfile user, Map<String, double> hoursByType) condition;
+  final bool Function(UserProfile user, Map<String, double> hoursByType)
+      condition;
 
   ColoringRule({
     required this.name,
@@ -51,7 +52,10 @@ class ColoringRule {
       case 'tertiary':
         return Theme.of(context).colorScheme.tertiaryContainer.withOpacity(0.3);
       case 'secondary':
-        return Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.3);
+        return Theme.of(context)
+            .colorScheme
+            .secondaryContainer
+            .withOpacity(0.3);
       case 'warning':
         return Colors.orange.withOpacity(0.3);
       default:
@@ -59,8 +63,6 @@ class ColoringRule {
     }
   }
 }
-
-
 
 class AdminListPage extends StatefulWidget {
   const AdminListPage({super.key});
@@ -112,8 +114,9 @@ class _AdminListPageState extends State<AdminListPage> {
     _fetchUsers();
   }
 
-   void _initializeDynamicFiltering() {
-    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+  void _initializeDynamicFiltering() {
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     if (society == null) return;
 
     // Initialize filtering maps for each requirement type
@@ -134,12 +137,12 @@ class _AdminListPageState extends State<AdminListPage> {
         _hoursConditionByType[req.type] = 'atLeast';
       }
     }
-     // Initialize default coloring rules
-    
+    // Initialize default coloring rules
   }
 
   void _initializeColoringRules() {
-    final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     if (society == null) return;
 
     _coloringRules.clear();
@@ -148,10 +151,13 @@ class _AdminListPageState extends State<AdminListPage> {
     _coloringRules['currentYearLowHours'] = ColoringRule(
       name: 'Current Year Graduates - Low Hours',
       colorType: 'error',
-      description: 'Students graduating this year with less than 10 total hours',
+      description:
+          'Students graduating this year with less than 10 total hours',
       condition: (user, hoursByType) {
-        final totalHours = hoursByType.values.fold(0.0, (sum, hours) => sum + hours);
-        return user.graduationYear == DateTime.now().year.toString() && totalHours < 10;
+        final totalHours =
+            hoursByType.values.fold(0.0, (sum, hours) => sum + hours);
+        return user.graduationYear == DateTime.now().year.toString() &&
+            totalHours < 10;
       },
     );
 
@@ -161,7 +167,8 @@ class _AdminListPageState extends State<AdminListPage> {
         _coloringRules['low${req.type}Hours'] = ColoringRule(
           name: 'Low ${req.type} Hours',
           colorType: 'tertiary',
-          description: 'Students with less than half the required ${req.type.toLowerCase()} hours',
+          description:
+              'Students with less than half the required ${req.type.toLowerCase()} hours',
           condition: (user, hoursByType) {
             final hours = hoursByType[req.type] ?? 0.0;
             return hours < (req.hoursNeeded / 2);
@@ -174,7 +181,8 @@ class _AdminListPageState extends State<AdminListPage> {
     _coloringRules['lowMeetingAttendance'] = ColoringRule(
       name: 'Low Meeting Attendance',
       colorType: 'secondary',
-      description: 'Students with less than half the required meeting attendance',
+      description:
+          'Students with less than half the required meeting attendance',
       condition: (user, hoursByType) {
         final meetingHours = hoursByType['Meeting'] ?? 0.0;
         return meetingHours < (society.meetingRequirement / 2);
@@ -334,13 +342,16 @@ class _AdminListPageState extends State<AdminListPage> {
 
           if (condition == 'atLeast' && minHours > 0) {
             meetsAllCriteria = meetsAllCriteria && (hours >= minHours);
-          } else if (condition == 'atMost' && maxHours < (_maximumHoursByType[hourType] ?? 50)) {
+          } else if (condition == 'atMost' &&
+              maxHours < (_maximumHoursByType[hourType] ?? 50)) {
             meetsAllCriteria = meetsAllCriteria && (hours <= maxHours);
-          } else if (condition == 'between' && (minHours > 0 || maxHours < (_maximumHoursByType[hourType] ?? 50))) {
-            meetsAllCriteria = meetsAllCriteria && (hours >= minHours && hours <= maxHours);
+          } else if (condition == 'between' &&
+              (minHours > 0 ||
+                  maxHours < (_maximumHoursByType[hourType] ?? 50))) {
+            meetsAllCriteria =
+                meetsAllCriteria && (hours >= minHours && hours <= maxHours);
           }
         }
-
 
         // Check graduation year
         if (_filterGraduationYear.isNotEmpty) {
@@ -446,10 +457,10 @@ class _AdminListPageState extends State<AdminListPage> {
     }
 
     // Check for conditional coloring
-     if (_useAdvancedFiltering && _enableCustomColoring) {
+    if (_useAdvancedFiltering && _enableCustomColoring) {
       // Calculate hours by type for this user
       Map<String, double> hoursByType = {};
-      
+
       // Initialize with all requirement types
       for (final type in _minimumHoursByType.keys) {
         hoursByType[type] = _getHoursByType(user, type);
@@ -588,6 +599,9 @@ class _AdminListPageState extends State<AdminListPage> {
                   ? 'Exit Multi-select'
                   : 'Enter Multi-select',
               onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 setState(() {
                   _isMultiSelectMode = !_isMultiSelectMode;
                   if (!_isMultiSelectMode) {
@@ -631,6 +645,9 @@ class _AdminListPageState extends State<AdminListPage> {
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -656,6 +673,9 @@ class _AdminListPageState extends State<AdminListPage> {
             onPressed: _isExporting
                 ? null
                 : () {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
                     setState(() => _isExporting = true);
                     exportToExcel(context, filteredUsers).then((_) {
                       setState(() => _isExporting = false);
@@ -801,7 +821,8 @@ class _AdminListPageState extends State<AdminListPage> {
                                     if (_useAdvancedFiltering) ...[
                                       const SizedBox(height: 8),
 
-                                       _buildHourFilterCard('Total Hours', 'total'),
+                                      _buildHourFilterCard(
+                                          'Total Hours', 'total'),
 
                                       // Dynamic hour type filters
                                       ..._buildDynamicHourFilters(),
@@ -823,7 +844,14 @@ class _AdminListPageState extends State<AdminListPage> {
                                         child: OutlinedButton.icon(
                                           icon: const Icon(Icons.clear),
                                           label: const Text('Reset Filters'),
-                                          onPressed: _resetAllFilters,
+                                          onPressed: () {
+                                            final hapticsProvider =
+                                                Provider.of<HapticsProvider>(
+                                                    context,
+                                                    listen: false);
+                                            hapticsProvider.selection();
+                                            _resetAllFilters;
+                                          },
                                         ),
                                       ),
                                     ],
@@ -844,6 +872,10 @@ class _AdminListPageState extends State<AdminListPage> {
                             width: double.infinity,
                             child: ElevatedButton.icon(
                               onPressed: () {
+                                final hapticsProvider =
+                                    Provider.of<HapticsProvider>(context,
+                                        listen: false);
+                                hapticsProvider.selection();
                                 _openBulkCustomEventForm(context);
                               },
                               icon: const Icon(Icons.add),
@@ -892,6 +924,11 @@ class _AdminListPageState extends State<AdminListPage> {
                                   Expanded(
                                     child: ElevatedButton.icon(
                                       onPressed: () {
+                                        final hapticsProvider =
+                                            Provider.of<HapticsProvider>(
+                                                context,
+                                                listen: false);
+                                        hapticsProvider.selection();
                                         _openBulkCustomEventForm(context);
                                       },
                                       icon: const Icon(Icons.add),
@@ -901,7 +938,13 @@ class _AdminListPageState extends State<AdminListPage> {
                                   const SizedBox(width: 16),
                                   // Filter button that shows bottom sheet
                                   OutlinedButton.icon(
-                                    onPressed: _showFilterOptions,
+                                    onPressed: () {
+                                      final hapticsProvider =
+                                          Provider.of<HapticsProvider>(context,
+                                              listen: false);
+                                      hapticsProvider.selection();
+                                      _showFilterOptions;
+                                    },
                                     icon: const Icon(Icons.filter_list),
                                     label: const Text('Filter'),
                                   ),
@@ -1089,230 +1132,249 @@ class _AdminListPageState extends State<AdminListPage> {
     );
   }
 
- Widget _buildHourFilterCard(String title, String type) {
-  final isTotal = type == 'total';
-  
-  // Clean up the title to prevent duplication
-  String cleanTitle = title;
-  if (!isTotal) {
-    // Remove any existing "Hours" and add it once
-    cleanTitle = title.replaceAll(RegExp(r'\s*hours?\s*', caseSensitive: false), '').trim();
-    cleanTitle = '$cleanTitle Hours';
-  }
-  
-  return StatefulBuilder(
-    builder: (context, setCardState) {
-      final condition = isTotal ? _totalHoursCondition : (_hoursConditionByType[type] ?? 'atLeast');
-      final minValue = isTotal ? _minimumTotalHours : (_minimumHoursByType[type] ?? 0);
-      final maxValue = isTotal ? _maximumTotalHours : (_maximumHoursByType[type] ?? 50);
-      final maxLimit = isTotal ? 50.0 : (_maximumHoursByType[type] ?? 50);
+  Widget _buildHourFilterCard(String title, String type) {
+    final isTotal = type == 'total';
 
-      return Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Card(
-          elevation: 0,
-          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    if (!isTotal)
-                      Icon(
-                        getIconForType(type, context), // Use 'type' instead of 'title'
-                        size: 18,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    if (!isTotal) const SizedBox(width: 8),
-                    Text(
-                      cleanTitle, // Use the cleaned title
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                  ],
-                ),
-                // ... rest of the card content remains the same
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  value: condition,
-                  decoration: const InputDecoration(
-                    labelText: 'Condition',
-                    isDense: true,
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'atLeast', child: Text('At least')),
-                    DropdownMenuItem(value: 'atMost', child: Text('At most')),
-                    DropdownMenuItem(value: 'between', child: Text('Between')),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      if (isTotal) {
-                        _totalHoursCondition = value!;
-                      } else {
-                        _hoursConditionByType[type] = value!; // Use 'type' instead of 'title'
-                      }
-                    });
-                    setCardState(() {});
-                  },
-                ),
-                const SizedBox(height: 8),
-                if (condition == 'atLeast')
-                  _buildRealtimeFilterInput(
-                    'Minimum Value',
-                    minValue,
-                    0,
-                    maxLimit,
-                    (value) {
-                      setState(() {
-                        if (isTotal) {
-                          _minimumTotalHours = value;
-                        } else {
-                          _minimumHoursByType[type] = value; // Use 'type' instead of 'title'
-                        }
-                      });
-                      setCardState(() {});
-                    },
-                  )
-                else if (condition == 'atMost')
-                  _buildRealtimeFilterInput(
-                    'Maximum Value',
-                    maxValue,
-                    0,
-                    maxLimit,
-                    (value) {
-                      setState(() {
-                        if (isTotal) {
-                          _maximumTotalHours = value;
-                        } else {
-                          _maximumHoursByType[type] = value; // Use 'type' instead of 'title'
-                        }
-                      });
-                      setCardState(() {});
-                    },
-                  )
-                else if (condition == 'between')
-                  Column(
+    // Clean up the title to prevent duplication
+    String cleanTitle = title;
+    if (!isTotal) {
+      // Remove any existing "Hours" and add it once
+      cleanTitle = title
+          .replaceAll(RegExp(r'\s*hours?\s*', caseSensitive: false), '')
+          .trim();
+      cleanTitle = '$cleanTitle Hours';
+    }
+
+    return StatefulBuilder(
+      builder: (context, setCardState) {
+        final condition = isTotal
+            ? _totalHoursCondition
+            : (_hoursConditionByType[type] ?? 'atLeast');
+        final minValue =
+            isTotal ? _minimumTotalHours : (_minimumHoursByType[type] ?? 0);
+        final maxValue =
+            isTotal ? _maximumTotalHours : (_maximumHoursByType[type] ?? 50);
+        final maxLimit = isTotal ? 50.0 : (_maximumHoursByType[type] ?? 50);
+
+        return Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Card(
+            elevation: 0,
+            color:
+                Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      _buildRealtimeFilterInput(
-                        'Minimum Value',
-                        minValue,
-                        0,
-                        maxLimit,
-                        (value) {
-                          setState(() {
-                            if (isTotal) {
-                              _minimumTotalHours = value;
-                              if (_maximumTotalHours < _minimumTotalHours) {
-                                _maximumTotalHours = _minimumTotalHours;
-                              }
-                            } else {
-                              _minimumHoursByType[type] = value; // Use 'type' instead of 'title'
-                              if ((_maximumHoursByType[type] ?? 0) < value) {
-                                _maximumHoursByType[type] = value;
-                              }
-                            }
-                          });
-                          setCardState(() {});
-                        },
-                      ),
-                      _buildRealtimeFilterInput(
-                        'Maximum Value',
-                        maxValue,
-                        0,
-                        maxLimit,
-                        (value) {
-                          setState(() {
-                            if (isTotal) {
-                              _maximumTotalHours = value;
-                              if (_minimumTotalHours > _maximumTotalHours) {
-                                _minimumTotalHours = _maximumTotalHours;
-                              }
-                            } else {
-                              _maximumHoursByType[type] = value; // Use 'type' instead of 'title'
-                              if ((_minimumHoursByType[type] ?? 0) > value) {
-                                _minimumHoursByType[type] = value;
-                              }
-                            }
-                          });
-                          setCardState(() {});
-                        },
+                      if (!isTotal)
+                        Icon(
+                          getIconForType(
+                              type, context), // Use 'type' instead of 'title'
+                          size: 18,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      if (!isTotal) const SizedBox(width: 8),
+                      Text(
+                        cleanTitle, // Use the cleaned title
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                       ),
                     ],
                   ),
-              ],
+                  // ... rest of the card content remains the same
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: condition,
+                    decoration: const InputDecoration(
+                      labelText: 'Condition',
+                      isDense: true,
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                          value: 'atLeast', child: Text('At least')),
+                      DropdownMenuItem(value: 'atMost', child: Text('At most')),
+                      DropdownMenuItem(
+                          value: 'between', child: Text('Between')),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        if (isTotal) {
+                          _totalHoursCondition = value!;
+                        } else {
+                          _hoursConditionByType[type] =
+                              value!; // Use 'type' instead of 'title'
+                        }
+                      });
+                      setCardState(() {});
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  if (condition == 'atLeast')
+                    _buildRealtimeFilterInput(
+                      'Minimum Value',
+                      minValue,
+                      0,
+                      maxLimit,
+                      (value) {
+                        setState(() {
+                          if (isTotal) {
+                            _minimumTotalHours = value;
+                          } else {
+                            _minimumHoursByType[type] =
+                                value; // Use 'type' instead of 'title'
+                          }
+                        });
+                        setCardState(() {});
+                      },
+                    )
+                  else if (condition == 'atMost')
+                    _buildRealtimeFilterInput(
+                      'Maximum Value',
+                      maxValue,
+                      0,
+                      maxLimit,
+                      (value) {
+                        setState(() {
+                          if (isTotal) {
+                            _maximumTotalHours = value;
+                          } else {
+                            _maximumHoursByType[type] =
+                                value; // Use 'type' instead of 'title'
+                          }
+                        });
+                        setCardState(() {});
+                      },
+                    )
+                  else if (condition == 'between')
+                    Column(
+                      children: [
+                        _buildRealtimeFilterInput(
+                          'Minimum Value',
+                          minValue,
+                          0,
+                          maxLimit,
+                          (value) {
+                            setState(() {
+                              if (isTotal) {
+                                _minimumTotalHours = value;
+                                if (_maximumTotalHours < _minimumTotalHours) {
+                                  _maximumTotalHours = _minimumTotalHours;
+                                }
+                              } else {
+                                _minimumHoursByType[type] =
+                                    value; // Use 'type' instead of 'title'
+                                if ((_maximumHoursByType[type] ?? 0) < value) {
+                                  _maximumHoursByType[type] = value;
+                                }
+                              }
+                            });
+                            setCardState(() {});
+                          },
+                        ),
+                        _buildRealtimeFilterInput(
+                          'Maximum Value',
+                          maxValue,
+                          0,
+                          maxLimit,
+                          (value) {
+                            setState(() {
+                              if (isTotal) {
+                                _maximumTotalHours = value;
+                                if (_minimumTotalHours > _maximumTotalHours) {
+                                  _minimumTotalHours = _maximumTotalHours;
+                                }
+                              } else {
+                                _maximumHoursByType[type] =
+                                    value; // Use 'type' instead of 'title'
+                                if ((_minimumHoursByType[type] ?? 0) > value) {
+                                  _minimumHoursByType[type] = value;
+                                }
+                              }
+                            });
+                            setCardState(() {});
+                          },
+                        ),
+                      ],
+                    ),
+                ],
+              ),
             ),
           ),
-        ),
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 
-Widget _buildRealtimeFilterInput(String label, double value, double min, double max,
-    Function(double) onChanged) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontWeight: FontWeight.w500,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          key: ValueKey('${label}_${value.toStringAsFixed(1)}'),
-          initialValue: value.toStringAsFixed(1),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: AppDesign.borderSmall,
+  Widget _buildRealtimeFilterInput(String label, double value, double min,
+      double max, Function(double) onChanged) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-            isDense: true,
-            suffixText: 'hrs',
-            hintText: '${min.toStringAsFixed(1)} - ${max.toStringAsFixed(1)}',
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           ),
-          onChanged: (text) {
-            // Real-time update as user types
-            final newValue = double.tryParse(text);
-            if (newValue != null && newValue >= min && newValue <= max) {
-              onChanged(newValue);
-            }
-          },
-          validator: (text) {
-            final newValue = double.tryParse(text ?? '');
-            if (newValue == null) return null; // Don't show error while typing
-            if (newValue < min || newValue > max) {
-              return 'Must be between ${min.toStringAsFixed(1)} and ${max.toStringAsFixed(1)}';
-            }
-            return null;
-          },
-        ),
-      ],
-    ),
-  );
-}
+          const SizedBox(height: 8),
+          TextFormField(
+            key: ValueKey('${label}_${value.toStringAsFixed(1)}'),
+            initialValue: value.toStringAsFixed(1),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: AppDesign.borderSmall,
+              ),
+              isDense: true,
+              suffixText: 'hrs',
+              hintText: '${min.toStringAsFixed(1)} - ${max.toStringAsFixed(1)}',
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            onChanged: (text) {
+              // Real-time update as user types
+              final newValue = double.tryParse(text);
+              if (newValue != null && newValue >= min && newValue <= max) {
+                onChanged(newValue);
+              }
+            },
+            validator: (text) {
+              final newValue = double.tryParse(text ?? '');
+              if (newValue == null)
+                return null; // Don't show error while typing
+              if (newValue < min || newValue > max) {
+                return 'Must be between ${min.toStringAsFixed(1)} and ${max.toStringAsFixed(1)}';
+              }
+              return null;
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   List<Widget> _buildDynamicHourFilters() {
-  return _minimumHoursByType.keys.map((hourType) {
-    // Don't add "Hours" if it's already there, and handle the title properly
-    String displayTitle;
-    if (hourType.toLowerCase().contains('hour')) {
-      displayTitle = hourType; // Use as-is if it already contains "hour"
-    } else {
-      displayTitle = '$hourType Hours'; // Add "Hours" if it doesn't contain it
-    }
-    
-    return _buildHourFilterCard(displayTitle, hourType);
-  }).toList();
-}
+    return _minimumHoursByType.keys.map((hourType) {
+      // Don't add "Hours" if it's already there, and handle the title properly
+      String displayTitle;
+      if (hourType.toLowerCase().contains('hour')) {
+        displayTitle = hourType; // Use as-is if it already contains "hour"
+      } else {
+        displayTitle =
+            '$hourType Hours'; // Add "Hours" if it doesn't contain it
+      }
+
+      return _buildHourFilterCard(displayTitle, hourType);
+    }).toList();
+  }
 
   Widget _buildGraduationYearFilterCard() {
     return Padding(
@@ -1494,34 +1556,36 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
                 ),
                 const SizedBox(height: 8),
                 ..._coloringRules.values.map((rule) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 16,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: rule.getColor(context),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: Theme.of(context).colorScheme.outline,
-                            width: 1,
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: rule.getColor(context),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: Theme.of(context).colorScheme.outline,
+                                width: 1,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          rule.description,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              rule.description,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
-                )),
+                    )),
               ],
             ],
           ),
@@ -1554,7 +1618,7 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
 
   List<Widget> _buildDynamicFilterIndicators() {
     List<Widget> indicators = [];
-    
+
     for (final hourType in _minimumHoursByType.keys) {
       final condition = _hoursConditionByType[hourType] ?? 'atLeast';
       final minValue = _minimumHoursByType[hourType] ?? 0;
@@ -1567,12 +1631,13 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
       } else if (condition == 'atMost' && maxValue < maxLimit) {
         indicators.add(_buildFilterIndicator(
             '$hourType ≤ ${maxValue.toStringAsFixed(1)}'));
-      } else if (condition == 'between' && (minValue > 0 || maxValue < maxLimit)) {
+      } else if (condition == 'between' &&
+          (minValue > 0 || maxValue < maxLimit)) {
         indicators.add(_buildFilterIndicator(
             '${minValue.toStringAsFixed(1)} ≤ $hourType ≤ ${maxValue.toStringAsFixed(1)}'));
       }
     }
-    
+
     return indicators;
   }
 
@@ -1597,47 +1662,48 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
   }
 
   Widget _buildFilterInput(String label, double value, double min, double max,
-    Function(double) onChanged) {
-  // Create a controller with the current value
-  final controller = TextEditingController(text: value.toStringAsFixed(1));
-  
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontWeight: FontWeight.w500,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: AppDesign.borderSmall,
+      Function(double) onChanged) {
+    // Create a controller with the current value
+    final controller = TextEditingController(text: value.toStringAsFixed(1));
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-            isDense: true,
-            suffixText: 'hrs',
-            hintText: '${min.toStringAsFixed(1)} - ${max.toStringAsFixed(1)}',
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           ),
-          onChanged: (text) {
-            final newValue = double.tryParse(text);
-            if (newValue != null && newValue >= min && newValue <= max) {
-              onChanged(newValue);
-            }
-          },
-        ),
-      ],
-    ),
-  );
-}
- 
+          const SizedBox(height: 8),
+          TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: AppDesign.borderSmall,
+              ),
+              isDense: true,
+              suffixText: 'hrs',
+              hintText: '${min.toStringAsFixed(1)} - ${max.toStringAsFixed(1)}',
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            onChanged: (text) {
+              final newValue = double.tryParse(text);
+              if (newValue != null && newValue >= min && newValue <= max) {
+                onChanged(newValue);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildUserTable(List<UserProfile> users) {
     // Enhanced table for wide screens with fixed header
     return Column(
@@ -1676,6 +1742,9 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
                 flex: 3,
                 child: InkWell(
                   onTap: () {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
                     setState(() {
                       if (_sortField == SortField.name) {
                         _sortOrder = _sortOrder == SortOrder.ascending
@@ -1716,6 +1785,9 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
                 flex: 1,
                 child: InkWell(
                   onTap: () {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
                     setState(() {
                       if (_sortField == SortField.graduationYear) {
                         _sortOrder = _sortOrder == SortOrder.ascending
@@ -1756,6 +1828,9 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
                 flex: 2,
                 child: InkWell(
                   onTap: () {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
                     setState(() {
                       if (_sortField == SortField.totalHours) {
                         _sortOrder = _sortOrder == SortOrder.ascending
@@ -1828,6 +1903,9 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
                 color: _getRowColor(user, index, context),
                 child: InkWell(
                   onTap: () {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
                     if (_isMultiSelectMode) {
                       setState(() {
                         if (_selectedUserIds.contains(user.id)) {
@@ -1940,7 +2018,13 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
                                     ? Colors.green
                                     : Theme.of(context).colorScheme.error,
                               ),
-                              onPressed: () => _toggleDuesStatus(user),
+                              onPressed: () {
+                                final hapticsProvider =
+                                    Provider.of<HapticsProvider>(context,
+                                        listen: false);
+                                hapticsProvider.selection();
+                                _toggleDuesStatus(user);
+                              },
                             ),
                           ),
                         ),
@@ -1955,24 +2039,36 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
                                 icon: const Icon(Icons.add),
                                 tooltip: 'Add Hours',
                                 onPressed: () {
+                                  final hapticsProvider =
+                                      Provider.of<HapticsProvider>(context,
+                                          listen: false);
+                                  hapticsProvider.selection();
                                   _openCustomEventForm(context, user.id);
                                 },
                                 constraints: const BoxConstraints(),
                                 padding: AppDesign.paddingSmall,
                               ),
-                               IconButton(
-                                  icon: const Icon(Icons.edit),
-                                  tooltip: 'Edit Hours',
-                                  onPressed: () {
-                                    _showUserHoursEditDialog(user);
-                                  },
-                                  constraints: const BoxConstraints(),
-                                  padding: AppDesign.paddingSmall,
-                                ),
+                              IconButton(
+                                icon: const Icon(Icons.edit),
+                                tooltip: 'Edit Hours',
+                                onPressed: () {
+                                  final hapticsProvider =
+                                      Provider.of<HapticsProvider>(context,
+                                          listen: false);
+                                  hapticsProvider.selection();
+                                  _showUserHoursEditDialog(user);
+                                },
+                                constraints: const BoxConstraints(),
+                                padding: AppDesign.paddingSmall,
+                              ),
                               IconButton(
                                 icon: const Icon(Icons.more_vert),
                                 tooltip: 'More Options',
                                 onPressed: () {
+                                  final hapticsProvider =
+                                      Provider.of<HapticsProvider>(context,
+                                          listen: false);
+                                  hapticsProvider.selection();
                                   _showUserActionsMenu(context, user);
                                 },
                                 constraints: const BoxConstraints(),
@@ -1994,131 +2090,157 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
   }
 
   void _showUserHoursEditDialog(UserProfile user) {
-  if (user.completedHours.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${user.name} has no hours to edit')),
-    );
-    return;
-  }
-
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return Dialog(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 500),
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: AppDesign.paddingMedium,
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.edit,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Edit Hours for ${user.name}',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              
-              // Hours list
-              Expanded(
-                child: ListView.builder(
-                  padding: AppDesign.paddingMedium,
-                  itemCount: user.completedHours.length,
-                  itemBuilder: (context, index) {
-                    final hour = user.completedHours[index];
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-                        borderRadius: AppDesign.borderMedium,
-                      ),
-                      child: ListTile(
-                        title: Text(
-                          hour.eventName,
-                          style: const TextStyle(fontWeight: FontWeight.w500),
-                        ),
-                        subtitle: Text('${hour.hours} hours - ${hour.type}'),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                Icons.edit,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                              onPressed: () {
-                                Navigator.pop(context); // Close hours dialog
-                                _showEditHourDialog(context, user, hour);
-                              },
-                              tooltip: 'Edit This Hour',
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                Icons.delete,
-                                color: Theme.of(context).colorScheme.error,
-                              ),
-                              onPressed: () {
-                                Navigator.pop(context); // Close hours dialog
-                                _deleteServiceHour(hour, user.id);
-                              },
-                              tooltip: 'Delete This Hour',
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              
-              // Footer
-              Padding(
-                padding: AppDesign.paddingMedium,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Close'),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _openCustomEventForm(context, user.id);
-                      },
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add Hours'),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+    if (user.completedHours.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${user.name} has no hours to edit')),
       );
-    },
-  );
-}
+      return;
+    }
 
-  
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 600, maxHeight: 500),
+            child: Column(
+              children: [
+                // Header
+                Padding(
+                  padding: AppDesign.paddingMedium,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.edit,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Edit Hours for ${user.name}',
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () {
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
+                          hapticsProvider.selection();
+                          Navigator.pop(context);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+
+                // Hours list
+                Expanded(
+                  child: ListView.builder(
+                    padding: AppDesign.paddingMedium,
+                    itemCount: user.completedHours.length,
+                    itemBuilder: (context, index) {
+                      final hour = user.completedHours[index];
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceVariant
+                              .withOpacity(0.3),
+                          borderRadius: AppDesign.borderMedium,
+                        ),
+                        child: ListTile(
+                          title: Text(
+                            hour.eventName,
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          subtitle: Text('${hour.hours} hours - ${hour.type}'),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  Icons.edit,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                onPressed: () {
+                                  final hapticsProvider =
+                                      Provider.of<HapticsProvider>(context,
+                                          listen: false);
+                                  hapticsProvider.selection();
+                                  Navigator.pop(context); // Close hours dialog
+                                  _showEditHourDialog(context, user, hour);
+                                },
+                                tooltip: 'Edit This Hour',
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.delete,
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                                onPressed: () {
+                                  final hapticsProvider =
+                                      Provider.of<HapticsProvider>(context,
+                                          listen: false);
+                                  hapticsProvider.selection();
+                                  Navigator.pop(context); // Close hours dialog
+                                  _deleteServiceHour(hour, user.id);
+                                },
+                                tooltip: 'Delete This Hour',
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                // Footer
+                Padding(
+                  padding: AppDesign.paddingMedium,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      OutlinedButton(
+                        onPressed: () {
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
+                          hapticsProvider.selection();
+                          Navigator.pop(context);
+                        },
+                        child: const Text('Close'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
+                          hapticsProvider.selection();
+                          Navigator.pop(context);
+                          _openCustomEventForm(context, user.id);
+                        },
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Hours'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   // Export only selected users to Excel
   void _exportSelectedUsers() {
@@ -2236,7 +2358,8 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
           color: _isMultiSelectMode && _selectedUserIds.contains(user.id)
               ? Theme.of(context).colorScheme.primary
               : Theme.of(context).colorScheme.outlineVariant,
-          width: _isMultiSelectMode && _selectedUserIds.contains(user.id) ? 2 : 1,
+          width:
+              _isMultiSelectMode && _selectedUserIds.contains(user.id) ? 2 : 1,
         ),
         boxShadow: [
           BoxShadow(
@@ -2259,7 +2382,8 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
           childrenPadding: const EdgeInsets.only(bottom: 8),
           leading: CircleAvatar(
             radius: 20,
-            backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+            backgroundColor:
+                Theme.of(context).colorScheme.primary.withOpacity(0.1),
             child: Text(
               user.name.isNotEmpty ? user.name[0] : '?',
               style: TextStyle(
@@ -2317,9 +2441,12 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: user.hasPaidDues 
+                    color: user.hasPaidDues
                         ? Colors.green.withOpacity(0.1)
-                        : Theme.of(context).colorScheme.errorContainer.withOpacity(0.3),
+                        : Theme.of(context)
+                            .colorScheme
+                            .errorContainer
+                            .withOpacity(0.3),
                     borderRadius: AppDesign.borderSmall,
                   ),
                   child: Icon(
@@ -2344,6 +2471,9 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
                     color: Theme.of(context).colorScheme.onPrimaryContainer,
                   ),
                   onPressed: () {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
                     _openCustomEventForm(context, user.id);
                   },
                   tooltip: 'Add Hours',
@@ -2366,14 +2496,18 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
               return Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .surfaceVariant
+                      .withOpacity(0.3),
                   borderRadius: AppDesign.borderMedium,
                 ),
                 child: ListTile(
                   dense: true,
                   leading: CircleAvatar(
                     radius: 16,
-                    backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    backgroundColor:
+                        Theme.of(context).colorScheme.primary.withOpacity(0.1),
                     child: Text(
                       hour.eventName.substring(0, 1).toUpperCase(),
                       style: TextStyle(
@@ -2403,12 +2537,16 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
                     children: [
                       IconButton(
                         icon: Icon(
-                          Icons.edit, 
+                          Icons.edit,
                           size: 20,
                           color: Theme.of(context).colorScheme.primary,
                         ),
                         tooltip: 'Edit Hour',
                         onPressed: () {
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
+                          hapticsProvider.selection();
                           _showEditHourDialog(context, user, hour);
                         },
                         padding: EdgeInsets.zero,
@@ -2417,12 +2555,16 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
                       const SizedBox(width: 8),
                       IconButton(
                         icon: Icon(
-                          Icons.delete, 
+                          Icons.delete,
                           size: 20,
                           color: Theme.of(context).colorScheme.error,
                         ),
                         tooltip: 'Delete Hour',
                         onPressed: () {
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
+                          hapticsProvider.selection();
                           _deleteServiceHour(hour, user.id);
                         },
                         padding: EdgeInsets.zero,
@@ -2516,10 +2658,16 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceVariant
+                          .withOpacity(0.3),
                       borderRadius: AppDesign.borderMedium,
                       border: Border.all(
-                        color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .outline
+                            .withOpacity(0.2),
                       ),
                     ),
                     child: SingleChildScrollView(
@@ -2539,13 +2687,21 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                Navigator.of(context).pop();
+              },
               child: const Text('Close'),
             ),
             ElevatedButton.icon(
               icon: const Icon(Icons.copy),
               label: const Text('Copy to Clipboard'),
               onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 Clipboard.setData(ClipboardData(text: content));
                 Navigator.of(context).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -2565,7 +2721,6 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
       },
     );
   }
-
 
   void _showEditHourDialog(
       BuildContext context, UserProfile user, CompletedUserHour hour) {
@@ -2588,6 +2743,9 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
               TextButton(
                 child: const Text('Cancel'),
                 onPressed: () {
+                  final hapticsProvider =
+                      Provider.of<HapticsProvider>(context, listen: false);
+                  hapticsProvider.selection();
                   Navigator.of(builderContext).pop();
                 },
               ),
@@ -2671,6 +2829,9 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
                 leading: const Icon(Icons.add),
                 title: const Text('Add Hours'),
                 onTap: () {
+                  final hapticsProvider =
+                      Provider.of<HapticsProvider>(context, listen: false);
+                  hapticsProvider.selection();
                   Navigator.pop(context);
                   _openCustomEventForm(context, user.id);
                 },
@@ -2685,6 +2846,9 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
                 title: Text(
                     user.hasPaidDues ? 'Mark Dues Unpaid' : 'Mark Dues Paid'),
                 onTap: () {
+                  final hapticsProvider =
+                      Provider.of<HapticsProvider>(context, listen: false);
+                  hapticsProvider.selection();
                   Navigator.pop(context);
                   _toggleDuesStatus(user);
                 },
@@ -2693,6 +2857,9 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
                 leading: const Icon(Icons.list),
                 title: const Text('View All Hours'),
                 onTap: () {
+                  final hapticsProvider =
+                      Provider.of<HapticsProvider>(context, listen: false);
+                  hapticsProvider.selection();
                   Navigator.pop(context);
                   _showUserDetailsDialog(user);
                 },
@@ -2701,7 +2868,12 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                Navigator.pop(context);
+              },
               child: const Text('Close'),
             ),
           ],
@@ -2817,7 +2989,13 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
                       ),
                       IconButton(
                         icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () {
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
+                          hapticsProvider.selection();
+                          Navigator.pop(context);
+                        },
                       ),
                     ],
                   ),
@@ -2867,12 +3045,22 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       OutlinedButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () {
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
+                          hapticsProvider.selection();
+                          Navigator.pop(context);
+                        },
                         child: const Text('Close'),
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton.icon(
                         onPressed: () {
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
+                          hapticsProvider.selection();
                           Navigator.pop(context);
                           _openCustomEventForm(context, user.id);
                         },
@@ -3225,6 +3413,10 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
                             : 'Select Time'),
                       ),
                       onPressed: () async {
+                        final hapticsProvider = Provider.of<HapticsProvider>(
+                            context,
+                            listen: false);
+                        hapticsProvider.selection();
                         final TimeOfDay? pickedTime = await showTimePicker(
                           context: context,
                           initialTime: selectedTime ?? TimeOfDay.now(),
@@ -3280,12 +3472,18 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
               TextButton(
                 child: const Text('Cancel'),
                 onPressed: () {
+                  final hapticsProvider =
+                      Provider.of<HapticsProvider>(context, listen: false);
+                  hapticsProvider.selection();
                   Navigator.of(context).pop();
                 },
               ),
               ElevatedButton(
                 child: const Text('Save'),
                 onPressed: () {
+                  final hapticsProvider =
+                      Provider.of<HapticsProvider>(context, listen: false);
+                  hapticsProvider.selection();
                   if (selectedTime != null && type != null) {
                     String timeSlot =
                         '${selectedTime.hour}:${selectedTime.minute}';
@@ -3308,7 +3506,7 @@ Widget _buildRealtimeFilterInput(String label, double value, double min, double 
 
   Future<void> _deleteServiceHour(CompletedUserHour hour, String userId) async {
     final society =
-          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     await logactivity(
       hour.eventName,
       'N/A',

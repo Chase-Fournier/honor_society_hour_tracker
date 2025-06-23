@@ -28,10 +28,10 @@ class HapticsProvider extends ChangeNotifier {
     try {
       _isHapticsEnabled = enabled;
       notifyListeners();
-      
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('haptics_enabled', enabled);
-      
+
       // Provide immediate feedback when enabling
       if (enabled) {
         selection();

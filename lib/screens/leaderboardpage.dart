@@ -5,7 +5,7 @@ import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../common/app_design.dart';
 import '../models/userranking.dart';
 import '../providers/societyprovider.dart';
-
+import '../providers/hapticsprovider.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -31,9 +31,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   }
 
   Future<void> _fetchLeaderboardData() async {
-    final societyId = Provider.of<SocietyProvider>(context, listen: false)
-          .currentSociety
-          ?.id;
+    final societyId =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety?.id;
     try {
       // Fetch profiles first
       final profilesResponse =
@@ -49,7 +48,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       final response = await supabase
           .from('Service hours')
           .select('user_id, hours, type')
-          .neq('type', 'Meeting').eq('society_id', societyId ?? 0); // Exclude meeting hours
+          .neq('type', 'Meeting')
+          .eq('society_id', societyId ?? 0); // Exclude meeting hours
 
       // Process the data to calculate total hours per user
       Map<String, UserRanking> userHours = {};

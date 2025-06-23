@@ -5,6 +5,7 @@ import '../providers/societyprovider.dart';
 import '../models/leadershiprole.dart';
 import '../common/app_design.dart';
 import '../common/app_widgets.dart';
+import '../providers/hapticsprovider.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -29,7 +30,8 @@ class _AdminLeadershipPageState extends State<AdminLeadershipPage> {
     setState(() => _isLoading = true);
 
     try {
-      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
       if (society == null) {
         setState(() => _isLoading = false);
         return;
@@ -80,7 +82,8 @@ class _AdminLeadershipPageState extends State<AdminLeadershipPage> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: Text(isEditing ? 'Edit Leadership Role' : 'Add Leadership Role'),
+          title:
+              Text(isEditing ? 'Edit Leadership Role' : 'Add Leadership Role'),
           shape: RoundedRectangleBorder(
             borderRadius: AppDesign.borderLarge,
           ),
@@ -136,20 +139,26 @@ class _AdminLeadershipPageState extends State<AdminLeadershipPage> {
                   AppTextField(
                     label: 'Display Order',
                     hint: 'Order in which this role appears (1 = first)',
-                    controller: TextEditingController(text: displayOrder.toString()),
-                    onChanged: (value) => displayOrder = int.tryParse(value) ?? displayOrder,
+                    controller:
+                        TextEditingController(text: displayOrder.toString()),
+                    onChanged: (value) =>
+                        displayOrder = int.tryParse(value) ?? displayOrder,
                     prefixIcon: Icons.sort,
                     keyboardType: TextInputType.number,
                   ),
                   SizedBox(height: AppDesign.spacingM),
                   Container(
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceVariant
+                          .withOpacity(0.3),
                       borderRadius: AppDesign.borderMedium,
                     ),
                     child: SwitchListTile(
                       title: const Text('Active Role'),
-                      subtitle: const Text('Inactive roles won\'t be displayed to members'),
+                      subtitle: const Text(
+                          'Inactive roles won\'t be displayed to members'),
                       value: isActive,
                       onChanged: (value) => setState(() => isActive = value),
                     ),
@@ -160,12 +169,22 @@ class _AdminLeadershipPageState extends State<AdminLeadershipPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                Navigator.pop(context);
+              },
               child: const Text('Cancel'),
             ),
             if (isEditing)
               TextButton(
-                onPressed: () => _showDeleteConfirmation(role),
+                onPressed: () {
+                  final hapticsProvider =
+                      Provider.of<HapticsProvider>(context, listen: false);
+                  hapticsProvider.selection();
+                  _showDeleteConfirmation(role);
+                },
                 style: TextButton.styleFrom(
                   foregroundColor: Theme.of(context).colorScheme.error,
                 ),
@@ -173,7 +192,12 @@ class _AdminLeadershipPageState extends State<AdminLeadershipPage> {
               ),
             FilledButton(
               onPressed: () async {
-                if (title.isNotEmpty && holderName.isNotEmpty && description.isNotEmpty) {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                if (title.isNotEmpty &&
+                    holderName.isNotEmpty &&
+                    description.isNotEmpty) {
                   await _saveRole(
                     role,
                     title,
@@ -206,7 +230,8 @@ class _AdminLeadershipPageState extends State<AdminLeadershipPage> {
     int displayOrder,
   ) async {
     try {
-      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
       if (society == null) return;
 
       final roleData = {
@@ -237,8 +262,8 @@ class _AdminLeadershipPageState extends State<AdminLeadershipPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(existingRole != null 
-                ? 'Leadership role updated successfully' 
+            content: Text(existingRole != null
+                ? 'Leadership role updated successfully'
                 : 'Leadership role added successfully'),
             behavior: SnackBarBehavior.floating,
           ),
@@ -270,11 +295,19 @@ class _AdminLeadershipPageState extends State<AdminLeadershipPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
+              Navigator.pop(context);
+            },
             child: const Text('Cancel'),
           ),
           FilledButton(
             onPressed: () async {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
               await _deleteRole(role);
               if (mounted) {
                 Navigator.pop(context);
@@ -293,10 +326,7 @@ class _AdminLeadershipPageState extends State<AdminLeadershipPage> {
 
   Future<void> _deleteRole(LeadershipRole role) async {
     try {
-      await supabase
-          .from('leadership_roles')
-          .delete()
-          .eq('id', role.id);
+      await supabase.from('leadership_roles').delete().eq('id', role.id);
 
       await _fetchLeadershipRoles();
 
@@ -348,7 +378,12 @@ class _AdminLeadershipPageState extends State<AdminLeadershipPage> {
                       : _buildLeadershipList(),
                 ),
           floatingActionButton: FloatingActionButton.extended(
-            onPressed: _showAddRoleDialog,
+            onPressed: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
+              _showAddRoleDialog;
+            },
             icon: const Icon(Icons.add),
             label: const Text('Add Role'),
           ),
@@ -367,34 +402,48 @@ class _AdminLeadershipPageState extends State<AdminLeadershipPage> {
             Container(
               padding: AppDesign.paddingLarge,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                color: Theme.of(context)
+                    .colorScheme
+                    .surfaceVariant
+                    .withOpacity(0.3),
                 borderRadius: AppDesign.borderRound,
               ),
               child: Icon(
                 Icons.supervisor_account,
                 size: 64,
-                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurfaceVariant
+                    .withOpacity(0.6),
               ),
             ),
             SizedBox(height: AppDesign.spacingL),
             Text(
               'No Leadership Roles',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
             SizedBox(height: AppDesign.spacingS),
             Text(
               'Add leadership roles to help members know who to contact',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
-              ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant
+                        .withOpacity(0.7),
+                  ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: AppDesign.spacingL),
             FilledButton.icon(
-              onPressed: _showAddRoleDialog,
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                _showAddRoleDialog;
+              },
               icon: const Icon(Icons.add),
               label: const Text('Add Your First Role'),
             ),
@@ -413,7 +462,12 @@ class _AdminLeadershipPageState extends State<AdminLeadershipPage> {
         return Container(
           margin: const EdgeInsets.only(bottom: AppDesign.spacingM),
           child: AppCard(
-            onTap: () => _showEditRoleDialog(role),
+            onTap: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
+              _showEditRoleDialog(role);
+            },
             child: Row(
               children: [
                 Container(
@@ -442,12 +496,19 @@ class _AdminLeadershipPageState extends State<AdminLeadershipPage> {
                           Expanded(
                             child: Text(
                               role.title,
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: role.isActive
-                                    ? Theme.of(context).colorScheme.onSurface
-                                    : Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: role.isActive
+                                        ? Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                  ),
                             ),
                           ),
                           Container(
@@ -456,15 +517,22 @@ class _AdminLeadershipPageState extends State<AdminLeadershipPage> {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withOpacity(0.1),
                               borderRadius: AppDesign.borderSmall,
                             ),
                             child: Text(
                               'Order ${role.displayOrder}',
-                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelSmall
+                                  ?.copyWith(
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                             ),
                           ),
                           if (!role.isActive) ...[
@@ -475,14 +543,21 @@ class _AdminLeadershipPageState extends State<AdminLeadershipPage> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surfaceVariant,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceVariant,
                                 borderRadius: AppDesign.borderSmall,
                               ),
                               child: Text(
                                 'Inactive',
-                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelSmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
                               ),
                             ),
                           ],
@@ -492,9 +567,9 @@ class _AdminLeadershipPageState extends State<AdminLeadershipPage> {
                       Text(
                         role.holderName,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
+                              fontWeight: FontWeight.w500,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                       ),
                       if (role.email != null || role.phone != null) ...[
                         SizedBox(height: AppDesign.spacingXS),
@@ -504,33 +579,51 @@ class _AdminLeadershipPageState extends State<AdminLeadershipPage> {
                               Icon(
                                 Icons.email,
                                 size: 14,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
                               ),
                               SizedBox(width: 4),
                               Text(
                                 role.email!,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
                               ),
                             ],
                             if (role.email != null && role.phone != null) ...[
                               SizedBox(width: AppDesign.spacingS),
-                              Text('•', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                              Text('•',
+                                  style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant)),
                               SizedBox(width: AppDesign.spacingS),
                             ],
                             if (role.phone != null) ...[
                               Icon(
                                 Icons.phone,
                                 size: 14,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
                               ),
                               SizedBox(width: 4),
                               Text(
                                 role.phone!,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
                               ),
                             ],
                           ],

@@ -21,7 +21,8 @@ class SocietyJoinRequestPage extends StatefulWidget {
 
 class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
   List<HonorSociety> _availableSocieties = [];
-  Map<int, String> _requestStatuses = {}; // Track status: 'pending', 'approved', 'rejected', 'revoked'
+  Map<int, String> _requestStatuses =
+      {}; // Track status: 'pending', 'approved', 'rejected', 'revoked'
   Map<int, DateTime> _requestDates = {}; // Track when requests were made
   bool _isLoading = true;
 
@@ -121,7 +122,7 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
       // Create maps for quick lookup
       final Map<int, String> statusMap = {};
       final Map<int, DateTime> dateMap = {};
-      
+
       for (final req in requestsResponse) {
         statusMap[req['society_id']] = req['status'];
         dateMap[req['society_id']] = DateTime.parse(req['requested_at']);
@@ -153,7 +154,8 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('You already have a pending request for this society'),
+              content: const Text(
+                  'You already have a pending request for this society'),
               backgroundColor: Colors.orange,
               behavior: SnackBarBehavior.floating,
             ),
@@ -279,14 +281,17 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
             Container(
               padding: AppDesign.paddingSmall,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                color: Theme.of(context)
+                    .colorScheme
+                    .surfaceVariant
+                    .withOpacity(0.5),
                 borderRadius: AppDesign.borderMedium,
               ),
               child: Text(
                 'An administrator will review your request soon.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -295,7 +300,8 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
         actions: [
           FilledButton(
             onPressed: () {
-              final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
               hapticsProvider.selection();
               Navigator.of(context).pop();
             },
@@ -321,7 +327,10 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
               Container(
                 padding: AppDesign.paddingMedium,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primaryContainer
+                      .withOpacity(0.3),
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(AppDesign.radiusLarge),
                     topRight: Radius.circular(AppDesign.radiusLarge),
@@ -345,31 +354,40 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
                         children: [
                           Text(
                             society.name,
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                           ),
                           Text(
                             'Honor Society',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
                           ),
                         ],
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () {
-                        final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-                        hapticsProvider.selection();
-                        Navigator.pop(context);
-                      }
-                    ),
+                        icon: const Icon(Icons.close),
+                        onPressed: () {
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
+                          hapticsProvider.selection();
+                          Navigator.pop(context);
+                        }),
                   ],
                 ),
               ),
-              
+
               // Content
               Expanded(
                 child: SingleChildScrollView(
@@ -387,31 +405,33 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
                         society.description,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
-                      
+
                       const SizedBox(height: AppDesign.spacingL),
-                      
+
                       // Requirements
                       const AppSectionHeader(
                         title: 'Requirements',
                         icon: Icons.assignment,
                       ),
                       const SizedBox(height: AppDesign.spacingS),
-                      
+
                       // Meeting requirement
                       _buildRequirementItem(
                         'Meeting Attendance',
                         '${society.meetingRequirement} meetings required',
                         Icons.groups,
                       ),
-                      
+
                       // Hour requirements
-                      ...society.hourRequirements.where((req) => req.isActive).map(
-                        (req) => _buildRequirementItem(
-                          req.type,
-                          '${req.hoursNeeded} hours - ${req.description}',
-                          getIconDataByName(req.iconName),
-                        ),
-                      ),
+                      ...society.hourRequirements
+                          .where((req) => req.isActive)
+                          .map(
+                            (req) => _buildRequirementItem(
+                              req.type,
+                              '${req.hoursNeeded} hours - ${req.description}',
+                              getIconDataByName(req.iconName),
+                            ),
+                          ),
                     ],
                   ),
                 ),
@@ -423,7 +443,8 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
     );
   }
 
-  Widget _buildRequirementItem(String title, String description, IconData icon) {
+  Widget _buildRequirementItem(
+      String title, String description, IconData icon) {
     return Container(
       margin: const EdgeInsets.only(bottom: AppDesign.spacingS),
       padding: AppDesign.paddingSmall,
@@ -446,14 +467,14 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
                 Text(
                   description,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                 ),
               ],
             ),
@@ -497,7 +518,8 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () async {
-              final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
               hapticsProvider.selection();
               await Future.wait([
                 _fetchAvailableSocieties(),
@@ -519,9 +541,7 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
                       _fetchAllRequestStatuses(),
                     ]);
                   },
-                  child: isWideScreen
-                      ? _buildGridView()
-                      : _buildListView(),
+                  child: isWideScreen ? _buildGridView() : _buildListView(),
                 ),
     );
   }
@@ -536,29 +556,38 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
             Container(
               padding: AppDesign.paddingLarge,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                color: Theme.of(context)
+                    .colorScheme
+                    .surfaceVariant
+                    .withOpacity(0.3),
                 borderRadius: AppDesign.borderRound,
               ),
               child: Icon(
                 Icons.school_outlined,
                 size: 64,
-                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurfaceVariant
+                    .withOpacity(0.6),
               ),
             ),
             const SizedBox(height: AppDesign.spacingL),
             Text(
               'No Available Societies',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
             const SizedBox(height: AppDesign.spacingS),
             Text(
               'You are already a member of all available honor societies, or there are no societies to join at this time.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
-              ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant
+                        .withOpacity(0.7),
+                  ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -601,7 +630,7 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
   Widget _buildSocietyCard(HonorSociety society) {
     final status = _requestStatuses[society.id];
     final requestDate = _requestDates[society.id];
-    
+
     final hasPendingRequest = status == 'pending';
     final hasRejectedRequest = status == 'rejected';
     final hasRevokedRequest = status == 'revoked';
@@ -652,7 +681,8 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
                     ? Text(
                         society.name.substring(0, 1),
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          color:
+                              Theme.of(context).colorScheme.onPrimaryContainer,
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
                         ),
@@ -667,15 +697,16 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
                     Text(
                       society.name,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       society.description,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -685,9 +716,10 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
               IconButton(
                 icon: const Icon(Icons.info_outline),
                 onPressed: () {
-                final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                _showSocietyDetails(society);
+                  final hapticsProvider =
+                      Provider.of<HapticsProvider>(context, listen: false);
+                  hapticsProvider.selection();
+                  _showSocietyDetails(society);
                 },
                 tooltip: 'View Details',
               ),
@@ -758,16 +790,22 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
                 : canResubmit
                     ? FilledButton.icon(
                         onPressed: () {
-                          final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
                           hapticsProvider.selection();
                           _resubmitRequest(society);
                         },
                         icon: const Icon(Icons.refresh),
-                        label: Text(hasRevokedRequest ? 'Request to Rejoin' : 'Resubmit Request'),
+                        label: Text(hasRevokedRequest
+                            ? 'Request to Rejoin'
+                            : 'Resubmit Request'),
                       )
                     : FilledButton.icon(
                         onPressed: () {
-                          final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
                           hapticsProvider.selection();
                           _requestJoin(society);
                         },
@@ -782,7 +820,7 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
 
   String _formatDate(DateTime? date) {
     if (date == null) return '';
-    
+
     final now = DateTime.now();
     final difference = now.difference(date);
 

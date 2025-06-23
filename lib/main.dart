@@ -5,14 +5,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import 'providers/societyprovider.dart';
 import 'providers/themeprovider.dart' as themeprovider;
-import 'providers/themenotifier.dart';
-import 'providers/hapticsprovider.dart';  // Add this import
+import 'providers/themenotifier.dart'; // Add this import
 import 'screens/loginpage.dart';
 import 'screens/societyselectionpage.dart';
 import 'screens/reset_password_page.dart';
 import 'package:app_links/app_links.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
+import '../providers/hapticsprovider.dart';
+import '../providers/navigationprovider.dart';
 
 enum SortOrder {
   ascending,
@@ -39,7 +40,8 @@ void main() async {
   final themeNotifier = ThemeNotifier();
   final themeProvider = themeprovider.ThemeProvider();
   final societyProvider = SocietyProvider();
-  final hapticsProvider = HapticsProvider();  // Add this line
+  final hapticsProvider = HapticsProvider();
+  final navigationProvider = NavigationProvider();
 
   runApp(
     MultiProvider(
@@ -47,7 +49,8 @@ void main() async {
         ChangeNotifierProvider(create: (_) => themeNotifier),
         ChangeNotifierProvider(create: (_) => themeProvider),
         ChangeNotifierProvider(create: (_) => societyProvider),
-        ChangeNotifierProvider(create: (_) => hapticsProvider),  // Add this line
+        ChangeNotifierProvider(create: (_) => hapticsProvider),
+        ChangeNotifierProvider(create: (_) => navigationProvider),
       ],
       child: MyApp(themeNotifier: themeNotifier),
     ),
@@ -85,13 +88,17 @@ class _MyAppState extends State<MyApp> {
       (data) {
         final event = data.event;
         final session = data.session;
-        debugPrint("Auth Event: $event, Session: ${session != null}, _isProcessingPasswordRecovery: $_isProcessingPasswordRecovery");
+        debugPrint(
+            "Auth Event: $event, Session: ${session != null}, _isProcessingPasswordRecovery: $_isProcessingPasswordRecovery");
 
         // If we are specifically processing a password recovery,
         // let the deep link handler manage navigation to ResetPasswordPage.
         // The recovery token will create a session, hence AuthChangeEvent.signedIn might fire.
-        if (_isProcessingPasswordRecovery && (event == AuthChangeEvent.signedIn || event == AuthChangeEvent.passwordRecovery)) {
-          debugPrint("Auth event ($event) occurred while _isProcessingPasswordRecovery is true. ResetPasswordPage should be shown.");
+        if (_isProcessingPasswordRecovery &&
+            (event == AuthChangeEvent.signedIn ||
+                event == AuthChangeEvent.passwordRecovery)) {
+          debugPrint(
+              "Auth event ($event) occurred while _isProcessingPasswordRecovery is true. ResetPasswordPage should be shown.");
           // Do NOT navigate to society_selection here.
           // The ResetPasswordPage will be pushed by _handleDeepLink.
           // After password is successfully reset from ResetPasswordPage, user will be sent to LoginPage.
@@ -101,27 +108,33 @@ class _MyAppState extends State<MyApp> {
         // Standard auth flow
         switch (event) {
           case AuthChangeEvent.signedIn:
-            debugPrint("General Signed In event. Navigating to society selection.");
-            Provider.of<SocietyProvider>(context, listen: false).loadUserSocieties();
-            _navigatorKey.currentState?.pushNamedAndRemoveUntil('/society_selection', (route) => false);
+            debugPrint(
+                "General Signed In event. Navigating to society selection.");
+            Provider.of<SocietyProvider>(context, listen: false)
+                .loadUserSocieties();
+            _navigatorKey.currentState?.pushNamedAndRemoveUntil(
+                '/society_selection', (route) => false);
             break;
           case AuthChangeEvent.signedOut:
             debugPrint("Signed Out event. Navigating to login ('/').");
-            _navigatorKey.currentState?.pushNamedAndRemoveUntil('/', (route) => false);
+            _navigatorKey.currentState
+                ?.pushNamedAndRemoveUntil('/', (route) => false);
             break;
           case AuthChangeEvent.passwordRecovery:
             // This event means Supabase has acknowledged the recovery token.
             // _isProcessingPasswordRecovery should already be true if triggered by our deep link.
             // If _isProcessingPasswordRecovery is false, this might be an unexpected state or a recovery
             // link handled outside the app's direct flow (less likely with deep links).
-            debugPrint("PasswordRecovery event. _isProcessingPasswordRecovery: $_isProcessingPasswordRecovery");
+            debugPrint(
+                "PasswordRecovery event. _isProcessingPasswordRecovery: $_isProcessingPasswordRecovery");
             // No automatic navigation here; _handleDeepLink takes precedence.
             break;
           case AuthChangeEvent.tokenRefreshed:
           case AuthChangeEvent.userUpdated:
           case AuthChangeEvent.userDeleted:
           case AuthChangeEvent.initialSession:
-          case AuthChangeEvent.mfaChallengeVerified: // Handle other events if necessary
+          case AuthChangeEvent
+                .mfaChallengeVerified: // Handle other events if necessary
             debugPrint("Auth event: $event");
             break;
         }
@@ -149,18 +162,25 @@ class _MyAppState extends State<MyApp> {
       final initialUri = await _appLinks.getInitialLink();
       if (initialUri != null) {
         debugPrint('Received initial deep link: $initialUri');
-        _handleDeepLink(initialUri); // This might set _isProcessingPasswordRecovery
+        _handleDeepLink(
+            initialUri); // This might set _isProcessingPasswordRecovery
       } else {
         // No initial deep link, check current session for normal app start
         // Add a post frame callback to ensure BuildContext is ready for Provider
         // and Navigator is ready.
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!_isProcessingPasswordRecovery && supabase.auth.currentUser != null && mounted) {
-            debugPrint("No initial deep link, user is signed in. Navigating to society selection.");
-            Provider.of<SocietyProvider>(context, listen: false).loadUserSocieties();
-            _navigatorKey.currentState?.pushNamedAndRemoveUntil('/society_selection', (route) => false);
+          if (!_isProcessingPasswordRecovery &&
+              supabase.auth.currentUser != null &&
+              mounted) {
+            debugPrint(
+                "No initial deep link, user is signed in. Navigating to society selection.");
+            Provider.of<SocietyProvider>(context, listen: false)
+                .loadUserSocieties();
+            _navigatorKey.currentState?.pushNamedAndRemoveUntil(
+                '/society_selection', (route) => false);
           } else if (supabase.auth.currentUser == null) {
-             debugPrint("No initial deep link, no current user. App should be on LoginPage ('/').");
+            debugPrint(
+                "No initial deep link, no current user. App should be on LoginPage ('/').");
           }
         });
       }
@@ -179,46 +199,61 @@ class _MyAppState extends State<MyApp> {
           _isProcessingPasswordRecovery = true;
         });
       }
-      debugPrint("Password reset link identified. Set _isProcessingPasswordRecovery=true.");
+      debugPrint(
+          "Password reset link identified. Set _isProcessingPasswordRecovery=true.");
 
       if (uri.hasFragment) {
         final fragmentParams = Uri.parse('?$uri.fragment').queryParameters;
         final accessToken = fragmentParams['access_token'];
         final type = fragmentParams['type']; // Should be 'recovery'
 
-                  if (kIsWeb && uri.hasFragment) {
-              final fragmentParams = Uri.parse('?$uri.fragment').queryParameters;
-              final type = fragmentParams['type'];
-              if (type == 'recovery' && fragmentParams.containsKey('access_token')) {
-                  isWebPasswordRecovery = true;
-                  webAccessToken = fragmentParams['access_token'];
-              }
+        if (kIsWeb && uri.hasFragment) {
+          final fragmentParams = Uri.parse('?$uri.fragment').queryParameters;
+          final type = fragmentParams['type'];
+          if (type == 'recovery' &&
+              fragmentParams.containsKey('access_token')) {
+            isWebPasswordRecovery = true;
+            webAccessToken = fragmentParams['access_token'];
           }
+        }
 
-        if ((uri.scheme == 'com.wheelermun.nhs' && uri.host == 'reset-password') || isWebPasswordRecovery) {
+        if ((uri.scheme == 'com.wheelermun.nhs' &&
+                uri.host == 'reset-password') ||
+            isWebPasswordRecovery) {
+          if (mounted) {
+            setState(() {
+              _isProcessingPasswordRecovery = true;
+            });
+          }
+          debugPrint(
+              "Password reset link identified. Set _isProcessingPasswordRecovery=true.");
+
+          String? accessTokenToUse = (uri.scheme == 'com.wheelermun.nhs')
+              ? Uri.parse('?$uri.fragment')
+                  .queryParameters['access_token'] // For custom scheme
+              : webAccessToken; // For web
+
+          if (accessTokenToUse != null) {
+            debugPrint(
+                "Access token for recovery found. Navigating to /reset-password.");
+            _navigatorKey.currentState?.pushNamed(
+              '/reset-password',
+              arguments:
+                  ResetPasswordPageArguments(accessToken: accessTokenToUse),
+            );
+          } else {
+            debugPrint('Access token missing in password reset link fragment.');
             if (mounted) {
-                setState(() { _isProcessingPasswordRecovery = true; });
+              setState(() {
+                _isProcessingPasswordRecovery = false;
+              });
             }
-            debugPrint("Password reset link identified. Set _isProcessingPasswordRecovery=true.");
-
-            String? accessTokenToUse = (uri.scheme == 'com.wheelermun.nhs')
-                ? Uri.parse('?$uri.fragment').queryParameters['access_token'] // For custom scheme
-                : webAccessToken; // For web
-
-            if (accessTokenToUse != null) {
-                debugPrint("Access token for recovery found. Navigating to /reset-password.");
-                _navigatorKey.currentState?.pushNamed(
-                    '/reset-password',
-                    arguments: ResetPasswordPageArguments(accessToken: accessTokenToUse),
-                );
-            } else {
-                debugPrint('Access token missing in password reset link fragment.');
-                if (mounted) { setState(() { _isProcessingPasswordRecovery = false; }); }
-            }
+          }
         }
 
         if (accessToken != null && type == 'recovery') {
-          debugPrint("Access token for recovery found. Navigating to /reset-password.");
+          debugPrint(
+              "Access token for recovery found. Navigating to /reset-password.");
           // Push ResetPasswordPage onto the stack.
           // It should appear on top of whatever page is current (e.g., LoginPage).
           _navigatorKey.currentState?.pushNamed(
@@ -226,15 +261,20 @@ class _MyAppState extends State<MyApp> {
             arguments: ResetPasswordPageArguments(accessToken: accessToken),
           );
         } else {
-          debugPrint('Access token or recovery type missing/invalid in password reset link. Token: $accessToken, Type: $type');
+          debugPrint(
+              'Access token or recovery type missing/invalid in password reset link. Token: $accessToken, Type: $type');
           if (mounted) {
-            setState(() { _isProcessingPasswordRecovery = false; });
+            setState(() {
+              _isProcessingPasswordRecovery = false;
+            });
           }
         }
       } else {
         debugPrint('Password reset link fragment is missing.');
         if (mounted) {
-          setState(() { _isProcessingPasswordRecovery = false; });
+          setState(() {
+            _isProcessingPasswordRecovery = false;
+          });
         }
       }
     } else if (uri.scheme == 'com.wheelermun.nhs' && uri.host == 'callback') {
@@ -242,14 +282,18 @@ class _MyAppState extends State<MyApp> {
       // Ensure _isProcessingPasswordRecovery is false if it's not a password reset continuation.
       debugPrint('Received auth callback (e.g., email verification): $uri');
       if (mounted && _isProcessingPasswordRecovery) {
-        setState(() { _isProcessingPasswordRecovery = false; });
+        setState(() {
+          _isProcessingPasswordRecovery = false;
+        });
       }
       // Supabase client handles the session for email verification.
       // The onAuthStateChange listener will then navigate appropriately (e.g., to login or society_selection).
     } else {
       // Unrelated deep link
       if (mounted && _isProcessingPasswordRecovery) {
-         setState(() { _isProcessingPasswordRecovery = false; });
+        setState(() {
+          _isProcessingPasswordRecovery = false;
+        });
       }
     }
   }
@@ -300,17 +344,20 @@ class _MyAppState extends State<MyApp> {
                     },
                     onGenerateRoute: (settings) {
                       if (settings.name == '/reset-password') {
-                         final args = settings.arguments as ResetPasswordPageArguments?;
+                        final args =
+                            settings.arguments as ResetPasswordPageArguments?;
                         String? accessToken = args?.accessToken;
 
                         return MaterialPageRoute(
                           builder: (context) => ResetPasswordPage(
                             accessToken: accessToken,
                             onPasswordResetFlowComplete: () {
-                              if (mounted) { // Ensure _MyAppState is still mounted
+                              if (mounted) {
+                                // Ensure _MyAppState is still mounted
                                 setState(() {
                                   _isProcessingPasswordRecovery = false;
-                                  debugPrint("ResetPasswordPage flow complete. _isProcessingPasswordRecovery set to false.");
+                                  debugPrint(
+                                      "ResetPasswordPage flow complete. _isProcessingPasswordRecovery set to false.");
                                 });
                               }
                             },
@@ -318,11 +365,13 @@ class _MyAppState extends State<MyApp> {
                           settings: settings,
                         );
                       }
-                       if (settings.name == '/society_selection') {
-                         return MaterialPageRoute(builder: (context) => const SocietySelectionPage());
+                      if (settings.name == '/society_selection') {
+                        return MaterialPageRoute(
+                            builder: (context) => const SocietySelectionPage());
                       }
-                       if (settings.name == '/') {
-                         return MaterialPageRoute(builder: (context) => const LoginPage());
+                      if (settings.name == '/') {
+                        return MaterialPageRoute(
+                            builder: (context) => const LoginPage());
                       }
                       // Handle other routes if necessary, or return null
                       return null;

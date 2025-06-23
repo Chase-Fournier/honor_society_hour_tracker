@@ -9,6 +9,7 @@ import '../common/iconselector.dart';
 import '../common/app_design.dart';
 import '../common/app_widgets.dart';
 import '../screens/adminleadershippage.dart';
+import '../providers/hapticsprovider.dart';
 
 class SocietyAdminPage extends StatefulWidget {
   const SocietyAdminPage({Key? key}) : super(key: key);
@@ -174,7 +175,8 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
 
   Widget _buildSocietyDetailsTab(bool isWideScreen) {
     return SingleChildScrollView(
-      padding: EdgeInsets.all(isWideScreen ? AppDesign.spacingXL : AppDesign.spacingL),
+      padding: EdgeInsets.all(
+          isWideScreen ? AppDesign.spacingXL : AppDesign.spacingL),
       child: Center(
         child: Container(
           constraints: BoxConstraints(
@@ -187,22 +189,22 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
               children: [
                 // Header Section
                 _buildHeaderSection(),
-                
+
                 SizedBox(height: AppDesign.spacingXL),
 
                 // Society Image Section
                 _buildImageSection(),
-                
+
                 SizedBox(height: AppDesign.spacingXL),
 
                 // Basic Information Section
                 _buildBasicInfoSection(),
-                
+
                 SizedBox(height: AppDesign.spacingXL),
 
                 // Configuration Section
                 _buildConfigurationSection(),
-                
+
                 SizedBox(height: AppDesign.spacingXXL),
 
                 // Action Buttons
@@ -221,7 +223,8 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
         Container(
           padding: AppDesign.paddingLarge,
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+            color:
+                Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
             borderRadius: AppDesign.borderLarge,
           ),
           child: Row(
@@ -246,16 +249,20 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
                     Text(
                       'Society Management',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                            fontWeight: FontWeight.bold,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                     ),
                     SizedBox(height: AppDesign.spacingXS),
                     Text(
                       'Configure your honor society settings and requirements',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.8),
-                      ),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant
+                                .withOpacity(0.8),
+                          ),
                     ),
                   ],
                 ),
@@ -278,7 +285,7 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
             subtitle: 'Add a logo to represent your honor society',
           ),
           SizedBox(height: AppDesign.spacingL),
-          
+
           // Image Preview
           Center(
             child: Container(
@@ -303,7 +310,9 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
                             child: Icon(
                               Icons.broken_image,
                               size: 48,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                           );
                         },
@@ -313,7 +322,8 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
                             color: Theme.of(context).colorScheme.surfaceVariant,
                             child: Center(
                               child: CircularProgressIndicator(
-                                value: loadingProgress.expectedTotalBytes != null
+                                value: loadingProgress.expectedTotalBytes !=
+                                        null
                                     ? loadingProgress.cumulativeBytesLoaded /
                                         loadingProgress.expectedTotalBytes!
                                     : null,
@@ -333,9 +343,9 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
               ),
             ),
           ),
-          
+
           SizedBox(height: AppDesign.spacingL),
-          
+
           // Image URL Input
           AppTextField(
             label: 'Image URL',
@@ -372,7 +382,6 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
             subtitle: 'Essential details about your honor society',
           ),
           SizedBox(height: AppDesign.spacingL),
-          
           AppTextField(
             label: 'Society Name',
             hint: 'Enter the official name of your society',
@@ -385,9 +394,7 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
               return null;
             },
           ),
-          
           SizedBox(height: AppDesign.spacingM),
-          
           AppTextField(
             label: 'Description',
             hint: 'Describe your society\'s mission and goals',
@@ -417,7 +424,6 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
             subtitle: 'Set requirements and external links',
           ),
           SizedBox(height: AppDesign.spacingL),
-          
           AppTextField(
             label: 'Meeting Requirement',
             hint: '5',
@@ -434,9 +440,7 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
               return null;
             },
           ),
-          
           SizedBox(height: AppDesign.spacingM),
-          
           AppTextField(
             label: 'Error/Issue Form URL',
             hint: 'https://forms.google.com/...',
@@ -466,6 +470,9 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
           width: double.infinity,
           child: OutlinedButton.icon(
             onPressed: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -486,13 +493,16 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
             ),
           ),
         ),
-        
+
         SizedBox(height: AppDesign.spacingM),
 
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
             onPressed: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -515,13 +525,18 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
         ),
 
         SizedBox(height: AppDesign.spacingM),
-        
+
         // Save Button
         AppPrimaryButton(
           text: 'Save Society Details',
           icon: Icons.save,
           isLoading: _isLoading,
-          onPressed: _saveSocietyDetails,
+          onPressed: () {
+            final hapticsProvider =
+                Provider.of<HapticsProvider>(context, listen: false);
+            hapticsProvider.selection();
+            _saveSocietyDetails;
+          },
         ),
       ],
     );
@@ -625,7 +640,10 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                 SizedBox(height: AppDesign.spacingM),
                 Container(
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceVariant
+                        .withOpacity(0.3),
                     borderRadius: AppDesign.borderMedium,
                   ),
                   child: SwitchListTile(
@@ -641,11 +659,19 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                Navigator.pop(context);
+              },
               child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 _showDeleteConfirmation(requirement);
               },
               style: TextButton.styleFrom(
@@ -655,10 +681,15 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
             ),
             FilledButton(
               onPressed: () async {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 if (type.isNotEmpty && hours > 0) {
                   setState(() => _isLoading = true);
                   try {
-                    await supabase.Supabase.instance.client.from('hour_requirements').update({
+                    await supabase.Supabase.instance.client
+                        .from('hour_requirements')
+                        .update({
                       'type': type,
                       'description': description,
                       'hours_needed': hours,
@@ -684,7 +715,8 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: const Text('Requirement updated successfully'),
+                          content:
+                              const Text('Requirement updated successfully'),
                           behavior: SnackBarBehavior.floating,
                         ),
                       );
@@ -727,11 +759,19 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
+              Navigator.pop(context);
+            },
             child: const Text('Cancel'),
           ),
           FilledButton(
             onPressed: () async {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
               setState(() => _isLoading = true);
               try {
                 await supabase.Supabase.instance.client
@@ -767,7 +807,7 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                   );
                 }
               } finally {
-                if(mounted){
+                if (mounted) {
                   setState(() => _isLoading = false);
                 }
               }
@@ -854,11 +894,19 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                Navigator.pop(context);
+              },
               child: const Text('Cancel'),
             ),
             FilledButton(
               onPressed: () async {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 if (type.isNotEmpty && hours > 0) {
                   setState(() => _isLoading = true);
                   try {
@@ -937,7 +985,12 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                     : _buildRequirementsList(),
               ),
         floatingActionButton: FloatingActionButton.extended(
-          onPressed: _showAddRequirementDialog,
+          onPressed: () {
+            final hapticsProvider =
+                Provider.of<HapticsProvider>(context, listen: false);
+            hapticsProvider.selection();
+            _showAddRequirementDialog;
+          },
           icon: const Icon(Icons.add),
           label: const Text('Add Requirement'),
         ),
@@ -955,34 +1008,48 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
             Container(
               padding: AppDesign.paddingLarge,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                color: Theme.of(context)
+                    .colorScheme
+                    .surfaceVariant
+                    .withOpacity(0.3),
                 borderRadius: AppDesign.borderRound,
               ),
               child: Icon(
                 Icons.assignment_add,
                 size: 64,
-                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurfaceVariant
+                    .withOpacity(0.6),
               ),
             ),
             SizedBox(height: AppDesign.spacingL),
             Text(
               'No Requirements Defined',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
             SizedBox(height: AppDesign.spacingS),
             Text(
               'Create hour requirements to track student progress',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
-              ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant
+                        .withOpacity(0.7),
+                  ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: AppDesign.spacingL),
             FilledButton.icon(
-              onPressed: _showAddRequirementDialog,
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                _showAddRequirementDialog;
+              },
               icon: const Icon(Icons.add),
               label: const Text('Add Your First Requirement'),
             ),
@@ -1001,7 +1068,12 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
         return Container(
           margin: const EdgeInsets.only(bottom: AppDesign.spacingM),
           child: AppCard(
-            onTap: () => _showEditRequirementDialog(requirement),
+            onTap: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
+              _showEditRequirementDialog(requirement);
+            },
             child: Row(
               children: [
                 Container(
@@ -1030,12 +1102,19 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                           Expanded(
                             child: Text(
                               requirement.type,
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: requirement.isActive
-                                    ? Theme.of(context).colorScheme.onSurface
-                                    : Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: requirement.isActive
+                                        ? Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                  ),
                             ),
                           ),
                           if (!requirement.isActive)
@@ -1045,14 +1124,21 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surfaceVariant,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceVariant,
                                 borderRadius: AppDesign.borderSmall,
                               ),
                               child: Text(
                                 'Inactive',
-                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelSmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
                               ),
                             ),
                         ],
@@ -1061,8 +1147,10 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                       Text(
                         requirement.description,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
                       ),
                       SizedBox(height: AppDesign.spacingXS),
                       Container(
@@ -1071,15 +1159,21 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withOpacity(0.1),
                           borderRadius: AppDesign.borderSmall,
                         ),
                         child: Text(
                           '${requirement.hoursNeeded} hours required',
-                          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
                         ),
                       ),
                     ],

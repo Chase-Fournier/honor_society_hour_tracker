@@ -7,7 +7,7 @@ import '../providers/societyprovider.dart';
 import '../common/app_design.dart';
 import 'dart:ui';
 import '../models/activitylog.dart';
-
+import '../providers/hapticsprovider.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -201,6 +201,10 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                     _buildDateButton(
                       icon: Icons.chevron_left,
                       onPressed: () {
+                        final hapticsProvider = Provider.of<HapticsProvider>(
+                            context,
+                            listen: false);
+                        hapticsProvider.selection();
                         setState(() {
                           _selectedDate =
                               _selectedDate.subtract(const Duration(days: 1));
@@ -213,6 +217,10 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                     Expanded(
                       child: TextButton.icon(
                         onPressed: () async {
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
+                          hapticsProvider.selection();
                           final DateTime? picked = await showDatePicker(
                             context: context,
                             initialDate: _selectedDate,

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'app_design.dart';
+import 'package:provider/provider.dart';
+import '../providers/hapticsprovider.dart';
 
 class IconSelector extends StatefulWidget {
   final String initialValue; // The initial icon name (e.g., 'service')
@@ -54,6 +56,9 @@ class _IconSelectorState extends State<IconSelector> {
 
             return InkWell(
               onTap: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 // Update state and call callback
                 setState(() {
                   _selectedIconName = iconName;
@@ -104,7 +109,12 @@ class _IconSelectorState extends State<IconSelector> {
       ),
       child: InkWell(
         // Use InkWell for tap feedback
-        onTap: () => _showIconSelectionSheet(context),
+        onTap: () {
+          final hapticsProvider =
+              Provider.of<HapticsProvider>(context, listen: false);
+          hapticsProvider.selection();
+          _showIconSelectionSheet(context);
+        },
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [

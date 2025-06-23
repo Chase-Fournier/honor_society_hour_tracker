@@ -9,6 +9,9 @@ import 'admineventspage.dart';
 import 'homescreenpage.dart';
 import 'settingspage.dart';
 import 'adminlistspage.dart';
+import '../providers/hapticsprovider.dart';
+import '../providers/navigationprovider.dart';
+import '../common/customnavigationbar.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -63,64 +66,56 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ];
 
-        final List<BottomNavyBarItem> navItems = [
+        final List<NavigationTabData> navTabs = [
           if (isAdmin) ...[
-            BottomNavyBarItem(
-              title: const Text('Dashboard'),
-              icon: const Icon(Icons.dashboard),
-              activeColor: Theme.of(context).colorScheme.primary,
-              inactiveColor: Theme.of(context).colorScheme.onSurface,
+            NavigationTabData(
+              title: 'Dashboard',
+              icon: Icons.dashboard,
+              shortText: 'Dash',
             ),
-            BottomNavyBarItem(
-              title: const Text('Events'),
-              icon: const Icon(Icons.event),
-              activeColor: Theme.of(context).colorScheme.primary,
-              inactiveColor: Theme.of(context).colorScheme.onSurface,
+            NavigationTabData(
+              title: 'Events',
+              icon: Icons.event,
+              shortText: 'Events',
             ),
-            BottomNavyBarItem(
-              title: const Text('Attendance'),
-              icon: const Icon(Icons.check_circle),
-              activeColor: Theme.of(context).colorScheme.primary,
-              inactiveColor: Theme.of(context).colorScheme.onSurface,
+            NavigationTabData(
+              title: 'Attendance',
+              icon: Icons.check_circle,
+              shortText: 'Attend',
             ),
-            BottomNavyBarItem(
-              title: const Text('Members'),
-              icon: const Icon(Icons.people),
-              activeColor: Theme.of(context).colorScheme.primary,
-              inactiveColor: Theme.of(context).colorScheme.onSurface,
+            NavigationTabData(
+              title: 'Members',
+              icon: Icons.people,
+              shortText: 'Members',
             ),
-            BottomNavyBarItem(
-              title: const Text('Settings'),
-              icon: const Icon(Icons.settings),
-              activeColor: Theme.of(context).colorScheme.primary,
-              inactiveColor: Theme.of(context).colorScheme.onSurface,
+            NavigationTabData(
+              title: 'Settings',
+              icon: Icons.settings,
+              shortText: 'Settings',
             ),
           ] else ...[
-            BottomNavyBarItem(
-              title: const Text('Home'),
-              icon: const Icon(Icons.home),
-              activeColor: Theme.of(context).colorScheme.primary,
-              inactiveColor: Theme.of(context).colorScheme.onSurface,
+            NavigationTabData(
+              title: 'Home',
+              icon: Icons.home,
+              shortText: 'Home',
             ),
-            BottomNavyBarItem(
-              title: const Text('Details'),
-              icon: const Icon(Icons.watch_later),
-              activeColor: Theme.of(context).colorScheme.primary,
-              inactiveColor: Theme.of(context).colorScheme.onSurface,
+            NavigationTabData(
+              title: 'Details',
+              icon: Icons.watch_later,
+              shortText: 'Details',
             ),
-            BottomNavyBarItem(
-              title: const Text('Profile'),
-              icon: const Icon(Icons.account_circle),
-              activeColor: Theme.of(context).colorScheme.primary,
-              inactiveColor: Theme.of(context).colorScheme.onSurface,
+            NavigationTabData(
+              title: 'Profile',
+              icon: Icons.account_circle,
+              shortText: 'Profile',
             ),
           ],
         ];
 
-        return Scaffold(
-          body: Row(
-            children: [
-              if (isWideScreen)
+       if (isWideScreen) {
+          return Scaffold(
+            body: Row(
+              children: [
                 NavigationRail(
                   selectedIndex: _currentIndex,
                   onDestinationSelected: (index) {
@@ -128,37 +123,42 @@ class _MainScreenState extends State<MainScreen> {
                     _pageController.jumpToPage(index);
                   },
                   labelType: NavigationRailLabelType.selected,
-                  destinations: navItems.map((item) {
+                  destinations: navTabs.map((tab) {
                     return NavigationRailDestination(
-                      icon: item.icon,
-                      label: item.title,
+                      icon: Icon(tab.icon),
+                      label: Text(tab.title),
                     );
                   }).toList(),
                 ),
-              Expanded(
-                child: PageView(
-                  controller: _pageController,
-                  onPageChanged: (index) {
-                    setState(() => _currentIndex = index);
-                  },
-                  children: pages,
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    onPageChanged: (index) {
+                      setState(() => _currentIndex = index);
+                    },
+                    children: pages,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
+          );
+        }
+
+        // Mobile layout with custom navigation
+        return CustomNavigationBar(
+          selectedIndex: _currentIndex,
+          onTabChanged: (index) {
+            setState(() => _currentIndex = index);
+            _pageController.jumpToPage(index);
+          },
+          tabs: navTabs,
+          body: PageView(
+            controller: _pageController,
+            onPageChanged: (index) {
+              setState(() => _currentIndex = index);
+            },
+            children: pages,
           ),
-          bottomNavigationBar: isWideScreen
-              ? null
-              : BottomNavyBar(
-                  backgroundColor:
-                      Theme.of(context).colorScheme.surfaceContainerLowest,
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  selectedIndex: _currentIndex,
-                  onItemSelected: (index) {
-                    setState(() => _currentIndex = index);
-                    _pageController.jumpToPage(index);
-                  },
-                  items: navItems,
-                ),
         );
       },
     );

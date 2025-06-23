@@ -4,6 +4,7 @@ import '../providers/societyprovider.dart';
 import '../main.dart';
 import '../common/app_design.dart';
 import '../common/app_widgets.dart';
+import '../providers/hapticsprovider.dart';
 
 /// Page to manage join requests for a society's admin
 class JoinRequestsAdminPage extends StatefulWidget {
@@ -101,8 +102,8 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
           userName: userProfileResponse['name'] ?? 'Unknown User',
           userEmail: userProfileResponse['email'] ?? 'No email',
           requestedAt: DateTime.parse(req['requested_at'] ?? DateTime.now()),
-          processedAt: req['processed_at'] != null 
-              ? DateTime.parse(req['processed_at']) 
+          processedAt: req['processed_at'] != null
+              ? DateTime.parse(req['processed_at'])
               : null,
           processorName: processorName,
         );
@@ -199,7 +200,8 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Request ${approve ? 'approved' : 'rejected'} successfully'),
+          content:
+              Text('Request ${approve ? 'approved' : 'rejected'} successfully'),
           backgroundColor: approve ? Colors.green : Colors.orange,
           behavior: SnackBarBehavior.floating,
         ),
@@ -267,7 +269,8 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${request.userName} has been removed from the society'),
+          content:
+              Text('${request.userName} has been removed from the society'),
           backgroundColor: Colors.orange,
           behavior: SnackBarBehavior.floating,
         ),
@@ -287,84 +290,101 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
 
   Future<bool> _showRemoveConfirmation(JoinRequest request) async {
     return await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: AppDesign.borderLarge,
-          ),
-          icon: Icon(
-            Icons.warning_amber_rounded,
-            color: Theme.of(context).colorScheme.error,
-            size: 32,
-          ),
-          title: const Text('Remove Member'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Are you sure you want to remove ${request.userName} from the honor society?',
-                style: Theme.of(context).textTheme.bodyLarge,
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: AppDesign.borderLarge,
               ),
-              const SizedBox(height: AppDesign.spacingM),
-              Container(
-                padding: AppDesign.paddingMedium,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.errorContainer.withOpacity(0.3),
-                  borderRadius: AppDesign.borderMedium,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              icon: Icon(
+                Icons.warning_amber_rounded,
+                color: Theme.of(context).colorScheme.error,
+                size: 32,
+              ),
+              title: const Text('Remove Member'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Are you sure you want to remove ${request.userName} from the honor society?',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                  const SizedBox(height: AppDesign.spacingM),
+                  Container(
+                    padding: AppDesign.paddingMedium,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .errorContainer
+                          .withOpacity(0.3),
+                      borderRadius: AppDesign.borderMedium,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.info_outline,
-                          size: 16,
-                          color: Theme.of(context).colorScheme.error,
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 16,
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                            const SizedBox(width: AppDesign.spacingXS),
+                            Text(
+                              'This action will:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: AppDesign.spacingXS),
+                        const SizedBox(height: AppDesign.spacingXS),
                         Text(
-                          'This action will:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.error,
-                          ),
+                          '• Remove their access to society events and activities\n'
+                          '• Preserve their completed service hours for records\n'
+                          '• Allow them to request to rejoin in the future',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onErrorContainer,
+                                  ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: AppDesign.spacingXS),
-                    Text(
-                      '• Remove their access to society events and activities\n'
-                      '• Preserve their completed service hours for records\n'
-                      '• Allow them to request to rejoin in the future',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onErrorContainer,
-                      ),
-                    ),
-                  ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
+                    Navigator.of(context).pop(false);
+                  },
+                  child: const Text('Cancel'),
                 ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error,
-                foregroundColor: Theme.of(context).colorScheme.onError,
-              ),
-              child: const Text('Remove Member'),
-            ),
-          ],
-        );
-      },
-    ) ?? false;
+                FilledButton(
+                  onPressed: () {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
+                    Navigator.of(context).pop(true);
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                    foregroundColor: Theme.of(context).colorScheme.onError,
+                  ),
+                  child: const Text('Remove Member'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
   }
 
   @override
@@ -401,7 +421,10 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
                   society.name,
                   style: TextStyle(
                     fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withOpacity(0.7),
                   ),
                 ),
               ],
@@ -410,7 +433,12 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
             actions: [
               IconButton(
                 icon: const Icon(Icons.refresh),
-                onPressed: _fetchJoinRequests,
+                onPressed: () {
+                  final hapticsProvider =
+                      Provider.of<HapticsProvider>(context, listen: false);
+                  hapticsProvider.selection();
+                  _fetchJoinRequests;
+                },
                 tooltip: 'Refresh',
               ),
             ],
@@ -469,22 +497,28 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
               Container(
                 padding: AppDesign.paddingLarge,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .surfaceVariant
+                      .withOpacity(0.3),
                   borderRadius: AppDesign.borderRound,
                 ),
                 child: Icon(
                   isPending ? Icons.inbox : Icons.history,
                   size: 64,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurfaceVariant
+                      .withOpacity(0.6),
                 ),
               ),
               const SizedBox(height: AppDesign.spacingL),
               Text(
                 isPending ? 'No pending requests' : 'No processed requests',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
               ),
               const SizedBox(height: AppDesign.spacingS),
               Text(
@@ -492,8 +526,11 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
                     ? 'When users request to join, they\'ll appear here'
                     : 'Approved and rejected requests will appear here',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
-                ),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurfaceVariant
+                          .withOpacity(0.7),
+                    ),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -572,15 +609,16 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
                     Text(
                       request.userName,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       request.userEmail,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                     ),
                   ],
                 ),
@@ -626,7 +664,8 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
           Container(
             padding: AppDesign.paddingSmall,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+              color:
+                  Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
               borderRadius: AppDesign.borderSmall,
             ),
             child: Column(
@@ -675,7 +714,13 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => _processRequest(request, false),
+                      onPressed: () {
+                        final hapticsProvider = Provider.of<HapticsProvider>(
+                            context,
+                            listen: false);
+                        hapticsProvider.selection();
+                        _processRequest(request, false);
+                      },
                       icon: const Icon(Icons.cancel),
                       label: const Text('Reject'),
                     ),
@@ -683,7 +728,13 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
                   const SizedBox(width: AppDesign.spacingS),
                   Expanded(
                     child: FilledButton.icon(
-                      onPressed: () => _processRequest(request, true),
+                      onPressed: () {
+                        final hapticsProvider = Provider.of<HapticsProvider>(
+                            context,
+                            listen: false);
+                        hapticsProvider.selection();
+                        _processRequest(request, true);
+                      },
                       icon: const Icon(Icons.check_circle),
                       label: const Text('Approve'),
                     ),
@@ -694,7 +745,12 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () => _removeMember(request),
+                  onPressed: () {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
+                    _removeMember(request);
+                  },
                   icon: const Icon(Icons.person_remove),
                   label: const Text('Remove from Society'),
                 ),
@@ -753,8 +809,8 @@ class JoinRequest {
       userName: json['userName'] ?? 'Unknown User',
       userEmail: json['userEmail'] ?? 'No email',
       requestedAt: DateTime.parse(json['requested_at']),
-      processedAt: json['processed_at'] != null 
-          ? DateTime.parse(json['processed_at']) 
+      processedAt: json['processed_at'] != null
+          ? DateTime.parse(json['processed_at'])
           : null,
       processorName: json['processorName'],
     );

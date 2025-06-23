@@ -12,7 +12,6 @@ import 'leaderboardpage.dart';
 import '../common/iconutils.dart';
 import '../providers/hapticsprovider.dart';
 
-
 final supabase = Supabase.instance.client;
 
 class CompletedHoursPage extends StatefulWidget {
@@ -108,10 +107,9 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
           .eq('society_id', society.id);
 
       final data = response;
-  
+
       Map<String, double> hoursMap = {};
       Map<String, List<CompletedHour>> hoursByType = {};
-  
 
       // Initialize maps with all requirement types
       for (final reqType in _requirementMap.keys) {
@@ -155,7 +153,8 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
   }
 
   void _showMeetingNotesDialog() {
-    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+    final hapticsProvider =
+        Provider.of<HapticsProvider>(context, listen: false);
     hapticsProvider.selection();
 
     showDialog(
@@ -170,7 +169,8 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
                 return ListTile(
                   title: Text(note.title),
                   onTap: () {
-                    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
                     hapticsProvider.light();
                     Navigator.of(context).pop();
                     _showNoteDetailsDialog(note);
@@ -183,7 +183,8 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
             TextButton(
               child: const Text('Close'),
               onPressed: () {
-                final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
                 hapticsProvider.selection();
                 Navigator.of(context).pop();
               },
@@ -206,7 +207,8 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
             TextButton(
               child: const Text('Close'),
               onPressed: () {
-                final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
                 hapticsProvider.selection();
                 Navigator.of(context).pop();
               },
@@ -218,9 +220,10 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
   }
 
   void _openLeaderboard() {
-    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+    final hapticsProvider =
+        Provider.of<HapticsProvider>(context, listen: false);
     hapticsProvider.selection();
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -230,19 +233,19 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
       ),
     );
   }
+
   void _openLeadership() {
-    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+    final hapticsProvider =
+        Provider.of<HapticsProvider>(context, listen: false);
     hapticsProvider.selection();
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => LeadershipPage(
-        ),
+        builder: (context) => LeadershipPage(),
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -264,13 +267,23 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
             icon: const Icon(Icons.groups_3),
             color: Theme.of(context).colorScheme.primary,
             tooltip: 'View Leadership',
-            onPressed: _openLeadership,
+            onPressed: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
+              _openLeadership;
+            },
           ),
           IconButton(
             icon: const Icon(Icons.leaderboard),
             color: Theme.of(context).colorScheme.primary,
             tooltip: 'View Leaderboard',
-            onPressed: _openLeaderboard,
+            onPressed: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
+              _openLeaderboard;
+            },
           ),
         ],
       ),
@@ -477,10 +490,11 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-              final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-              hapticsProvider.light(); // Light haptic for tapping meeting notes
-              _showMeetingNotesDialog();
-            },
+            final hapticsProvider =
+                Provider.of<HapticsProvider>(context, listen: false);
+            hapticsProvider.light(); // Light haptic for tapping meeting notes
+            _showMeetingNotesDialog();
+          },
           borderRadius: AppDesign.borderLarge,
           child: Padding(
             padding: AppDesign.paddingLarge,
@@ -976,7 +990,12 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
       return SizedBox();
     }
     return OutlinedButton.icon(
-      onPressed: _openWebsite,
+      onPressed: () {
+        final hapticsProvider =
+            Provider.of<HapticsProvider>(context, listen: false);
+        hapticsProvider.selection();
+        _openWebsite;
+      },
       icon: const Icon(Icons.bug_report),
       label: const Text('Report an Issue'),
       style: OutlinedButton.styleFrom(
@@ -992,7 +1011,8 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
   }
 
   void _openWebsite() async {
-    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+    final hapticsProvider =
+        Provider.of<HapticsProvider>(context, listen: false);
     hapticsProvider.selection();
     // Get the current society from the provider
     final society =

@@ -7,7 +7,7 @@ import 'common/app_design.dart';
 import 'models/affecteduser.dart';
 import 'models/customeventgroup.dart';
 import 'models/logactivity.dart';
-
+import '../providers/hapticsprovider.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -297,6 +297,9 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
                           : selectedTime!.format(context),
                     ),
                     onPressed: () async {
+                      final hapticsProvider =
+                          Provider.of<HapticsProvider>(context, listen: false);
+                      hapticsProvider.selection();
                       final TimeOfDay? picked = await showTimePicker(
                         context: context,
                         initialTime: selectedTime ?? TimeOfDay.now(),
@@ -345,11 +348,19 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                Navigator.pop(context);
+              },
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 if (_formKey.currentState!.validate()) {
                   _formKey.currentState!.save();
 
@@ -381,12 +392,20 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
           if (_selectedEvents.isNotEmpty) ...[
             IconButton(
               icon: const Icon(Icons.edit),
-              onPressed: _showUpdateDialog,
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                _showUpdateDialog;
+              },
               tooltip: 'Edit Selected',
             ),
             IconButton(
               icon: const Icon(Icons.delete),
               onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
@@ -396,11 +415,21 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
                     ),
                     actions: [
                       TextButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () {
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
+                          hapticsProvider.selection();
+                          Navigator.pop(context);
+                        },
                         child: const Text('Cancel'),
                       ),
                       ElevatedButton(
                         onPressed: () {
+                          final hapticsProvider = Provider.of<HapticsProvider>(
+                              context,
+                              listen: false);
+                          hapticsProvider.selection();
                           Navigator.pop(context);
                           _deleteSelectedEvents();
                         },
@@ -420,9 +449,7 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
         ],
       ),
       body: _isLoading
-          ? Center(
-              child: CircularProgressIndicator()
-            )
+          ? Center(child: CircularProgressIndicator())
           : Column(
               children: [
                 // Search Bar

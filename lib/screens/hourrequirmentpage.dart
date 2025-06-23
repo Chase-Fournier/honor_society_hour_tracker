@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../models/hourrequirement.dart';
 import '../models/honorsociety.dart';
-
+import 'package:provider/provider.dart';
+import '../providers/hapticsprovider.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -83,11 +84,19 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
+              Navigator.pop(context);
+            },
             child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
               _showDeleteConfirmation(requirement);
             },
             style: TextButton.styleFrom(
@@ -97,6 +106,9 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
           ),
           ElevatedButton(
             onPressed: () async {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
               if (type.isNotEmpty && hours > 0) {
                 setState(() => _isLoading = true);
                 try {
@@ -158,11 +170,19 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
+              Navigator.pop(context);
+            },
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
               setState(() => _isLoading = true);
               try {
                 await supabase
@@ -250,11 +270,19 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
+              Navigator.pop(context);
+            },
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
               if (type.isNotEmpty && hours > 0) {
                 setState(() => _isLoading = true);
                 try {
@@ -355,51 +383,66 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                           margin: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 8),
                           child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: requirement.isActive
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Colors.grey,
-                              foregroundColor: Colors.white,
-                              child: const Icon(Icons.access_time),
-                            ),
-                            title: Text(
-                              requirement.type,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color:
-                                    requirement.isActive ? null : Colors.grey,
+                              leading: CircleAvatar(
+                                backgroundColor: requirement.isActive
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Colors.grey,
+                                foregroundColor: Colors.white,
+                                child: const Icon(Icons.access_time),
                               ),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(requirement.description),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${requirement.hoursNeeded} hours required',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: requirement.isActive
-                                        ? Theme.of(context).colorScheme.primary
-                                        : Colors.grey,
-                                  ),
+                              title: Text(
+                                requirement.type,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      requirement.isActive ? null : Colors.grey,
                                 ),
-                              ],
-                            ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.edit),
-                              onPressed: () =>
-                                  _showEditRequirementDialog(requirement),
-                            ),
-                            onTap: () =>
-                                _showEditRequirementDialog(requirement),
-                          ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(requirement.description),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${requirement.hoursNeeded} hours required',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: requirement.isActive
+                                          ? Theme.of(context)
+                                              .colorScheme
+                                              .primary
+                                          : Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              trailing: IconButton(
+                                  icon: const Icon(Icons.edit),
+                                  onPressed: () {
+                                    final hapticsProvider =
+                                        Provider.of<HapticsProvider>(context,
+                                            listen: false);
+                                    hapticsProvider.selection();
+                                    _showEditRequirementDialog(requirement);
+                                  }),
+                              onTap: () {
+                                final hapticsProvider =
+                                    Provider.of<HapticsProvider>(context,
+                                        listen: false);
+                                hapticsProvider.selection();
+                                _showEditRequirementDialog(requirement);
+                              }),
                         );
                       },
                     ),
             ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddRequirementDialog,
+        onPressed: () {
+          final hapticsProvider =
+              Provider.of<HapticsProvider>(context, listen: false);
+          hapticsProvider.selection();
+          _showAddRequirementDialog;
+        },
         tooltip: 'Add Requirement',
         child: const Icon(Icons.add),
       ),

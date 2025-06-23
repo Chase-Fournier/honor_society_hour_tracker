@@ -6,6 +6,7 @@ import '../providers/societyprovider.dart';
 import '../models/leadershiprole.dart';
 import '../common/app_design.dart';
 import '../common/app_widgets.dart';
+import '../providers/hapticsprovider.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -30,7 +31,8 @@ class _LeadershipPageState extends State<LeadershipPage> {
     setState(() => _isLoading = true);
 
     try {
-      final society = Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+      final society =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
       if (society == null) {
         setState(() => _isLoading = false);
         return;
@@ -94,7 +96,10 @@ class _LeadershipPageState extends State<LeadershipPage> {
               Container(
                 padding: AppDesign.paddingMedium,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primaryContainer
+                      .withOpacity(0.3),
                   borderRadius: AppDesign.borderMedium,
                 ),
                 child: Row(
@@ -102,7 +107,11 @@ class _LeadershipPageState extends State<LeadershipPage> {
                     CircleAvatar(
                       backgroundColor: Theme.of(context).colorScheme.primary,
                       child: Text(
-                        role.holderName.split(' ').map((name) => name[0]).take(2).join(),
+                        role.holderName
+                            .split(' ')
+                            .map((name) => name[0])
+                            .take(2)
+                            .join(),
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onPrimary,
                           fontWeight: FontWeight.bold,
@@ -116,16 +125,22 @@ class _LeadershipPageState extends State<LeadershipPage> {
                         children: [
                           Text(
                             role.holderName,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                           ),
                           Text(
                             role.title,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.w500,
+                                ),
                           ),
                         ],
                       ),
@@ -141,28 +156,35 @@ class _LeadershipPageState extends State<LeadershipPage> {
                 Text(
                   'Contact Information',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                 ),
                 SizedBox(height: AppDesign.spacingS),
-                
                 if (role.email != null)
                   _buildContactItem(
-                    icon: Icons.email,
-                    label: 'Email',
-                    value: role.email!,
-                    onTap: () => _launchEmail(role.email!),
-                  ),
-                
+                      icon: Icons.email,
+                      label: 'Email',
+                      value: role.email!,
+                      onTap: () {
+                        final hapticsProvider = Provider.of<HapticsProvider>(
+                            context,
+                            listen: false);
+                        hapticsProvider.selection();
+                        _launchEmail(role.email!);
+                      }),
                 if (role.phone != null)
                   _buildContactItem(
                     icon: Icons.phone,
                     label: 'Phone',
                     value: role.phone!,
-                    onTap: () => _launchPhone(role.phone!),
+                    onTap: () {
+                      final hapticsProvider =
+                          Provider.of<HapticsProvider>(context, listen: false);
+                      hapticsProvider.selection();
+                      _launchPhone(role.phone!);
+                    },
                   ),
-                
                 SizedBox(height: AppDesign.spacingL),
               ],
 
@@ -170,15 +192,18 @@ class _LeadershipPageState extends State<LeadershipPage> {
               Text(
                 'Role Description',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
               ),
               SizedBox(height: AppDesign.spacingS),
               Container(
                 padding: AppDesign.paddingMedium,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .surfaceVariant
+                      .withOpacity(0.3),
                   borderRadius: AppDesign.borderMedium,
                 ),
                 child: Text(
@@ -191,7 +216,12 @@ class _LeadershipPageState extends State<LeadershipPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
+              Navigator.pop(context);
+            },
             child: const Text('Close'),
           ),
         ],
@@ -233,15 +263,16 @@ class _LeadershipPageState extends State<LeadershipPage> {
                     Text(
                       label,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                     ),
                     Text(
                       value,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w500,
-                      ),
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.w500,
+                          ),
                     ),
                   ],
                 ),
@@ -263,7 +294,7 @@ class _LeadershipPageState extends State<LeadershipPage> {
       scheme: 'mailto',
       path: email,
     );
-    
+
     try {
       await launchUrl(emailUri);
     } catch (e) {
@@ -280,7 +311,7 @@ class _LeadershipPageState extends State<LeadershipPage> {
       scheme: 'tel',
       path: phone,
     );
-    
+
     try {
       await launchUrl(phoneUri);
     } catch (e) {
@@ -333,29 +364,38 @@ class _LeadershipPageState extends State<LeadershipPage> {
             Container(
               padding: AppDesign.paddingLarge,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                color: Theme.of(context)
+                    .colorScheme
+                    .surfaceVariant
+                    .withOpacity(0.3),
                 borderRadius: AppDesign.borderRound,
               ),
               child: Icon(
                 Icons.supervisor_account,
                 size: 64,
-                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurfaceVariant
+                    .withOpacity(0.6),
               ),
             ),
             SizedBox(height: AppDesign.spacingL),
             Text(
               'No Leadership Information',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
             SizedBox(height: AppDesign.spacingS),
             Text(
               'Leadership information will appear here once added by administrators',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
-              ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant
+                        .withOpacity(0.7),
+                  ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -383,14 +423,24 @@ class _LeadershipPageState extends State<LeadershipPage> {
         return Container(
           margin: const EdgeInsets.only(bottom: AppDesign.spacingM),
           child: AppCard(
-            onTap: () => _showRoleDetails(role),
+            onTap: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
+              _showRoleDetails(role);
+            },
             child: Row(
               children: [
                 CircleAvatar(
                   radius: 28,
-                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                  backgroundColor:
+                      Theme.of(context).colorScheme.primaryContainer,
                   child: Text(
-                    role.holderName.split(' ').map((name) => name[0]).take(2).join(),
+                    role.holderName
+                        .split(' ')
+                        .map((name) => name[0])
+                        .take(2)
+                        .join(),
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onPrimaryContainer,
                       fontWeight: FontWeight.bold,
@@ -405,17 +455,18 @@ class _LeadershipPageState extends State<LeadershipPage> {
                     children: [
                       Text(
                         role.title,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                       ),
                       SizedBox(height: AppDesign.spacingXS),
                       Text(
                         role.holderName,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w500,
-                        ),
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
                       ),
                       if (role.email != null || role.phone != null) ...[
                         SizedBox(height: AppDesign.spacingXS),
@@ -425,7 +476,9 @@ class _LeadershipPageState extends State<LeadershipPage> {
                               Icon(
                                 Icons.email,
                                 size: 14,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
                               ),
                               SizedBox(width: 4),
                             ],
@@ -433,15 +486,22 @@ class _LeadershipPageState extends State<LeadershipPage> {
                               Icon(
                                 Icons.phone,
                                 size: 14,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
                               ),
                               SizedBox(width: 4),
                             ],
                             Text(
                               'Contact available',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
                             ),
                           ],
                         ),
@@ -474,7 +534,12 @@ class _LeadershipPageState extends State<LeadershipPage> {
       itemBuilder: (context, index) {
         final role = _leadershipRoles[index];
         return AppCard(
-          onTap: () => _showRoleDetails(role),
+          onTap: () {
+            final hapticsProvider =
+                Provider.of<HapticsProvider>(context, listen: false);
+            hapticsProvider.selection();
+            _showRoleDetails(role);
+          },
           child: Column(
             children: [
               Expanded(
@@ -483,11 +548,17 @@ class _LeadershipPageState extends State<LeadershipPage> {
                   children: [
                     CircleAvatar(
                       radius: 40,
-                      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                      backgroundColor:
+                          Theme.of(context).colorScheme.primaryContainer,
                       child: Text(
-                        role.holderName.split(' ').map((name) => name[0]).take(2).join(),
+                        role.holderName
+                            .split(' ')
+                            .map((name) => name[0])
+                            .take(2)
+                            .join(),
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          color:
+                              Theme.of(context).colorScheme.onPrimaryContainer,
                           fontWeight: FontWeight.bold,
                           fontSize: 24,
                         ),
@@ -497,17 +568,17 @@ class _LeadershipPageState extends State<LeadershipPage> {
                     Text(
                       role.title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                            fontWeight: FontWeight.bold,
+                          ),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: AppDesign.spacingS),
                     Text(
                       role.holderName,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w500,
-                      ),
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.w500,
+                          ),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -520,7 +591,10 @@ class _LeadershipPageState extends State<LeadershipPage> {
                     vertical: AppDesign.spacingXS,
                   ),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primaryContainer
+                        .withOpacity(0.3),
                     borderRadius: AppDesign.borderSmall,
                   ),
                   child: Row(
@@ -532,7 +606,8 @@ class _LeadershipPageState extends State<LeadershipPage> {
                           size: 14,
                           color: Theme.of(context).colorScheme.primary,
                         ),
-                        if (role.phone != null) SizedBox(width: AppDesign.spacingXS),
+                        if (role.phone != null)
+                          SizedBox(width: AppDesign.spacingXS),
                       ],
                       if (role.phone != null) ...[
                         Icon(
@@ -545,9 +620,9 @@ class _LeadershipPageState extends State<LeadershipPage> {
                       Text(
                         'Contact',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
                     ],
                   ),

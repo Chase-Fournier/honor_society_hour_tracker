@@ -16,7 +16,7 @@ import 'societyselectionpage.dart';
 import '../common/app_widgets.dart';
 import '../providers/societyprovider.dart';
 import '../providers/hapticsprovider.dart';
-
+import '../providers/navigationprovider.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -156,9 +156,10 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _handleColorChange(Color color) {
-    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+    final hapticsProvider =
+        Provider.of<HapticsProvider>(context, listen: false);
     hapticsProvider.selection(); // Add haptic feedback
-    
+
     setState(() {
       _selectedColor = color;
     });
@@ -172,9 +173,10 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _openSocietyAdmin() {
-    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+    final hapticsProvider =
+        Provider.of<HapticsProvider>(context, listen: false);
     hapticsProvider.selection(); // Add haptic feedback
-    
+
     if (widget.society != null) {
       Navigator.push(
         context,
@@ -186,15 +188,15 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _navigateToAccountSettings() {
-    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+    final hapticsProvider =
+        Provider.of<HapticsProvider>(context, listen: false);
     hapticsProvider.selection(); // Add haptic feedback
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const AccountSettingsPage()),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -320,8 +322,9 @@ class _SettingsPageState extends State<SettingsPage> {
           // Snake game button
           ElevatedButton.icon(
             onPressed: () {
-              final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-              hapticsProvider.selection(); 
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
 
               Navigator.push(
                 context,
@@ -406,7 +409,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 icon: const Icon(Icons.switch_account),
                 color: Theme.of(context).colorScheme.primary,
                 onPressed: () {
-                  final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                  final hapticsProvider =
+                      Provider.of<HapticsProvider>(context, listen: false);
                   hapticsProvider.selection();
 
                   Navigator.pushAndRemoveUntil(
@@ -519,7 +523,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   // Appearance Settings Card
-  Widget _buildAppearanceCard() {
+    Widget _buildAppearanceCard() {
     return Card(
       elevation: 1,
       shape: RoundedRectangleBorder(
@@ -574,6 +578,11 @@ class _SettingsPageState extends State<SettingsPage> {
                 );
               },
             ),
+
+            const Divider(),
+
+            // Navigation Bar Style Selection
+            _buildNavigationBarSelector(),
 
             const Divider(),
 
@@ -653,6 +662,116 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  // Navigation Bar Selector Widget
+  Widget _buildNavigationBarSelector() {
+    return Consumer<NavigationProvider>(
+      builder: (context, navigationProvider, child) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.navigation,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Navigation Style',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            RadioListTile<NavigationBarType>(
+              title: const Text('Google Nav Bar'),
+              subtitle: const Text('Modern pill-shaped navigation'),
+              value: NavigationBarType.google,
+              groupValue: navigationProvider.navigationBarType,
+              onChanged: (value) {
+                final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                if (value != null) {
+                  navigationProvider.setNavigationBarType(value);
+                }
+              },
+              secondary: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.rounded_corner,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 20,
+                ),
+              ),
+            ),
+            RadioListTile<NavigationBarType>(
+              title: const Text('Circle Nav Bar'),
+              subtitle: const Text('Circular center button navigation'),
+              value: NavigationBarType.circle,
+              groupValue: navigationProvider.navigationBarType,
+              onChanged: (value) {
+                final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                if (value != null) {
+                  navigationProvider.setNavigationBarType(value);
+                }
+              },
+              secondary: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.circle,
+                  color: Theme.of(context).colorScheme.secondary,
+                  size: 20,
+                ),
+              ),
+            ),
+            RadioListTile<NavigationBarType>(
+              title: const Text('Floating Nav Bar'),
+              subtitle: const Text('Disappears when scrolling up'),
+              value: NavigationBarType.floating,
+              groupValue: navigationProvider.navigationBarType,
+              onChanged: (value) {
+                final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                if (value != null) {
+                  navigationProvider.setNavigationBarType(value);
+                }
+              },
+              secondary: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.tertiaryContainer.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.keyboard_arrow_up,
+                  color: Theme.of(context).colorScheme.tertiary,
+                  size: 20,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
   // Games Section
   Widget _buildGamesSection() {
     return Card(
@@ -686,7 +805,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   Icons.videogame_asset,
                   Colors.green,
                   () {
-                    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
                     hapticsProvider.selection();
                     Navigator.push(
                       context,
@@ -762,7 +882,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _signOut() async {
     final navigationState = Navigator.of(context);
-    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+    final hapticsProvider =
+        Provider.of<HapticsProvider>(context, listen: false);
     hapticsProvider.warning();
 
     try {

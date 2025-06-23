@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
 import 'main.dart';
-
+import 'package:provider/provider.dart';
+import '../providers/hapticsprovider.dart';
 
 class SnakePage extends StatefulWidget {
   const SnakePage({Key? key}) : super(key: key);
@@ -112,6 +113,9 @@ class _SnakePageState extends State<SnakePage> with TickerProviderStateMixin {
             icon: const Icon(Icons.save),
             label: const Text('Save Score'),
             onPressed: () async {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
               await _saveScore(score, gameMode);
               Navigator.of(context).pop();
             },
@@ -127,6 +131,9 @@ class _SnakePageState extends State<SnakePage> with TickerProviderStateMixin {
             icon: const Icon(Icons.replay),
             label: const Text('Play Again'),
             onPressed: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
               Navigator.of(context).pop();
               _gameKey.currentState?.resetGame();
             },
@@ -355,7 +362,12 @@ class _SnakePageState extends State<SnakePage> with TickerProviderStateMixin {
         actions: [
           IconButton(
             icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause),
-            onPressed: _togglePause,
+            onPressed: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
+              _togglePause;
+            },
             tooltip: _isPaused ? 'Resume Game' : 'Pause Game',
           ),
         ],
@@ -425,7 +437,12 @@ class _SnakePageState extends State<SnakePage> with TickerProviderStateMixin {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: ElevatedButton(
-        onPressed: () => _selectGameMode(mode),
+        onPressed: () {
+          final hapticsProvider =
+              Provider.of<HapticsProvider>(context, listen: false);
+          hapticsProvider.selection();
+          _selectGameMode(mode);
+        },
         style: ElevatedButton.styleFrom(
           backgroundColor: isSelected
               ? Theme.of(context).colorScheme.primary
@@ -476,7 +493,12 @@ class _SnakePageState extends State<SnakePage> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton.icon(
-                  onPressed: () => _tabController.animateTo(0),
+                  onPressed: () {
+                    final hapticsProvider =
+                        Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
+                    _tabController.animateTo(0);
+                  },
                   icon: const Icon(Icons.play_arrow),
                   label: const Text('Play Now'),
                   style: ElevatedButton.styleFrom(
@@ -1208,6 +1230,9 @@ class SnakeGameState extends State<SnakeGame>
                 swipeStart = null;
               },
               onTap: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
                 if (gameState == GameState.notStarted) {
                   startGame();
                 } else if (gameState == GameState.paused) {
