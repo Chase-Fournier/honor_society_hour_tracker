@@ -55,6 +55,7 @@ class _LoginPageState extends State<LoginPage>
       body: Center(
         child: SingleChildScrollView(
           child: Container(
+       
             constraints: BoxConstraints(
               maxWidth: isWideScreen
                   ? 1200
@@ -101,7 +102,7 @@ class _LoginPageState extends State<LoginPage>
           child: Container(
             padding: const EdgeInsets.all(AppDesign.spacingL),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
+              color: Theme.of(context).colorScheme.surfaceContainerLowest,
               borderRadius: const BorderRadius.only(
                 topRight: Radius.circular(AppDesign.radiusXLarge),
                 bottomRight: Radius.circular(AppDesign.radiusXLarge),
@@ -117,9 +118,11 @@ class _LoginPageState extends State<LoginPage>
 
   Widget _buildMobileLayout() {
     return AppCard(
+      
       elevation: AppDesign.elevationSmall,
       borderRadius: AppDesign.borderXLarge,
       padding: AppDesign.paddingLarge,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
