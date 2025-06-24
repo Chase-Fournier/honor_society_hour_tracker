@@ -145,13 +145,14 @@ class _MainScreenState extends State<MainScreen> {
         }
 
         // Mobile layout with custom navigation
-        return CustomNavigationBar(
+         return CustomNavigationBar(
           selectedIndex: _currentIndex,
           onTabChanged: (index) {
             setState(() => _currentIndex = index);
             _pageController.jumpToPage(index);
           },
           tabs: navTabs,
+          isAdmin: isAdmin,
           body: PageView(
             controller: _pageController,
             onPageChanged: (index) {

@@ -526,18 +526,33 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
 
         SizedBox(height: AppDesign.spacingM),
 
-        // Save Button
-        AppPrimaryButton(
-          text: 'Save Society Details',
-          icon: Icons.save,
-          isLoading: _isLoading,
-          onPressed: () {
-            final hapticsProvider =
-                Provider.of<HapticsProvider>(context, listen: false);
-            hapticsProvider.selection();
-            _saveSocietyDetails;
-          },
-        ),
+        SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed:   _isLoading ? null : _saveSocietyDetails,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        foregroundColor:
+                            Theme.of(context).colorScheme.onPrimary,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child:  _isLoading
+                          ? const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                                SizedBox(width: 16),
+                                Text('Processing...'),
+                              ],
+                            )
+                          : const Text('Save Society Details'),
+                    ),
+                  ),
       ],
     );
   }
@@ -1068,6 +1083,8 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
         return Container(
           margin: const EdgeInsets.only(bottom: AppDesign.spacingM),
           child: AppCard(
+            elevation: 0,
+            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
             onTap: () {
               final hapticsProvider =
                   Provider.of<HapticsProvider>(context, listen: false);
@@ -1085,7 +1102,7 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                     borderRadius: AppDesign.borderMedium,
                   ),
                   child: Icon(
-                    Icons.access_time,
+                    getIconDataByName(requirement.iconName),
                     color: requirement.isActive
                         ? Theme.of(context).colorScheme.onPrimaryContainer
                         : Theme.of(context).colorScheme.onSurfaceVariant,

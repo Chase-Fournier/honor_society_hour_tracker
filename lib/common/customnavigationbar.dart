@@ -24,6 +24,7 @@ class CustomNavigationBar extends StatelessWidget {
   final Function(int) onTabChanged;
   final List<NavigationTabData> tabs;
   final Widget body;
+  final bool isAdmin;
 
   const CustomNavigationBar({
     Key? key,
@@ -31,6 +32,7 @@ class CustomNavigationBar extends StatelessWidget {
     required this.onTabChanged,
     required this.tabs,
     required this.body,
+    this.isAdmin = false,
   }) : super(key: key);
 
   @override
@@ -96,8 +98,16 @@ class CustomNavigationBar extends StatelessWidget {
     );
   }
 
-  Widget _buildGoogleNavBar(BuildContext context) {
+   Widget _buildGoogleNavBar(BuildContext context) {
     final theme = Theme.of(context);
+    
+    // Admin users get smaller sizing
+    final iconSize = isAdmin ? 20.0 : 24.0;
+    final horizontalPadding = isAdmin ? AppDesign.spacingS : AppDesign.spacingM;
+    final verticalPadding = isAdmin ? AppDesign.spacingS : AppDesign.spacingM;
+    final tabHorizontalPadding = isAdmin ? AppDesign.spacingM : AppDesign.spacingL;
+    final tabVerticalPadding = isAdmin ? AppDesign.spacingS : AppDesign.spacingM;
+    final gap = isAdmin ? AppDesign.spacingXS : AppDesign.spacingS;
     
     return Container(
       decoration: BoxDecoration(
@@ -112,9 +122,9 @@ class CustomNavigationBar extends StatelessWidget {
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppDesign.spacingM,
-            vertical: AppDesign.spacingS,
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: verticalPadding,
           ),
           child: GNav(
             selectedIndex: selectedIndex,
@@ -123,12 +133,12 @@ class CustomNavigationBar extends StatelessWidget {
               hapticsProvider.selection();
               onTabChanged(index);
             },
-            gap: AppDesign.spacingS,
+            gap: gap,
             activeColor: theme.colorScheme.onPrimaryContainer,
-            iconSize: 24,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppDesign.spacingL,
-              vertical: AppDesign.spacingM,
+            iconSize: iconSize,
+            padding: EdgeInsets.symmetric(
+              horizontal: tabHorizontalPadding,
+              vertical: tabVerticalPadding,
             ),
             duration: AppDesign.animationMedium,
             tabBackgroundColor: theme.colorScheme.primaryContainer,
@@ -145,6 +155,7 @@ class CustomNavigationBar extends StatelessWidget {
       ),
     );
   }
+
 
   Widget _buildCircleNavBar(BuildContext context) {
     final theme = Theme.of(context);

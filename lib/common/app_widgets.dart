@@ -1,9 +1,7 @@
-// Create a new file: lib/design/app_widgets.dart
-
 import 'package:flutter/material.dart';
 import 'app_design.dart';
 
-/// Reusable cards with consistent styling
+//Consistant Card
 class AppCard extends StatelessWidget {
   final Widget child;
   final Color? backgroundColor;
@@ -76,81 +74,6 @@ class AppSurfaceCard extends StatelessWidget {
       onTap: onTap,
       child: child,
     );
-  }
-}
-
-/// Standardized primary button
-class AppPrimaryButton extends StatelessWidget {
-  final String text;
-  final VoidCallback? onPressed;
-  final IconData? icon;
-  final bool isLoading;
-  final bool isFullWidth;
-
-  const AppPrimaryButton({
-    Key? key,
-    required this.text,
-    this.onPressed,
-    this.icon,
-    this.isLoading = false,
-    this.isFullWidth = true,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    final buttonContent = isLoading
-        ? Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                ),
-              ),
-              const SizedBox(width: AppDesign.spacingS),
-              const Text('Loading...'),
-            ],
-          )
-        : icon != null
-            ? Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon),
-                  const SizedBox(width: AppDesign.spacingS),
-                  Text(text),
-                ],
-              )
-            : Text(text);
-
-    final button = ElevatedButton(
-      onPressed: isLoading ? null : onPressed,
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(
-          vertical: AppDesign.spacingM,
-          horizontal: AppDesign.spacingL,
-        ),
-        foregroundColor: Theme.of(context).colorScheme.onPrimary,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        shape: RoundedRectangleBorder(
-          borderRadius: AppDesign.borderMedium,
-        ),
-      ),
-      child: buttonContent,
-    );
-
-    if (isFullWidth) {
-      return SizedBox(
-        width: double.infinity,
-        child: button,
-      );
-    }
-
-    return button;
   }
 }
 

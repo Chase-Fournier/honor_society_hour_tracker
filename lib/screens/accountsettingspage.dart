@@ -119,6 +119,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       }
 
       if (mounted) {
+        
         setState(() {
           _graduationYearController.text = graduationYear;
           _isLoadingProfile = false;
@@ -132,7 +133,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     }
   }
 
-  Future<void> _updateProfileDetails() async {
+  Future<void> updateProfileDetails() async {
+    
     if (!_profileFormKey.currentState!.validate()) return;
     setState(() => _isLoadingProfile = true);
 
@@ -144,7 +146,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
     try {
       final gradYear = int.tryParse(_graduationYearController.text.trim());
-
       // Update profiles table first (prioritized)
       try {
         await supabase.from('profiles').update({
@@ -422,16 +423,34 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             const SizedBox(height: AppDesign.spacingL),
 
             // Save Button
-            AppPrimaryButton(
-              text: 'Update Profile',
-              isLoading: _isLoadingProfile,
-              onPressed: () {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                _updateProfileDetails;
-              },
-            ),
+
+            SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isLoadingProfile ? null : updateProfileDetails,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        foregroundColor:
+                            Theme.of(context).colorScheme.onPrimary,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isLoadingPassword
+                          ? const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                                SizedBox(width: 16),
+                                Text('Processing...'),
+                              ],
+                            )
+                          : const Text('Update Profile'),
+                    ),
+                  ),
           ],
         ),
       ),
@@ -545,16 +564,34 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 const SizedBox(height: AppDesign.spacingL),
 
                 // Save Button
-                AppPrimaryButton(
-                  text: 'Update Email',
-                  isLoading: _isLoadingEmail,
-                  onPressed: () {
-                    final hapticsProvider =
-                        Provider.of<HapticsProvider>(context, listen: false);
-                    hapticsProvider.selection();
-                    _updateEmail;
-                  },
-                ),
+
+                SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isLoadingEmail ? null : _updateEmail,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        foregroundColor:
+                            Theme.of(context).colorScheme.onPrimary,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isLoadingPassword
+                          ? const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                                SizedBox(width: 16),
+                                Text('Processing...'),
+                              ],
+                            )
+                          : const Text('Update Email'),
+                    ),
+                  ),
 
                 const SizedBox(height: AppDesign.spacingS),
 

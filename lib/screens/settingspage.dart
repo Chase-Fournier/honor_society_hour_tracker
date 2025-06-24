@@ -455,7 +455,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      const Icon(Icons.person, size: 18),
+                       Icon(Icons.person, size: 18, color: Theme.of(context).colorScheme.primary),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -468,7 +468,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(Icons.email, size: 18),
+                      Icon(Icons.email, size: 18, color: Theme.of(context).colorScheme.primary),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -481,7 +481,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(Icons.school, size: 18),
+                      Icon(Icons.school, size: 18, color: Theme.of(context).colorScheme.primary,),
                       const SizedBox(width: 8),
                       Text(
                         'Graduation Year: $_graduationYear',
@@ -615,8 +615,11 @@ class _SettingsPageState extends State<SettingsPage> {
                       EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                   child: Text('Theme Mode'),
                 ),
+                
+                // Basic themes
                 RadioListTile<themeprovider.ThemeMode>(
                   title: const Text('Light'),
+                  subtitle: const Text('Clean and bright'),
                   value: themeprovider.ThemeMode.light,
                   groupValue: Provider.of<themeprovider.ThemeProvider>(context)
                       .themeMode,
@@ -627,9 +630,11 @@ class _SettingsPageState extends State<SettingsPage> {
                             listen: false)
                         .setThemeMode(themeprovider.ThemeMode.light);
                   },
+                  secondary: Icon(Icons.light_mode),
                 ),
                 RadioListTile<themeprovider.ThemeMode>(
                   title: const Text('Dark'),
+                  subtitle: const Text('Easy on the eyes'),
                   value: themeprovider.ThemeMode.dark,
                   groupValue: Provider.of<themeprovider.ThemeProvider>(context)
                       .themeMode,
@@ -640,9 +645,11 @@ class _SettingsPageState extends State<SettingsPage> {
                             listen: false)
                         .setThemeMode(themeprovider.ThemeMode.dark);
                   },
+                  secondary: Icon(Icons.dark_mode),
                 ),
                 RadioListTile<themeprovider.ThemeMode>(
                   title: const Text('Midnight'),
+                  subtitle: const Text('Pure black background'),
                   value: themeprovider.ThemeMode.midnight,
                   groupValue: Provider.of<themeprovider.ThemeProvider>(context)
                       .themeMode,
@@ -653,7 +660,13 @@ class _SettingsPageState extends State<SettingsPage> {
                             listen: false)
                         .setThemeMode(themeprovider.ThemeMode.midnight);
                   },
+                  secondary: Icon(Icons.nightlight_round),
                 ),
+
+                const Divider(),
+
+                // More themes section
+                _buildMoreThemesSection(),
               ],
             ),
           ],
@@ -661,6 +674,232 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
   }
+
+  Widget _buildMoreThemesSection() {
+    final themeProvider = Provider.of<themeprovider.ThemeProvider>(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    final customThemes = [
+      themeprovider.ThemeMode.sunset,
+      themeprovider.ThemeMode.sunrise,
+      themeprovider.ThemeMode.fullMoon,
+      themeprovider.ThemeMode.forest,
+      themeprovider.ThemeMode.ocean,
+      themeprovider.ThemeMode.reef,
+      themeprovider.ThemeMode.cherry,
+      themeprovider.ThemeMode.lavender,
+      themeprovider.ThemeMode.autumn,
+      themeprovider.ThemeMode.winter,
+      themeprovider.ThemeMode.desert,
+      themeprovider.ThemeMode.galaxy,
+      themeprovider.ThemeMode.emerald,
+      themeprovider.ThemeMode.ruby,
+      themeprovider.ThemeMode.sapphire,
+      themeprovider.ThemeMode.amber,
+    ];
+
+    // Responsive grid columns based on screen width
+    final crossAxisCount = screenWidth > 600 ? 3 : 2;
+    final childAspectRatio = screenWidth > 600 ? 3.2 : (screenWidth > 400 ? 3.0 : 2.8);
+    
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        title: Text(
+          'More Themes',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: screenWidth > 400 ? 16 : 15,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+        subtitle: Text(
+          'Beautiful custom themes',
+          style: TextStyle(
+            fontSize: screenWidth > 400 ? 14 : 13,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        leading: Icon(
+          Icons.palette,
+          color: Theme.of(context).colorScheme.primary,
+          size: screenWidth > 400 ? 24 : 22,
+        ),
+        tilePadding: EdgeInsets.symmetric(
+          horizontal: screenWidth > 400 ? 16 : 12,
+          vertical: 4,
+        ),
+        childrenPadding: EdgeInsets.symmetric(
+          horizontal: screenWidth > 400 ? 16 : 12,
+          vertical: 8,
+        ),
+        children: [
+          Container(
+            constraints: BoxConstraints(
+              maxHeight: screenWidth > 600 ? 400 : 350,
+            ),
+            child: GridView.builder(
+              shrinkWrap: true,
+              physics: const BouncingScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                childAspectRatio: childAspectRatio,
+                crossAxisSpacing: screenWidth > 400 ? 10 : 8,
+                mainAxisSpacing: screenWidth > 400 ? 10 : 8,
+              ),
+              itemCount: customThemes.length,
+              itemBuilder: (context, index) {
+                final theme = customThemes[index];
+                final isSelected = themeProvider.themeMode == theme;
+                
+                return InkWell(
+                  onTap: () {
+                    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+                    hapticsProvider.selection();
+                    themeProvider.setThemeMode(theme);
+                  },
+                  borderRadius: BorderRadius.circular(screenWidth > 400 ? 14 : 12),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(screenWidth > 400 ? 14 : 12),
+                      border: Border.all(
+                        color: isSelected 
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                        width: isSelected ? 2.5 : 1,
+                      ),
+                      color: isSelected 
+                        ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+                        : Theme.of(context).colorScheme.surface,
+                      boxShadow: isSelected ? [
+                        BoxShadow(
+                          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ] : null,
+                    ),
+                    padding: EdgeInsets.all(screenWidth > 400 ? 12 : 10),
+                    child: Row(
+                      children: [
+                        // Theme preview circle
+                        Container(
+                          width: screenWidth > 400 ? 34 : 30,
+                          height: screenWidth > 400 ? 34 : 30,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(screenWidth > 400 ? 10 : 8),
+                            color: _getThemePreviewColor(theme),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.25),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: _getThemePreviewColor(theme).withOpacity(0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            themeProvider.getThemeIcon(theme),
+                            color: Colors.white,
+                            size: screenWidth > 400 ? 18 : 16,
+                          ),
+                        ),
+                        SizedBox(width: screenWidth > 400 ? 14 : 12),
+                        
+                        // Theme name and description
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                themeProvider.getThemeName(theme),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: screenWidth > 400 ? 14 : 13,
+                                  color: isSelected 
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context).colorScheme.onSurface,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        // Selection indicator
+                        if (isSelected)
+                          Container(
+                            width: screenWidth > 400 ? 20 : 18,
+                            height: screenWidth > 400 ? 20 : 18,
+                            margin: EdgeInsets.only(left: screenWidth > 400 ? 8 : 6),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.check,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              size: screenWidth > 400 ? 14 : 12,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  // Get preview color for theme tiles
+  Color _getThemePreviewColor(themeprovider.ThemeMode theme) {
+    switch (theme) {
+      case themeprovider.ThemeMode.sunset:
+        return const Color(0xFFFF6B35);
+      case themeprovider.ThemeMode.sunrise:
+        return const Color(0xFFFFB74D);
+      case themeprovider.ThemeMode.fullMoon:
+        return const Color(0xFF90CAF9);
+      case themeprovider.ThemeMode.forest:
+        return const Color(0xFF2E7D32);
+      case themeprovider.ThemeMode.ocean:
+        return const Color(0xFF0277BD);
+      case themeprovider.ThemeMode.reef:
+        return const Color(0xFFFF7043);
+      case themeprovider.ThemeMode.cherry:
+        return const Color(0xFFE91E63);
+      case themeprovider.ThemeMode.lavender:
+        return const Color(0xFF9C27B0);
+      case themeprovider.ThemeMode.autumn:
+        return const Color(0xFFD84315);
+      case themeprovider.ThemeMode.winter:
+        return const Color(0xFF1976D2);
+      case themeprovider.ThemeMode.desert:
+        return const Color(0xFFD7CCC8);
+      case themeprovider.ThemeMode.galaxy:
+        return const Color(0xFF7C4DFF);
+      case themeprovider.ThemeMode.emerald:
+        return const Color(0xFF00695C);
+      case themeprovider.ThemeMode.ruby:
+        return const Color(0xFFC62828);
+      case themeprovider.ThemeMode.sapphire:
+        return const Color(0xFF1565C0);
+      case themeprovider.ThemeMode.amber:
+        return const Color(0xFFFF8F00);
+      default:
+        return Theme.of(context).colorScheme.primary;
+    }
+  }
+
 
   // Navigation Bar Selector Widget
   Widget _buildNavigationBarSelector() {
@@ -879,6 +1118,7 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
   }
+  
 
   Future<void> _signOut() async {
     final navigationState = Navigator.of(context);
@@ -909,4 +1149,10 @@ class _SettingsPageState extends State<SettingsPage> {
       );
     }
   }
+
+  
 }
+
+
+
+
