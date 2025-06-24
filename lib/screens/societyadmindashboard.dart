@@ -12,6 +12,7 @@ import 'admineventspage.dart';
 import 'activitylogpage.dart';
 import "adminlistspage.dart";
 import '../providers/hapticsprovider.dart';
+import 'package:shimmer/shimmer.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -445,7 +446,7 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  _buildMeetingNotes(),
+                  _buildEnhancedMeetingNotes(),
                 ],
               ),
             ),
@@ -480,7 +481,7 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  _buildRecentActivity(),
+                  _buildEnhancedRecentActivity(),
                 ],
               ),
             ),
@@ -555,20 +556,10 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
                     fontWeight: FontWeight.bold,
                   ),
             ),
-            TextButton.icon(
-              icon: const Icon(Icons.history),
-              label: const Text('View All'),
-              onPressed: () {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                _navigateToActivityLog();
-              },
-            ),
           ],
         ),
         const SizedBox(height: 12),
-        _buildRecentActivity(),
+        _buildEnhancedRecentActivity(),
 
         // Meeting Notes
         const SizedBox(height: 24),
@@ -581,20 +572,10 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
                     fontWeight: FontWeight.bold,
                   ),
             ),
-            IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                _showAddNotesDialog;
-              },
-              tooltip: 'Add Note',
-            ),
           ],
         ),
         const SizedBox(height: 12),
-        _buildMeetingNotes(),
+        _buildEnhancedMeetingNotes(),
       ],
     );
   }
@@ -1104,311 +1085,6 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
     }
   }
 
-// Desktop-specific quick actions layout
-  Widget _buildDesktopQuickActions() {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildActionButton(
-                'Manage Members',
-                Icons.people,
-                _navigateToMembers,
-                Colors.blue,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _buildActionButton(
-                'Manage Events',
-                Icons.event_note,
-                _navigateToEvents,
-                Colors.green,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: _buildActionButton(
-                'Join Requests',
-                Icons.person_add,
-                _navigateToJoinRequests,
-                Colors.purple,
-                badge: _stats.pendingRequests > 0
-                    ? _stats.pendingRequests.toString()
-                    : null,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _buildActionButton(
-                'Society Settings',
-                Icons.settings,
-                _navigateToSocietySettings,
-                Colors.orange,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatsGrid() {
-    return GridView.count(
-      crossAxisCount: 2,
-      childAspectRatio: 1.5,
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      children: [
-        _buildStatCard(
-          'Members',
-          _stats.totalMembers.toString(),
-          Icons.people,
-          Colors.blue,
-          subtitle: '${_stats.qualifyingMembers} qualifying',
-        ),
-        _buildStatCard(
-          'Service Hours',
-          formatter.format(_stats.totalHours),
-          Icons.volunteer_activism,
-          Colors.orange,
-          subtitle: 'Hours completed',
-        ),
-        _buildStatCard(
-          'Events',
-          _stats.totalEvents.toString(),
-          Icons.event,
-          Colors.green,
-          subtitle: '${_stats.upcomingEvents} upcoming',
-        ),
-        _buildStatCard(
-          'Requests',
-          _stats.pendingRequests.toString(),
-          Icons.person_add,
-          Colors.purple,
-          subtitle: 'Pending approval',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(String title, String value, IconData icon, Color color,
-      {String? subtitle}) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: color),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            Expanded(
-              child: Center(
-                child: Text(
-                  value,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ),
-            ),
-            if (subtitle != null)
-              Text(
-                subtitle,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButton(
-      String label, IconData icon, VoidCallback onPressed, Color color,
-      {String? badge}) {
-    return SizedBox(
-      width: (MediaQuery.of(context).size.width - 48) / 2,
-      child: Stack(
-        children: [
-          Card(
-            elevation: 2,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: InkWell(
-              onTap: onPressed,
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(icon, color: color, size: 32),
-                    const SizedBox(height: 12),
-                    Text(
-                      label,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          if (badge != null)
-            Positioned(
-              top: 8,
-              right: 8,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  shape: BoxShape.circle,
-                ),
-                constraints: const BoxConstraints(
-                  minWidth: 20,
-                  minHeight: 20,
-                ),
-                child: Center(
-                  child: Text(
-                    badge,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecentActivity() {
-    if (_recentActivity.isEmpty) {
-      return Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Center(
-            child: Column(
-              children: [
-                const Icon(Icons.history, size: 48, color: Colors.grey),
-                const SizedBox(height: 8),
-                Text(
-                  'No recent activity',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: min(5, _recentActivity.length),
-        separatorBuilder: (context, index) => const Divider(height: 1),
-        itemBuilder: (context, index) {
-          final activity = _recentActivity[index];
-
-          IconData icon;
-          Color color;
-          String action;
-
-          switch (activity.actionType) {
-            case 'signup':
-              icon = Icons.person_add;
-              color = Colors.green;
-              action = 'signed up for';
-              break;
-            case 'unsignup':
-              icon = Icons.person_remove;
-              color = Colors.red;
-              action = 'removed from';
-              break;
-            case 'attendance_marked':
-              icon = Icons.check_box;
-              color = Colors.green;
-              action = 'marked attended for';
-              break;
-            case 'attendance_removed':
-              icon = Icons.check_box_outline_blank;
-              color = Colors.red;
-              action = 'attendance removed for';
-              break;
-            case 'manual_addition':
-              icon = Icons.add_box;
-              color = Colors.purple;
-              action = 'manually added to';
-              break;
-            default:
-              icon = Icons.info;
-              color = Colors.grey;
-              action = 'modified';
-          }
-
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: color.withOpacity(0.2),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            title: RichText(
-              text: TextSpan(
-                style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurface),
-                children: [
-                  TextSpan(
-                    text: activity.userName,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  TextSpan(text: ' $action '),
-                  TextSpan(
-                    text: activity.eventName,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-            subtitle: Text(
-              '${_getTimeAgo(activity.dateTime)} • ${activity.hours > 0 ? '${activity.hours} hrs' : 'No hours'}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          );
-        },
-      ),
-    );
-  }
 
   String _getTimeAgo(DateTime dateTime) {
     final now = DateTime.now();
@@ -1426,6 +1102,744 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
       return 'Just now';
     }
   }
+
+
+  Widget _buildEnhancedRecentActivity() {
+  if (_recentActivity.isEmpty) {
+    return _buildEmptyActivityState();
+  }
+
+  return Card(
+    elevation: 0,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(28),
+      side: BorderSide(
+        color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
+        width: 1,
+      ),
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: Column(
+      children: [
+        // Header with gradient background
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Theme.of(context).colorScheme.primaryContainer,
+                Theme.of(context).colorScheme.primaryContainer.withOpacity(0.7),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  Icons.timeline,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Activity Feed',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                    Text(
+                      'Real-time member actions',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Animated activity indicator
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.green.withOpacity(0.5),
+                      blurRadius: 8,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        // Activity items with enhanced design
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: min(5, _recentActivity.length),
+          separatorBuilder: (context, index) => const SizedBox(),
+          itemBuilder: (context, index) {
+            final activity = _recentActivity[index];
+            return _buildActivityItem(activity, index);
+          },
+        ),
+        
+        // View all button
+        Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _navigateToActivityLog,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'View All Activity',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.arrow_forward,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildActivityItem(ActivitySummary activity, int index) {
+  IconData icon;
+  Color color;
+  String action;
+  
+  // Activity type mapping (same as before)
+  switch (activity.actionType) {
+    case 'signup':
+      icon = Icons.person_add;
+      color = Colors.green;
+      action = 'signed up for';
+      break;
+    case 'unsignup':
+      icon = Icons.person_remove;
+      color = Colors.red;
+      action = 'cancelled';
+      break;
+    case 'attendance_marked':
+      icon = Icons.check_circle;
+      color = Colors.green;
+      action = 'attended';
+      break;
+    default:
+      icon = Icons.info;
+      color = Colors.grey;
+      action = 'modified';
+  }
+
+  return AnimatedContainer(
+    duration: Duration(milliseconds: 300 + (index * 100)),
+    curve: Curves.easeOutCubic,
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          // Show activity details
+          _showActivityDetails(activity);
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Row(
+            children: [
+              // Animated icon with ripple effect
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: 1),
+                duration: Duration(milliseconds: 600 + (index * 100)),
+                curve: Curves.elasticOut,
+                builder: (context, value, child) {
+                  return Transform.scale(
+                    scale: value,
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            color.withOpacity(0.2),
+                            color.withOpacity(0.1),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(icon, color: color, size: 24),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 16),
+              
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    RichText(
+                      text: TextSpan(
+                        style: Theme.of(context).textTheme.bodyMedium,
+                        children: [
+                          TextSpan(
+                            text: activity.userName,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          TextSpan(text: ' $action '),
+                          TextSpan(
+                            text: activity.eventName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          size: 14,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _getTimeAgo(activity.dateTime),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        if (activity.hours > 0) ...[
+                          const SizedBox(width: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.tertiaryContainer,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${activity.hours} hrs',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onTertiaryContainer,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Arrow indicator
+              Icon(
+                Icons.chevron_right,
+                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+// Enhanced Meeting Notes Widget
+Widget _buildEnhancedMeetingNotes() {
+  return FutureBuilder<List<MeetingNote>>(
+    future: _fetchMeetingNotes(),
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return _buildNotesLoadingState();
+      }
+
+      final notes = snapshot.data ?? [];
+      
+      return Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+          side: BorderSide(
+            color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
+            width: 1,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            // Header with floating action button
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Theme.of(context).colorScheme.secondaryContainer,
+                    Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.7),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.secondary,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(
+                      Icons.notes,
+                      color: Theme.of(context).colorScheme.onSecondary,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Meeting Notes',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSecondaryContainer,
+                          ),
+                        ),
+                        Text(
+                          '${notes.length} notes recorded',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSecondaryContainer.withOpacity(0.8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Floating add button
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.secondary,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Theme.of(context).colorScheme.secondary.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _showAddNotesDialog,
+                        borderRadius: BorderRadius.circular(16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Icon(
+                            Icons.add,
+                            color: Theme.of(context).colorScheme.onSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Notes content
+            if (notes.isEmpty)
+              _buildEmptyNotesState()
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: notes.length,
+                separatorBuilder: (context, index) => const SizedBox(),
+                itemBuilder: (context, index) {
+                  final note = notes[index];
+                  return _buildNoteItem(note);
+                },
+              ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+Widget _buildNoteItem(MeetingNote note) {
+  final isRecent = note.createdAt.isAfter(
+    DateTime.now().subtract(const Duration(days: 7)),
+  );
+
+  return Material(
+    color: Colors.transparent,
+    child: InkWell(
+      onTap: () => _showNoteDetailsDialog(note),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Date indicator
+            Container(
+              width: 56,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: isRecent 
+                  ? Theme.of(context).colorScheme.tertiaryContainer
+                  : Theme.of(context).colorScheme.surfaceVariant,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    DateFormat('MMM').format(note.createdAt),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: isRecent
+                        ? Theme.of(context).colorScheme.onTertiaryContainer
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  Text(
+                    DateFormat('dd').format(note.createdAt),
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isRecent
+                        ? Theme.of(context).colorScheme.onTertiaryContainer
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            
+            // Note content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          note.title,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      if (isRecent)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.tertiary,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'NEW',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onTertiary,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    note.text,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 14,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _getTimeAgo(note.createdAt),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            
+            // Action buttons
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () => _showEditNotesDialog(note),
+                  visualDensity: VisualDensity.compact,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+// Loading states
+Widget _buildNotesLoadingState() {
+  return Card(
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+    child: Shimmer.fromColors(
+      baseColor: Theme.of(context).colorScheme.surfaceVariant,
+      highlightColor: Theme.of(context).colorScheme.surface,
+      child: Container(
+        height: 200,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: List.generate(3, (index) => Container(
+            height: 50,
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+            ),
+          )),
+        ),
+      ),
+    ),
+  );
+}
+
+// Empty states with illustrations
+Widget _buildEmptyActivityState() {
+  return Card(
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+    child: Container(
+      padding: const EdgeInsets.all(48),
+      child: Column(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.timeline,
+              size: 40,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No Recent Activity',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Member activities will appear here',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildEmptyNotesState() {
+  return Container(
+    padding: const EdgeInsets.all(48),
+    child: Column(
+      children: [
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.3),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.note_add,
+            size: 40,
+            color: Theme.of(context).colorScheme.secondary,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'No Meeting Notes',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Start documenting your meetings',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+          ),
+        ),
+        const SizedBox(height: 16),
+        FilledButton.icon(
+          onPressed: _showAddNotesDialog,
+          icon: const Icon(Icons.add),
+          label: const Text('Add First Note'),
+          style: FilledButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.secondary,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// Additional helper methods
+void _showActivityDetails(ActivitySummary activity) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) => Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle bar
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          
+          // Activity details
+          Text(
+            'Activity Details',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Add more detailed information here
+          _buildDetailRow('Member', activity.userName),
+          _buildDetailRow('Action', activity.actionType),
+          _buildDetailRow('Event', activity.eventName),
+          _buildDetailRow('Time', DateFormat.yMMMd().add_jm().format(activity.dateTime)),
+          if (activity.hours > 0)
+            _buildDetailRow('Hours', '${activity.hours} hours'),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildDetailRow(String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 100,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 }
 
 class SocietyStats {
@@ -1462,4 +1876,11 @@ class ActivitySummary {
     required this.dateTime,
     required this.hours,
   });
+
+
+
+
+  
 }
+
+

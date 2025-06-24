@@ -943,7 +943,8 @@ class _AdminListPageState extends State<AdminListPage> {
                                           Provider.of<HapticsProvider>(context,
                                               listen: false);
                                       hapticsProvider.selection();
-                                      _showFilterOptions;
+                                      
+                                      _showFilterOptions(context);
                                     },
                                     icon: const Icon(Icons.filter_list),
                                     label: const Text('Filter'),
@@ -3192,7 +3193,7 @@ class _AdminListPageState extends State<AdminListPage> {
     );
   }
 
-  void _showFilterOptions() {
+  void _showFilterOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
