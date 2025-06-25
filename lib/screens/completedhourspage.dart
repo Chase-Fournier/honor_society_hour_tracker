@@ -12,6 +12,8 @@ import 'leaderboardpage.dart';
 import '../common/iconutils.dart';
 import '../providers/hapticsprovider.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_quill/flutter_quill.dart';
+import 'dart:convert';
 
 final supabase = Supabase.instance.client;
 
@@ -172,6 +174,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
     final hapticsProvider =
         Provider.of<HapticsProvider>(context, listen: false);
     hapticsProvider.selection();
+    
 
     Navigator.push(
       context,
@@ -201,23 +204,14 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
             icon: const Icon(Icons.groups_3),
             color: Theme.of(context).colorScheme.primary,
             tooltip: 'View Leadership',
-            onPressed: () {
-              final hapticsProvider =
-                  Provider.of<HapticsProvider>(context, listen: false);
-              hapticsProvider.selection();
-              _openLeadership;
-            },
+            onPressed:
+              _openLeadership,
           ),
           IconButton(
             icon: const Icon(Icons.leaderboard),
             color: Theme.of(context).colorScheme.primary,
             tooltip: 'View Leaderboard',
-            onPressed: () {
-              final hapticsProvider =
-                  Provider.of<HapticsProvider>(context, listen: false);
-              hapticsProvider.selection();
-              _openLeaderboard;
-            },
+            onPressed:_openLeaderboard,
           ),
         ],
       ),
@@ -1166,18 +1160,34 @@ void _showEnhancedMeetingNotesDialog() {
 
 // Enhanced Note Details Dialog
 void _showEnhancedNoteDetailsDialog(MeetingNote note) {
+  QuillController displayController;
+  
+  if (note.content != null && note.content!.isNotEmpty) {
+    try {
+      final deltaJson = jsonDecode(note.content!);
+      displayController = QuillController(
+        document: Document.fromJson(deltaJson),
+        selection: const TextSelection.collapsed(offset: 0),
+      );
+    } catch (e) {
+      displayController = QuillController.basic();
+      displayController.document.insert(0, note.text);
+    }
+  } else {
+    displayController = QuillController.basic();
+    displayController.document.insert(0, note.text);
+  }
+
   showDialog(
     context: context,
     builder: (context) => Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(28),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       child: Container(
         constraints: const BoxConstraints(maxWidth: 500),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header with gradient
+            // Header (keep existing design)
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -1231,20 +1241,21 @@ void _showEnhancedNoteDetailsDialog(MeetingNote note) {
               ),
             ),
             
-            // Content
+            // Content - replace SingleChildScrollView with QuillEditor
             Flexible(
-              child: SingleChildScrollView(
+              child: Container(
+                width: double.maxFinite,
+                height: 300,
                 padding: const EdgeInsets.all(24),
-                child: Text(
-                  note.text,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    height: 1.6,
+                child: QuillEditor.basic(
+                  controller: displayController,
+                  config: QuillEditorConfig(
                   ),
                 ),
               ),
             ),
             
-            // Actions
+            // Actions (keep existing)
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -1254,11 +1265,9 @@ void _showEnhancedNoteDetailsDialog(MeetingNote note) {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  
                   FilledButton(
                     onPressed: () {
-                      final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-                      hapticsProvider.selection();
+                      displayController.dispose();
                       Navigator.pop(context);
                     },
                     child: const Text('Close'),
@@ -1272,7 +1281,6 @@ void _showEnhancedNoteDetailsDialog(MeetingNote note) {
     ),
   );
 }
-
 // Empty state for meeting notes
 Widget _buildEmptyNotesState() {
   return Center(

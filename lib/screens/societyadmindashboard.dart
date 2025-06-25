@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import 'package:intl/intl.dart';
@@ -13,6 +15,8 @@ import 'activitylogpage.dart';
 import "adminlistspage.dart";
 import '../providers/hapticsprovider.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:flutter_quill/flutter_quill.dart';
+import 'package:flutter_html/flutter_html.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -27,13 +31,14 @@ class SocietyAdminDashboard extends StatefulWidget {
 class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
   bool _isLoading = true;
   late SocietyStats _stats;
+  late QuillController _quillController;
   List<ActivitySummary> _recentActivity = [];
   final formatter = NumberFormat('#,###.#');
 
   @override
   void initState() {
     super.initState();
-
+    _quillController = QuillController.basic();
     // Initialize with default stats to prevent null errors
     _stats = SocietyStats(
       totalMembers: 0,
@@ -46,6 +51,12 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
 
     _fetchDashboardData();
   }
+
+  @override
+    void dispose() {
+      _quillController.dispose();
+      super.dispose();
+    }
 
   Future<void> _fetchDashboardData() async {
     final society =
@@ -270,14 +281,6 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
     ).then((_) => _fetchDashboardData());
   }
 
-  void _navigateToSocietySettings() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const SocietyAdminPage(),
-      ),
-    ).then((_) => _fetchDashboardData());
-  }
 
   void _navigateToEvents() {
     Navigator.push(
@@ -871,219 +874,284 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
   }
 
 // Save a new note
-  Future<void> _saveNote(String title, String text) async {
-    try {
-      final societyId = Provider.of<SocietyProvider>(context, listen: false)
-          .currentSociety
-          ?.id;
-      if (societyId == null) return;
+  Future<void> _saveNote(String title, String text, String content) async {
+  try {
+    final societyId = Provider.of<SocietyProvider>(context, listen: false)
+        .currentSociety?.id;
+    if (societyId == null) return;
 
-      await supabase.from('Notes').insert({
-        'title': title,
-        'text': text,
-        'society_id': societyId,
-        'created_at': DateTime.now().toIso8601String(),
-      });
+    await supabase.from('Notes').insert({
+      'title': title,
+      'text': text,
+      'content': content,
+      'society_id': societyId,
+      'created_at': DateTime.now().toIso8601String(),
+    });
 
-      // Refresh notes
-      setState(() {});
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Note added successfully')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error adding note: $e')),
-      );
-    }
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Note added successfully')),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error adding note: $e')),
+    );
   }
+}
+
+Future<void> _updateNote(int noteId, String title, String text, String content) async {
+  try {
+    await supabase.from('Notes').update({
+      'title': title,
+      'text': text,
+      'content': content,
+    }).eq('id', noteId);
+
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Note updated successfully')),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error updating note: $e')),
+    );
+  }
+}
 
 // Add note dialog
   void _showAddNotesDialog() {
-    String title = '';
-    String content = '';
+  String title = '';
+  _quillController = QuillController.basic();
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Add Meeting Note'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  decoration: const InputDecoration(
-                    labelText: 'Title',
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (value) => title = value,
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text('Add Meeting Note'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Title',
+                  border: OutlineInputBorder(),
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  decoration: const InputDecoration(
-                    labelText: 'Content',
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
-                  ),
-                  maxLines: 10,
-                  onChanged: (value) => content = value,
+                onChanged: (value) => title = value,
+              ),
+              const SizedBox(height: 16),
+              Container(
+                height: 300,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Theme.of(context).colorScheme.outline),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              ],
-            ),
+                child: Column(
+                  children: [
+                    QuillSimpleToolbar(
+                      controller: _quillController,
+                      config: QuillSimpleToolbarConfig(
+                      ),
+                    ),
+                    Expanded(
+                      child: QuillEditor.basic(
+                        controller: _quillController,
+                        config: QuillEditorConfig(
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                Navigator.pop(context);
-              },
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                if (title.isNotEmpty && content.isNotEmpty) {
-                  await _saveNote(title, content);
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                  }
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _quillController?.dispose();
+              Navigator.pop(context);
+            },
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (title.isNotEmpty && !_quillController!.document.isEmpty()) {
+                final deltaJson = jsonEncode(_quillController!.document.toDelta().toJson());
+                final plainText = _quillController!.document.toPlainText();
+                await _saveNote(title, plainText, deltaJson);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  _quillController?.dispose();
                 }
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
-  }
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      );
+    },
+  );
+}
 
 // Edit note dialog
   void _showEditNotesDialog(MeetingNote note) {
-    String title = note.title;
-    String content = note.text;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Edit Meeting Note'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  decoration: const InputDecoration(
-                    labelText: 'Title',
-                    border: OutlineInputBorder(),
-                  ),
-                  controller: TextEditingController(text: title),
-                  onChanged: (value) => title = value,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  decoration: const InputDecoration(
-                    labelText: 'Content',
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
-                  ),
-                  controller: TextEditingController(text: content),
-                  maxLines: 10,
-                  onChanged: (value) => content = value,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                Navigator.pop(context);
-              },
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                if (title.isNotEmpty && content.isNotEmpty) {
-                  await _updateNote(note.id, title, content);
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                  }
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
+  String title = note.title;
+  
+  // Initialize controller with existing content
+  if (note.content != null && note.content!.isNotEmpty) {
+    try {
+      final deltaJson = jsonDecode(note.content!);
+      _quillController = QuillController(
+        document: Document.fromJson(deltaJson),
+        selection: const TextSelection.collapsed(offset: 0),
+      );
+    } catch (e) {
+      // Fallback to plain text if JSON parsing fails
+      _quillController = QuillController.basic();
+      _quillController!.document.insert(0, note.text);
+    }
+  } else {
+    // Fallback for old notes without rich content
+    _quillController = QuillController.basic();
+    _quillController!.document.insert(0, note.text);
   }
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text('Edit Meeting Note'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Title',
+                  border: OutlineInputBorder(),
+                ),
+                controller: TextEditingController(text: title),
+                onChanged: (value) => title = value,
+              ),
+              const SizedBox(height: 16),
+              Container(
+                height: 300,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Theme.of(context).colorScheme.outline),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    QuillSimpleToolbar(
+                      controller: _quillController,
+                      config: QuillSimpleToolbarConfig(
+                        
+                      ),
+                    ),
+                    Expanded(
+                      child: QuillEditor.basic(
+                        controller: _quillController,
+                        config: QuillEditorConfig(
+                          
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _quillController?.dispose();
+              Navigator.pop(context);
+            },
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (title.isNotEmpty && !_quillController!.document.isEmpty()) {
+                final deltaJson = jsonEncode(_quillController!.document.toDelta().toJson());
+                final plainText = _quillController!.document.toPlainText();
+                await _updateNote(note.id, title, plainText, deltaJson);
+                if (context.mounted) {
+                  _quillController?.dispose();
+                  Navigator.pop(context);
+                }
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      );
+    },
+  );
+}
 
 // Note details dialog
   void _showNoteDetailsDialog(MeetingNote note) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(note.title),
-          content: SingleChildScrollView(
-            child: Text(note.text),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                Navigator.pop(context);
-              },
-              child: const Text('Close'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                Navigator.pop(context);
-                _showEditNotesDialog(note);
-              },
-              child: const Text('Edit'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-// Update an existing note
-  Future<void> _updateNote(int noteId, String title, String text) async {
+  QuillController displayController;
+  
+  // Load rich content if available
+  if (note.content != null && note.content!.isNotEmpty) {
     try {
-      await supabase.from('Notes').update({
-        'title': title,
-        'text': text,
-      }).eq('id', noteId);
-
-      // Refresh notes
-      setState(() {});
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Note updated successfully')),
+      final deltaJson = jsonDecode(note.content!);
+      displayController = QuillController(
+        document: Document.fromJson(deltaJson),
+        selection: const TextSelection.collapsed(offset: 0),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error updating note: $e')),
-      );
+      // Fallback to plain text
+      displayController = QuillController.basic();
+      displayController.document.insert(0, note.text);
     }
+  } else {
+    // Fallback for old notes
+    displayController = QuillController.basic();
+    displayController.document.insert(0, note.text);
   }
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Text(note.title),
+        content: SingleChildScrollView(
+          child: SizedBox(
+            width: double.maxFinite,
+            height: 300,
+            child: QuillEditor.basic(
+              controller: displayController,
+              config: QuillEditorConfig(
+                
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              displayController.dispose();
+              Navigator.pop(context);
+            },
+            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              displayController.dispose();
+              Navigator.pop(context);
+              _showEditNotesDialog(note);
+            },
+            child: const Text('Edit'),
+          ),
+        ],
+      );
+    },
+  );
+}
 
 
   String _getTimeAgo(DateTime dateTime) {

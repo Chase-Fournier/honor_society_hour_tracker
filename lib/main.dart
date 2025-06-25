@@ -14,6 +14,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import '../providers/hapticsprovider.dart';
 import '../providers/navigationprovider.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 
 enum SortOrder {
   ascending,
@@ -317,6 +319,16 @@ class _MyAppState extends State<MyApp> {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const MaterialApp(
+              localizationsDelegates: [
+                  FlutterQuillLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                  
+                ],
+                supportedLocales: [
+                  Locale('en', 'US'), 
+                ],
               home: Scaffold(
                 body: Center(
                   child: CircularProgressIndicator(),
@@ -330,6 +342,16 @@ class _MyAppState extends State<MyApp> {
                 animation: widget.themeNotifier,
                 builder: (context, _) {
                   return MaterialApp(
+                    localizationsDelegates: const [
+                    FlutterQuillLocalizations.delegate,
+                    GlobalMaterialLocalizations.delegate,
+                    GlobalWidgetsLocalizations.delegate,
+                    GlobalCupertinoLocalizations.delegate,
+                    
+                  ],
+                  supportedLocales: const [
+                    Locale('en', 'US'), 
+                ],
                     navigatorKey: _navigatorKey, // Assign the navigatorKey
                     title: 'Society Hour Tracking',
                     debugShowCheckedModeBanner: false,
