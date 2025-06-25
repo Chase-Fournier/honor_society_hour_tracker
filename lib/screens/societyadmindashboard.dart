@@ -897,6 +897,7 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
       SnackBar(content: Text('Error adding note: $e')),
     );
   }
+  _quillController?.dispose();
 }
 
 Future<void> _updateNote(int noteId, String title, String text, String content) async {
@@ -916,10 +917,52 @@ Future<void> _updateNote(int noteId, String title, String text, String content) 
       SnackBar(content: Text('Error updating note: $e')),
     );
   }
+  _quillController?.dispose();
 }
 
 // Add note dialog
-  void _showAddNotesDialog() {
+void _showAddNotesDialog() {
+  final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+  hapticsProvider.selection();
+  
+  final screenWidth = MediaQuery.of(context).size.width;
+  
+  if (screenWidth < 600) {
+    // Mobile - use bottom sheet
+    _showMobileRichTextEditor(
+      onSave: (title, content, plainText) async {
+        await _saveNote(title, plainText, content);
+        Navigator.pop(context);
+      },
+    );
+  } else {
+    // Desktop/tablet - use dialog with collapsible toolbar
+    _showDesktopAddDialog();
+  }
+}
+
+void _showMobileRichTextEditor({
+  String? initialContent,
+  String? initialTitle,
+  MeetingNote? noteToEdit, // Add this parameter
+  required Function(String title, String content, String plainText) onSave,
+  VoidCallback? onDelete, // Add this parameter
+}) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) => _MobileRichTextEditor(
+      initialContent: initialContent,
+      initialTitle: initialTitle,
+      noteToEdit: noteToEdit, // Pass the note
+      onSave: onSave,
+      onDelete: onDelete, // Pass the delete callback
+    ),
+  );
+}
+
+void _showDesktopAddDialog() {
   String title = '';
   _quillController = QuillController.basic();
 
@@ -929,41 +972,22 @@ Future<void> _updateNote(int noteId, String title, String text, String content) 
       return AlertDialog(
         title: const Text('Add Meeting Note'),
         content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Title',
-                  border: OutlineInputBorder(),
+          child: SizedBox(
+            width: 500,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Title',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (value) => title = value,
                 ),
-                onChanged: (value) => title = value,
-              ),
-              const SizedBox(height: 16),
-              Container(
-                height: 300,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Theme.of(context).colorScheme.outline),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: [
-                    QuillSimpleToolbar(
-                      controller: _quillController,
-                      config: QuillSimpleToolbarConfig(
-                      ),
-                    ),
-                    Expanded(
-                      child: QuillEditor.basic(
-                        controller: _quillController,
-                        config: QuillEditorConfig(
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                _CollapsibleQuillEditor(controller: _quillController!),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -981,8 +1005,8 @@ Future<void> _updateNote(int noteId, String title, String text, String content) 
                 final plainText = _quillController!.document.toPlainText();
                 await _saveNote(title, plainText, deltaJson);
                 if (context.mounted) {
+                  
                   Navigator.pop(context);
-                  _quillController?.dispose();
                 }
               }
             },
@@ -993,9 +1017,54 @@ Future<void> _updateNote(int noteId, String title, String text, String content) 
     },
   );
 }
-
 // Edit note dialog
-  void _showEditNotesDialog(MeetingNote note) {
+void _showEditNotesDialog(MeetingNote note) {
+  final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
+  hapticsProvider.selection();
+  
+  final screenWidth = MediaQuery.of(context).size.width;
+  
+  if (screenWidth < 600) {
+    // Mobile - use bottom sheet
+    _showMobileRichTextEditor(
+      initialContent: note.content,
+      initialTitle: note.title,
+      noteToEdit: note, // Pass the note
+      onSave: (title, content, plainText) async {
+        await _updateNote(note.id, title, plainText, content);
+      },
+      onDelete: () async {
+        Navigator.pop(context); // Close the editor first
+        await _deleteNote(note.id);
+      },
+    );
+  } else {
+    // Desktop/tablet - use dialog
+    _showDesktopEditDialog(note);
+  }
+}
+
+Future<void> _deleteNote(int noteId) async {
+  try {
+    await supabase.from('Notes').delete().eq('id', noteId);
+    _quillController.dispose;
+    setState(() {});
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Note deleted successfully')),
+      );
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error deleting note: $e')),
+      );
+    }
+  }
+}
+
+
+void _showDesktopEditDialog(MeetingNote note) {
   String title = note.title;
   
   // Initialize controller with existing content
@@ -1021,46 +1090,41 @@ Future<void> _updateNote(int noteId, String title, String text, String content) 
     context: context,
     builder: (context) {
       return AlertDialog(
-        title: const Text('Edit Meeting Note'),
+        title: Row(
+          children: [
+            const Expanded(child: Text('Edit Meeting Note')),
+            IconButton(
+              onPressed: () async {
+                _quillController?.dispose();
+                Navigator.pop(context);
+                await _deleteNote(note.id);
+              },
+              icon: Icon(
+                Icons.delete_outline,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              tooltip: 'Delete note',
+            ),
+          ],
+        ),
         content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Title',
-                  border: OutlineInputBorder(),
+          child: SizedBox(
+            width: 500,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Title',
+                    border: OutlineInputBorder(),
+                  ),
+                  controller: TextEditingController(text: title),
+                  onChanged: (value) => title = value,
                 ),
-                controller: TextEditingController(text: title),
-                onChanged: (value) => title = value,
-              ),
-              const SizedBox(height: 16),
-              Container(
-                height: 300,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Theme.of(context).colorScheme.outline),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: [
-                    QuillSimpleToolbar(
-                      controller: _quillController,
-                      config: QuillSimpleToolbarConfig(
-                        
-                      ),
-                    ),
-                    Expanded(
-                      child: QuillEditor.basic(
-                        controller: _quillController,
-                        config: QuillEditorConfig(
-                          
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                _CollapsibleQuillEditor(controller: _quillController!),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -1078,7 +1142,6 @@ Future<void> _updateNote(int noteId, String title, String text, String content) 
                 final plainText = _quillController!.document.toPlainText();
                 await _updateNote(note.id, title, plainText, deltaJson);
                 if (context.mounted) {
-                  _quillController?.dispose();
                   Navigator.pop(context);
                 }
               }
@@ -1090,9 +1153,8 @@ Future<void> _updateNote(int noteId, String title, String text, String content) 
     },
   );
 }
-
 // Note details dialog
-  void _showNoteDetailsDialog(MeetingNote note) {
+void _showNoteDetailsDialog(MeetingNote note) {
   QuillController displayController;
   
   // Load rich content if available
@@ -1118,7 +1180,53 @@ Future<void> _updateNote(int noteId, String title, String text, String content) 
     context: context,
     builder: (context) {
       return AlertDialog(
-        title: Text(note.title),
+        title: Row(
+          children: [
+            Expanded(child: Text(note.title)),
+            PopupMenuButton<String>(
+              onSelected: (value) async {
+                displayController.dispose();
+                Navigator.pop(context);
+                
+                if (value == 'edit') {
+                  _showEditNotesDialog(note);
+                } else if (value == 'delete') {
+                  await _deleteNote(note.id);
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit_outlined),
+                      SizedBox(width: 8),
+                      Text('Edit'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.delete_outline,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Delete',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
         content: SingleChildScrollView(
           child: SizedBox(
             width: double.maxFinite,
@@ -1152,8 +1260,6 @@ Future<void> _updateNote(int noteId, String title, String text, String content) 
     },
   );
 }
-
-
   String _getTimeAgo(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
@@ -1192,14 +1298,7 @@ Future<void> _updateNote(int noteId, String title, String text, String content) 
         // Header with gradient background
         Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Theme.of(context).colorScheme.primaryContainer,
-                Theme.of(context).colorScheme.primaryContainer.withOpacity(0.7),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: Theme.of(context).colorScheme.primaryContainer,
           ),
           padding: const EdgeInsets.all(20),
           child: Row(
@@ -1480,14 +1579,7 @@ Widget _buildEnhancedMeetingNotes() {
             // Header with floating action button
             Container(
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Theme.of(context).colorScheme.secondaryContainer,
-                    Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.7),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: Theme.of(context).colorScheme.secondaryContainer,
               ),
               padding: const EdgeInsets.all(20),
               child: Row(
@@ -1952,3 +2044,279 @@ class ActivitySummary {
 }
 
 
+class _MobileRichTextEditor extends StatefulWidget {
+  final String? initialContent;
+  final String? initialTitle;
+  final Function(String title, String content, String plainText) onSave;
+  final VoidCallback? onDelete;
+  final MeetingNote? noteToEdit;
+
+  const _MobileRichTextEditor({
+    this.initialContent,
+    this.initialTitle,
+    required this.onSave,
+    this.noteToEdit,
+    this.onDelete,
+  });
+
+  @override
+  State<_MobileRichTextEditor> createState() => _MobileRichTextEditorState();
+}
+
+class _MobileRichTextEditorState extends State<_MobileRichTextEditor> {
+  late QuillController _controller;
+  late TextEditingController _titleController;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.initialTitle ?? '');
+    
+    if (widget.initialContent != null && widget.initialContent!.isNotEmpty) {
+      try {
+        final deltaJson = jsonDecode(widget.initialContent!);
+        _controller = QuillController(
+          document: Document.fromJson(deltaJson),
+          selection: const TextSelection.collapsed(offset: 0),
+        );
+      } catch (e) {
+        _controller = QuillController.basic();
+      }
+    } else {
+      _controller = QuillController.basic();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _titleController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.9,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (context, scrollController) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Handle bar
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.initialTitle != null ? 'Edit Note' : 'New Note',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  if (widget.noteToEdit != null && widget.onDelete != null)
+                    IconButton(
+                      onPressed: widget.onDelete,
+                      icon: Icon(
+                        Icons.delete_outline,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                      tooltip: 'Delete note',
+                    ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () {
+                      final title = _titleController.text;
+                      if (title.isNotEmpty && !_controller.document.isEmpty()) {
+                        final deltaJson = jsonEncode(_controller.document.toDelta().toJson());
+                        final plainText = _controller.document.toPlainText();
+                        widget.onSave(title, deltaJson, plainText);
+                      }
+                    },
+                    child: const Text('Save'),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Title field
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                controller: _titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Title',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Compact toolbar
+            QuillSimpleToolbar(
+              controller: _controller,
+              config: QuillSimpleToolbarConfig(
+                multiRowsDisplay: false,
+                toolbarSize: 40,
+                showBoldButton: true,
+                showItalicButton: true,
+                showUnderLineButton: true,
+                showListNumbers: true,
+                showListBullets: true,
+                showFontFamily: false,
+                showFontSize: false,
+                showAlignmentButtons: false,
+                showHeaderStyle: false,
+                showColorButton: false,
+                showBackgroundColorButton: false,
+                showClearFormat: false,
+                showStrikeThrough: false,
+                showInlineCode: false,
+                showCodeBlock: false,
+                showIndent: false,
+                showLink: false,
+                showUndo: false,
+                showRedo: false,
+                showDirection: false,
+                showSearchButton: false,
+              ),
+            ),
+            
+            const Divider(height: 1),
+            
+            // Editor
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: QuillEditor.basic(
+                  controller: _controller,
+                  config: QuillEditorConfig(
+                    
+                    placeholder: 'Start writing your note...',
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CollapsibleQuillEditor extends StatefulWidget {
+  final QuillController controller;
+  
+  const _CollapsibleQuillEditor({required this.controller});
+
+  @override
+  State<_CollapsibleQuillEditor> createState() => _CollapsibleQuillEditorState();
+}
+
+class _CollapsibleQuillEditorState extends State<_CollapsibleQuillEditor> {
+  bool _showToolbar = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 300,
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          // Toolbar toggle button
+          Container(
+            height: 40,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceVariant,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+            ),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: Icon(_showToolbar ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down),
+                  onPressed: () {
+                    setState(() {
+                      _showToolbar = !_showToolbar;
+                    });
+                  },
+                  tooltip: _showToolbar ? 'Hide formatting' : 'Show formatting',
+                ),
+                Expanded(
+                  child: Text(
+                    _showToolbar ? 'Hide formatting tools' : 'Tap to show formatting tools',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Collapsible toolbar
+          if (_showToolbar)
+            QuillSimpleToolbar(
+              controller: widget.controller,
+              config: QuillSimpleToolbarConfig(
+                multiRowsDisplay: false,
+                toolbarSize: 35,
+                showFontFamily: false,
+                showFontSize: false,
+                showBoldButton: true,
+                showItalicButton: true,
+                showUnderLineButton: true,
+                showListNumbers: true,
+                showListBullets: true,
+                showAlignmentButtons: false,
+                showHeaderStyle: false,
+                showColorButton: false,
+                showBackgroundColorButton: false,
+                showClearFormat: false,
+                showStrikeThrough: false,
+                showInlineCode: false,
+                showCodeBlock: false,
+                showIndent: false,
+                showLink: false,
+                showUndo: false,
+                showRedo: false,
+                showDirection: false,
+                showSearchButton: false,
+              ),
+            ),
+          
+          // Editor
+          Expanded(
+            child: QuillEditor.basic(
+              controller: widget.controller,
+              config: QuillEditorConfig(
+                placeholder: _showToolbar ? 'Start typing...' : 'Tap above for formatting options...',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
