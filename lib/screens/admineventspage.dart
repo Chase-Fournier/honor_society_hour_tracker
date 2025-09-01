@@ -312,7 +312,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                     final hapticsProvider =
                         Provider.of<HapticsProvider>(context, listen: false);
                     hapticsProvider.selection();
-                    showAddEventDialog;
+                    showAddEventDialog();
                   },
                   heroTag: 'addEvent',
                   child: const Icon(Icons.add),
@@ -323,7 +323,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                     final hapticsProvider =
                         Provider.of<HapticsProvider>(context, listen: false);
                     hapticsProvider.selection();
-                    _showAddCollectionDialog;
+                    _showAddCollectionDialog();
                   },
                   heroTag: 'addCollection',
                   child: const Icon(Icons.create_new_folder),
