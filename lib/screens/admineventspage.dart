@@ -165,7 +165,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                             context,
                             listen: false);
                         hapticsProvider.selection();
-                        _showAddEventDialog;
+                        showAddEventDialog();
                       },
                       dense: true,
                     ),
@@ -178,7 +178,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                             context,
                             listen: false);
                         hapticsProvider.selection();
-                        _showAddCollectionDialog;
+                        _showAddCollectionDialog();
                       },
                       dense: true,
                     ),
@@ -312,7 +312,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                     final hapticsProvider =
                         Provider.of<HapticsProvider>(context, listen: false);
                     hapticsProvider.selection();
-                    _showAddEventDialog;
+                    showAddEventDialog;
                   },
                   heroTag: 'addEvent',
                   child: const Icon(Icons.add),
@@ -862,7 +862,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
     );
   }
 
-  void _showAddEventDialog() {
+  void showAddEventDialog() {
     final _formKey = GlobalKey<FormState>();
     String _eventName = '';
     String _eventDescription = '';
@@ -2100,7 +2100,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
     return types;
   }
 
-// In AdminEventsPage class - update the _showAddEventDialog method
+// In AdminEventsPage class - update the showAddEventDialog method
 
 // Update the _addEvent method to include societyId
   Future<void> _addEvent(

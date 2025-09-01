@@ -77,7 +77,6 @@ class _LoginPageState extends State<LoginPage>
   Widget _buildWideLayout() {
     return Row(
       children: [
-        // Left section with decorative elements
         Expanded(
           flex: 5,
           child: FadeTransition(
