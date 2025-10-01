@@ -6,7 +6,7 @@ class HonorSociety {
   final String description;
   final String? imageUrl;
   final List<HourRequirement> hourRequirements;
-  final int meetingRequirement; // Keep meetings as special case
+  final int meetingRequirement;
   final DateTime createdAt;
   final String? errorFormUrl;
 
