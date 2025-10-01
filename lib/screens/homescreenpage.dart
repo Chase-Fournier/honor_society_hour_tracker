@@ -1365,29 +1365,32 @@ class _HomePageState extends State<HomePage> {
                                 ),
                               ),
                             )
-                          : ElevatedButton.icon(
-                              onPressed: () {
-                                _showSignUpForm(event, timeSlot);
-                                final hapticsProvider =
-                                    Provider.of<HapticsProvider>(context,
-                                        listen: false);
-                                hapticsProvider.medium();
-                              },
-                              icon: const Icon(Icons.add, size: 16),
-                              label: const Text('Sign Up'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    Theme.of(context).colorScheme.primary,
-                                foregroundColor:
-                                    Theme.of(context).colorScheme.onPrimary,
-                                minimumSize: const Size(double.infinity, 36),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 8),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: AppDesign.borderSmall,
+                          : Visibility(
+                            visible: timeSlot.numberOfPeople > 0,
+                            child: ElevatedButton.icon(
+                                onPressed: () {
+                                  _showSignUpForm(event, timeSlot);
+                                  final hapticsProvider =
+                                      Provider.of<HapticsProvider>(context,
+                                          listen: false);
+                                  hapticsProvider.medium();
+                                },
+                                icon: const Icon(Icons.add, size: 16),
+                                label: const Text('Sign Up'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.primary,
+                                  foregroundColor:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                  minimumSize: const Size(double.infinity, 36),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 8),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: AppDesign.borderSmall,
+                                  ),
                                 ),
                               ),
-                            ),
+                          ),
             ],
           ),
         ),

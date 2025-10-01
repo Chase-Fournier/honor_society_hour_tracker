@@ -600,17 +600,22 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
             ),
           ),
 
-          // Today's events list
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: todaysEvents.length,
-            itemBuilder: (context, index) {
-              final event = todaysEvents[index];
-              return _buildTodaysEventItem(event);
+          TodaysEventsSection(
+            events: todaysEvents,
+            onEventTap: (event, currentTimeSlot) {
+              if (event.timeSlots.isNotEmpty) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AttendanceCheckPage(
+                      event: event,
+                      timeSlot: currentTimeSlot ?? event.timeSlots.first,
+                    ),
+                  ),
+                ).then((_) => _fetchData());
+              }
             },
           ),
-
           // Bottom padding
           const SizedBox(height: 8),
         ],
@@ -618,224 +623,8 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
     );
   }
 
-  // Today's event item with attendance stats
-  Widget _buildTodaysEventItem(Event event) {
-    // Calculate attendance info
-    int totalAttendees = 0;
-    int presentAttendees = 0;
-
-    for (final timeSlot in event.timeSlots) {
-      totalAttendees += timeSlot.attendees.length;
-      presentAttendees += timeSlot.attendees.where((a) => a.isPresent).length;
-    }
-
-    // Calculate attendance percentage
-    final attendancePercentage =
-        totalAttendees > 0 ? (presentAttendees / totalAttendees) * 100 : 0.0;
-
-    // Determine if any time slots are happening now
-    final now = DateTime.now();
-    final currentHour = TimeOfDay.fromDateTime(now);
-
-    bool isHappeningNow = false;
-    TimeSlot? currentTimeSlot;
-
-    for (final timeSlot in event.timeSlots) {
-      final startMinutes = timeSlot.time.hour * 60 + timeSlot.time.minute;
-      final endMinutes = timeSlot.endTime.hour * 60 + timeSlot.endTime.minute;
-      final currentMinutes = currentHour.hour * 60 + currentHour.minute;
-
-      if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
-        isHappeningNow = true;
-        currentTimeSlot = timeSlot;
-        break;
-      }
-    }
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: AppDesign.borderMedium,
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).colorScheme.shadow.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: InkWell(
-        borderRadius: AppDesign.borderMedium,
-        onTap: () {
-          // Navigate to attendance check page for this event/time slot
-          if (event.timeSlots.isNotEmpty) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => AttendanceCheckPage(
-                  event: event,
-                  timeSlot: currentTimeSlot ?? event.timeSlots.first,
-                ),
-              ),
-            ).then((_) => _fetchData());
-          }
-        },
-        child: Padding(
-          padding: AppDesign.paddingSmall,
-          child: Row(
-            children: [
-              // Event icon with type color
-              CircleAvatar(
-                backgroundColor: _getColorForEventType(event.type, context)
-                    .withOpacity(0.15),
-                child: Icon(
-                  getIconForType(event.type, context),
-                  color: _getColorForEventType(event.type, context),
-                ),
-              ),
-              const SizedBox(width: 12),
-
-              // Event info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Event title with optional "happening now" badge
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            event.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (isHappeningNow)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.green,
-                              borderRadius: AppDesign.borderMedium,
-                            ),
-                            child: const Text(
-                              'NOW',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-
-                    // Event type
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: _getColorForEventType(event.type, context)
-                            .withOpacity(0.1),
-                        borderRadius: AppDesign.borderMedium,
-                      ),
-                      child: Text(
-                        event.type,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: _getColorForEventType(event.type, context),
-                        ),
-                      ),
-                    ),
-
-                    // Time slots
-                    if (event.timeSlots.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        event.timeSlots.length == 1
-                            ? NhsFormatUtils.formatTimeSlot(
-                                event.timeSlots.first, context)
-                            : '${event.timeSlots.length} time slots',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-              // Attendance ratio
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  // Attendance info
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.people,
-                        size: 14,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$presentAttendees/$totalAttendees',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: presentAttendees > 0
-                              ? Theme.of(context).colorScheme.primary
-                              : Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Progress indicator
-                  SizedBox(
-                    width: 60,
-                    height: 8,
-                    child: ClipRRect(
-                      borderRadius: AppDesign.borderSmall,
-                      child: LinearProgressIndicator(
-                        value: totalAttendees > 0
-                            ? presentAttendees / totalAttendees
-                            : 0,
-                        backgroundColor:
-                            Theme.of(context).colorScheme.surfaceVariant,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-
-                  // Percentage text
-                  Text(
-                    '${attendancePercentage.round()}%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
+  // Usage in your original build method:
+  
   Widget _buildEventCard(Event event) {
     // Get color for event type
     final Color typeColor = _getColorForEventType(event.type, context);
@@ -1255,4 +1044,311 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
       print('Error fetching collections: $e');
     }
   }
+
+  
 }
+
+class TodaysEventsSection extends StatefulWidget {
+  final List<Event> events;
+  final Function(Event, TimeSlot?) onEventTap;
+
+  const TodaysEventsSection({
+    Key? key,
+    required this.events,
+    required this.onEventTap,
+  }) : super(key: key);
+
+  @override
+  State<TodaysEventsSection> createState() => _TodaysEventsSectionState();
+}
+
+class _TodaysEventsSectionState extends State<TodaysEventsSection> {
+  bool _isExpanded = true; // Start expanded by default
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Section header with collapse control
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Text(
+                'Today\'s Events',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${widget.events.length}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _isExpanded = !_isExpanded;
+                  });
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(
+                    _isExpanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    size: 24,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              const Spacer(),
+            ],
+          ),
+        ),
+
+        // Collapsible events list
+        AnimatedCrossFade(
+          firstChild: const SizedBox.shrink(),
+          secondChild: Column(
+            children: widget.events
+                .map((event) => _buildTodaysEventItem(event))
+                .toList(),
+          ),
+          crossFadeState: _isExpanded
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 300),
+        ),
+      ],
+    );
+  }
+
+  // Individual event item (original widget)
+  Widget _buildTodaysEventItem(Event event) {
+    // Calculate attendance info
+    int totalAttendees = 0;
+    int presentAttendees = 0;
+
+    for (final timeSlot in event.timeSlots) {
+      totalAttendees += timeSlot.attendees.length;
+      presentAttendees += timeSlot.attendees.where((a) => a.isPresent).length;
+    }
+
+    // Calculate attendance percentage
+    final attendancePercentage =
+        totalAttendees > 0 ? (presentAttendees / totalAttendees) * 100 : 0.0;
+
+    // Determine if any time slots are happening now
+    final now = DateTime.now();
+    final currentHour = TimeOfDay.fromDateTime(now);
+
+    bool isHappeningNow = false;
+    TimeSlot? currentTimeSlot;
+
+    for (final timeSlot in event.timeSlots) {
+      final startMinutes = timeSlot.time.hour * 60 + timeSlot.time.minute;
+      final endMinutes = timeSlot.endTime.hour * 60 + timeSlot.endTime.minute;
+      final currentMinutes = currentHour.hour * 60 + currentHour.minute;
+
+      if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
+        isHappeningNow = true;
+        currentTimeSlot = timeSlot;
+        break;
+      }
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: AppDesign.borderMedium,
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.shadow.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: InkWell(
+        borderRadius: AppDesign.borderMedium,
+        onTap: () {
+          widget.onEventTap(event, currentTimeSlot);
+        },
+        child: Padding(
+          padding: AppDesign.paddingSmall,
+          child: Row(
+            children: [
+              // Event icon with type color
+              CircleAvatar(
+                backgroundColor: _getColorForEventType(event.type, context)
+                    .withOpacity(0.15),
+                child: Icon(
+                  getIconForType(event.type, context),
+                  color: _getColorForEventType(event.type, context),
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // Event info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Event title with optional "happening now" badge
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            event.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isHappeningNow)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.green,
+                              borderRadius: AppDesign.borderMedium,
+                            ),
+                            child: const Text(
+                              'NOW',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+
+                    // Event type
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _getColorForEventType(event.type, context)
+                            .withOpacity(0.1),
+                        borderRadius: AppDesign.borderMedium,
+                      ),
+                      child: Text(
+                        event.type,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: _getColorForEventType(event.type, context),
+                        ),
+                      ),
+                    ),
+
+                    // Time slots
+                    if (event.timeSlots.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        event.timeSlots.length == 1
+                            ? NhsFormatUtils.formatTimeSlot(
+                                event.timeSlots.first, context)
+                            : '${event.timeSlots.length} time slots',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              // Attendance ratio
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // Attendance info
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.people,
+                        size: 14,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$presentAttendees/$totalAttendees',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: presentAttendees > 0
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Progress indicator
+                  SizedBox(
+                    width: 60,
+                    height: 8,
+                    child: ClipRRect(
+                      borderRadius: AppDesign.borderSmall,
+                      child: LinearProgressIndicator(
+                        value: totalAttendees > 0
+                            ? presentAttendees / totalAttendees
+                            : 0,
+                        backgroundColor:
+                            Theme.of(context).colorScheme.surfaceVariant,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Percentage text
+                  Text(
+                    '${attendancePercentage.round()}%',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getColorForEventType(String type, BuildContext context) {
+        return Theme.of(context).colorScheme.primary;
+    
+  }
+}
+
+
