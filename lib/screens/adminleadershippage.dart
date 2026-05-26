@@ -382,7 +382,7 @@ class _AdminLeadershipPageState extends State<AdminLeadershipPage> {
               final hapticsProvider =
                   Provider.of<HapticsProvider>(context, listen: false);
               hapticsProvider.selection();
-              _showAddRoleDialog;
+              _showAddRoleDialog();
             },
             icon: const Icon(Icons.add),
             label: const Text('Add Role'),
@@ -442,7 +442,7 @@ class _AdminLeadershipPageState extends State<AdminLeadershipPage> {
                 final hapticsProvider =
                     Provider.of<HapticsProvider>(context, listen: false);
                 hapticsProvider.selection();
-                _showAddRoleDialog;
+                _showAddRoleDialog();
               },
               icon: const Icon(Icons.add),
               label: const Text('Add Your First Role'),

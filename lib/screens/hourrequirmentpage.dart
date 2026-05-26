@@ -441,7 +441,7 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
           final hapticsProvider =
               Provider.of<HapticsProvider>(context, listen: false);
           hapticsProvider.selection();
-          _showAddRequirementDialog;
+          _showAddRequirementDialog();
         },
         tooltip: 'Add Requirement',
         child: const Icon(Icons.add),

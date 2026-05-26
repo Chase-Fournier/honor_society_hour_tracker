@@ -325,7 +325,7 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
                 final hapticsProvider =
                     Provider.of<HapticsProvider>(context, listen: false);
                 hapticsProvider.selection();
-                _showAddNotesDialog;
+                _showAddNotesDialog();
               },
             ),
             IconButton(
@@ -334,7 +334,7 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
                 final hapticsProvider =
                     Provider.of<HapticsProvider>(context, listen: false);
                 hapticsProvider.selection();
-                _fetchDashboardData;
+                _fetchDashboardData();
               },
               tooltip: 'Refresh',
             ),
@@ -442,7 +442,7 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
                               context,
                               listen: false);
                           hapticsProvider.selection();
-                          _showAddNotesDialog;
+                          _showAddNotesDialog();
                         },
                         tooltip: 'Add Note',
                       ),
@@ -785,7 +785,7 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
                             context,
                             listen: false);
                         hapticsProvider.selection();
-                        _showAddNotesDialog;
+                        _showAddNotesDialog();
                       },
                       child: const Text('Add New Note'),
                     ),

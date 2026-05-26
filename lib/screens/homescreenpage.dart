@@ -2447,7 +2447,5 @@ class _HomePageState extends State<HomePage> {
       'user_id': currentUserId,
       'is_present': false,
     });
-
-    // You may want to handle transferring any additional data (like forms_completed) here
   }
 }
