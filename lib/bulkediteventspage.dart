@@ -315,8 +315,8 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
                       labelText: 'New Hours (Optional)',
                       hintText: 'Leave blank to keep current hours',
                     ),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                        signed: true, decimal: true),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return null; // Optional field
@@ -325,8 +325,8 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
                       if (number == null) {
                         return 'Please enter a valid number';
                       }
-                      if (number <= 0) {
-                        return 'Hours must be greater than 0';
+                      if (number == 0) {
+                        return 'Hours cannot be zero';
                       }
                       return null;
                     },

@@ -3674,19 +3674,19 @@ class _EditHourDialogContentState extends State<_EditHourDialogContent> {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.timer),
               ),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                  signed: true, decimal: true),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(
-                    RegExp(r'^\d+\.?\d{0,2}')), // Allow numbers and decimal
+                    RegExp(r'^-?\d*\.?\d{0,2}')), // Allow optional minus, numbers, and decimal
               ],
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter hours';
                 }
                 final hours = double.tryParse(value.trim());
-                if (hours == null || hours <= 0) {
-                  return 'Please enter a valid positive number for hours';
+                if (hours == null || hours == 0) {
+                  return 'Please enter a non-zero number of hours';
                 }
                 return null;
               },

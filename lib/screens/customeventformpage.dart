@@ -317,13 +317,13 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                               prefixIcon: Icon(Icons.timer),
                             ),
                             keyboardType: const TextInputType.numberWithOptions(
-                                signed: false, decimal: true),
+                                signed: true, decimal: true),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Required';
                               }
                               final hours = double.tryParse(value);
-                              if (hours == null || hours <= 0) {
+                              if (hours == null || hours == 0) {
                                 return 'Invalid';
                               }
                               return null;
