@@ -125,14 +125,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Theme.of(context).colorScheme.primaryContainer.withOpacity(0.9),
-            Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.9),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Theme.of(context).colorScheme.primaryContainer,
         borderRadius: BorderRadius.circular(24),
       ),
       child: ClipRRect(

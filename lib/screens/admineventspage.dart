@@ -747,39 +747,57 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
         });
       },
       builder: (context, candidateData, rejectedData) {
+        final colorScheme = Theme.of(context).colorScheme;
         return Card(
-          shape: RoundedRectangleBorder(borderRadius: AppDesign.borderLarge),
-          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: AppDesign.borderLarge,
+            side: BorderSide(
+              color: isHovered
+                  ? colorScheme.primary
+                  : colorScheme.outlineVariant.withOpacity(0.6),
+              width: isHovered ? 2 : 1,
+            ),
+          ),
+          elevation: 0,
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           color: isHovered
-              ? Theme.of(context).colorScheme.surfaceVariant
-              : Theme.of(context).colorScheme.surface,
+              ? colorScheme.primaryContainer.withOpacity(0.6)
+              : colorScheme.secondaryContainer.withOpacity(0.4),
           child: Theme(
             data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
             child: ExpansionTile(
-              leading: Icon(
-                Icons.folder,
-                color: Theme.of(context).colorScheme.primary,
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: colorScheme.secondary,
+                  borderRadius: AppDesign.borderSmall,
+                ),
+                child: Icon(
+                  Icons.folder_rounded,
+                  color: colorScheme.onSecondary,
+                  size: 20,
+                ),
               ),
               title: Row(
                 children: [
                   Expanded(
                     child: Text(
                       collection.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16.0,
+                        color: colorScheme.onSecondaryContainer,
                       ),
                     ),
                   ),
                   // Show count of events in this collection
                   Container(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: eventsInCollection.isEmpty
-                          ? Theme.of(context).colorScheme.surfaceVariant
-                          : Theme.of(context).colorScheme.primaryContainer,
+                          ? colorScheme.surfaceVariant
+                          : colorScheme.secondary,
                       borderRadius: AppDesign.borderMedium,
                     ),
                     child: Text(
@@ -788,8 +806,8 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                         color: eventsInCollection.isEmpty
-                            ? Theme.of(context).colorScheme.onSurfaceVariant
-                            : Theme.of(context).colorScheme.onPrimaryContainer,
+                            ? colorScheme.onSurfaceVariant
+                            : colorScheme.onSecondary,
                       ),
                     ),
                   ),
@@ -799,7 +817,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.delete),
+                    icon: Icon(Icons.delete_outline, color: colorScheme.error),
                     onPressed: () {
                       final hapticsProvider =
                           Provider.of<HapticsProvider>(context, listen: false);
@@ -808,7 +826,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                     },
                     tooltip: 'Delete Collection',
                   ),
-                  const Icon(Icons.expand_more),
+                  Icon(Icons.expand_more, color: colorScheme.onSurfaceVariant),
                 ],
               ),
               children: eventsInCollection.isEmpty

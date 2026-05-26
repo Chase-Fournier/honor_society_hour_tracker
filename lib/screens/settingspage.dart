@@ -1,17 +1,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../snake.dart';
 import 'societyadminpage.dart';
 import 'accountsettingspage.dart';
+import 'appearancepage.dart';
 import '../common/app_design.dart';
 import '../models/hourrequirement.dart';
 import '../models/honorsociety.dart';
 import '../providers/themeprovider.dart' as themeprovider;
-import '../providers/themenotifier.dart';
 import 'societyselectionpage.dart';
 import '../common/app_widgets.dart';
 import '../providers/societyprovider.dart';
@@ -35,7 +34,6 @@ class _SettingsPageState extends State<SettingsPage> {
   late String _email;
   late String _graduationYear;
   late String _password;
-  Color _selectedColor = Colors.blue;
   bool _isAdmin = false;
   List<HonorSociety> _userSocieties = [];
   bool _isLoading = true;
@@ -48,19 +46,10 @@ class _SettingsPageState extends State<SettingsPage> {
     _graduationYear = '';
     _password = '';
     _fetchUserProfile();
-    _fetchThemeColorFromPrefs();
     _fetchUserSocieties();
     if (widget.society != null) {
       _checkAdminStatus(widget.society!.id);
     }
-  }
-
-  Future<void> _fetchThemeColorFromPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    final colorValue = prefs.getInt('themeColor');
-    setState(() {
-      _selectedColor = colorValue != null ? Color(colorValue) : Colors.blue;
-    });
   }
 
   Future<void> _fetchUserProfile() async {
@@ -153,23 +142,6 @@ class _SettingsPageState extends State<SettingsPage> {
     } catch (e) {
       print('Error checking admin status: $e');
     }
-  }
-
-  void _handleColorChange(Color color) {
-    final hapticsProvider =
-        Provider.of<HapticsProvider>(context, listen: false);
-    hapticsProvider.selection(); // Add haptic feedback
-
-    setState(() {
-      _selectedColor = color;
-    });
-    _saveThemeColorToPrefs(color);
-    Provider.of<ThemeNotifier>(context, listen: false).updateThemeColor(color);
-  }
-
-  Future<void> _saveThemeColorToPrefs(Color color) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('themeColor', color.value);
   }
 
   void _openSocietyAdmin() {
@@ -544,37 +516,32 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             const SizedBox(height: 16),
 
-            // Theme Color Picker
+            // Appearance — opens dedicated page with mode, color, and themes
             ListTile(
-              leading: CircleAvatar(
-                backgroundColor: _selectedColor,
-                radius: 20,
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: AppDesign.borderSmall,
+                ),
+                child: Icon(
+                  Icons.palette_outlined,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
               ),
-              title: const Text('Theme Color'),
+              title: const Text('Appearance'),
+              subtitle: Text(
+                _appearanceSummary(),
+              ),
+              trailing: const Icon(Icons.chevron_right),
               onTap: () {
-                showDialog(
-                  context: context,
-                  builder: (BuildContext context) {
-                    return AlertDialog(
-                      title: const Text('Select Theme Color'),
-                      content: SingleChildScrollView(
-                        child: SlidePicker(
-                          pickerColor: _selectedColor,
-                          onColorChanged: _handleColorChange,
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          child: const Text('OK'),
-                          onPressed: () {
-                            final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-                            hapticsProvider.selection();
-                            Navigator.of(context).pop();
-                          },
-                        ),
-                      ],
-                    );
-                  },
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const AppearancePage()),
                 );
               },
             ),
@@ -603,303 +570,17 @@ class _SettingsPageState extends State<SettingsPage> {
                 );
               },
             ),
-
-            const Divider(),
-
-            // Theme Mode Selection
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  child: Text('Theme Mode'),
-                ),
-                
-                // Basic themes
-                RadioListTile<themeprovider.ThemeMode>(
-                  title: const Text('Light'),
-                  subtitle: const Text('Clean and bright'),
-                  value: themeprovider.ThemeMode.light,
-                  groupValue: Provider.of<themeprovider.ThemeProvider>(context)
-                      .themeMode,
-                  onChanged: (value) {
-                    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-                    hapticsProvider.selection(); 
-                    Provider.of<themeprovider.ThemeProvider>(context,
-                            listen: false)
-                        .setThemeMode(themeprovider.ThemeMode.light);
-                  },
-                  secondary: Icon(Icons.light_mode),
-                ),
-                RadioListTile<themeprovider.ThemeMode>(
-                  title: const Text('Dark'),
-                  subtitle: const Text('Easy on the eyes'),
-                  value: themeprovider.ThemeMode.dark,
-                  groupValue: Provider.of<themeprovider.ThemeProvider>(context)
-                      .themeMode,
-                  onChanged: (value) {
-                    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-                    hapticsProvider.selection();
-                    Provider.of<themeprovider.ThemeProvider>(context,
-                            listen: false)
-                        .setThemeMode(themeprovider.ThemeMode.dark);
-                  },
-                  secondary: Icon(Icons.dark_mode),
-                ),
-                RadioListTile<themeprovider.ThemeMode>(
-                  title: const Text('Midnight'),
-                  subtitle: const Text('Pure black background'),
-                  value: themeprovider.ThemeMode.midnight,
-                  groupValue: Provider.of<themeprovider.ThemeProvider>(context)
-                      .themeMode,
-                  onChanged: (value) {
-                    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-                    hapticsProvider.selection();
-                    Provider.of<themeprovider.ThemeProvider>(context,
-                            listen: false)
-                        .setThemeMode(themeprovider.ThemeMode.midnight);
-                  },
-                  secondary: Icon(Icons.nightlight_round),
-                ),
-
-                const Divider(),
-
-                // More themes section
-                _buildMoreThemesSection(),
-              ],
-            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildMoreThemesSection() {
-    final themeProvider = Provider.of<themeprovider.ThemeProvider>(context);
-    final screenWidth = MediaQuery.of(context).size.width;
-    
-    final customThemes = [
-      themeprovider.ThemeMode.sunset,
-      themeprovider.ThemeMode.sunrise,
-      themeprovider.ThemeMode.fullMoon,
-      themeprovider.ThemeMode.forest,
-      themeprovider.ThemeMode.ocean,
-      themeprovider.ThemeMode.reef,
-      themeprovider.ThemeMode.cherry,
-      themeprovider.ThemeMode.lavender,
-      themeprovider.ThemeMode.autumn,
-      themeprovider.ThemeMode.winter,
-      themeprovider.ThemeMode.desert,
-      themeprovider.ThemeMode.galaxy,
-      themeprovider.ThemeMode.emerald,
-      themeprovider.ThemeMode.ruby,
-      themeprovider.ThemeMode.sapphire,
-      themeprovider.ThemeMode.amber,
-    ];
-
-    // Responsive grid columns based on screen width
-    final crossAxisCount = screenWidth > 600 ? 3 : 2;
-    final childAspectRatio = screenWidth > 600 ? 3.2 : (screenWidth > 400 ? 3.0 : 2.8);
-    
-    return Theme(
-      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-      child: ExpansionTile(
-        title: Text(
-          'More Themes',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: screenWidth > 400 ? 16 : 15,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-        ),
-        subtitle: Text(
-          'Beautiful custom themes',
-          style: TextStyle(
-            fontSize: screenWidth > 400 ? 14 : 13,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-        leading: Icon(
-          Icons.palette,
-          color: Theme.of(context).colorScheme.primary,
-          size: screenWidth > 400 ? 24 : 22,
-        ),
-        tilePadding: EdgeInsets.symmetric(
-          horizontal: screenWidth > 400 ? 16 : 12,
-          vertical: 4,
-        ),
-        childrenPadding: EdgeInsets.symmetric(
-          horizontal: screenWidth > 400 ? 16 : 12,
-          vertical: 8,
-        ),
-        children: [
-          Container(
-            constraints: BoxConstraints(
-              maxHeight: screenWidth > 600 ? 400 : 350,
-            ),
-            child: GridView.builder(
-              shrinkWrap: true,
-              physics: const BouncingScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossAxisCount,
-                childAspectRatio: childAspectRatio,
-                crossAxisSpacing: screenWidth > 400 ? 10 : 8,
-                mainAxisSpacing: screenWidth > 400 ? 10 : 8,
-              ),
-              itemCount: customThemes.length,
-              itemBuilder: (context, index) {
-                final theme = customThemes[index];
-                final isSelected = themeProvider.themeMode == theme;
-                
-                return InkWell(
-                  onTap: () {
-                    final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-                    hapticsProvider.selection();
-                    themeProvider.setThemeMode(theme);
-                  },
-                  borderRadius: BorderRadius.circular(screenWidth > 400 ? 14 : 12),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(screenWidth > 400 ? 14 : 12),
-                      border: Border.all(
-                        color: isSelected 
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                        width: isSelected ? 2.5 : 1,
-                      ),
-                      color: isSelected 
-                        ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
-                        : Theme.of(context).colorScheme.surface,
-                      boxShadow: isSelected ? [
-                        BoxShadow(
-                          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ] : null,
-                    ),
-                    padding: EdgeInsets.all(screenWidth > 400 ? 12 : 10),
-                    child: Row(
-                      children: [
-                        // Theme preview circle
-                        Container(
-                          width: screenWidth > 400 ? 34 : 30,
-                          height: screenWidth > 400 ? 34 : 30,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(screenWidth > 400 ? 10 : 8),
-                            color: _getThemePreviewColor(theme),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.25),
-                              width: 1.5,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: _getThemePreviewColor(theme).withOpacity(0.3),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            themeProvider.getThemeIcon(theme),
-                            color: Colors.white,
-                            size: screenWidth > 400 ? 18 : 16,
-                          ),
-                        ),
-                        SizedBox(width: screenWidth > 400 ? 14 : 12),
-                        
-                        // Theme name and description
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                themeProvider.getThemeName(theme),
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: screenWidth > 400 ? 14 : 13,
-                                  color: isSelected 
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Theme.of(context).colorScheme.onSurface,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                        
-                        // Selection indicator
-                        if (isSelected)
-                          Container(
-                            width: screenWidth > 400 ? 20 : 18,
-                            height: screenWidth > 400 ? 20 : 18,
-                            margin: EdgeInsets.only(left: screenWidth > 400 ? 8 : 6),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.check,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                              size: screenWidth > 400 ? 14 : 12,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
+  String _appearanceSummary() {
+    final themeProvider =
+        Provider.of<themeprovider.ThemeProvider>(context, listen: true);
+    return themeProvider.getThemeName(themeProvider.themeMode);
   }
-
-
-  // Get preview color for theme tiles
-  Color _getThemePreviewColor(themeprovider.ThemeMode theme) {
-    switch (theme) {
-      case themeprovider.ThemeMode.sunset:
-        return const Color(0xFFFF6B35);
-      case themeprovider.ThemeMode.sunrise:
-        return const Color(0xFFFFB74D);
-      case themeprovider.ThemeMode.fullMoon:
-        return const Color(0xFF90CAF9);
-      case themeprovider.ThemeMode.forest:
-        return const Color(0xFF2E7D32);
-      case themeprovider.ThemeMode.ocean:
-        return const Color(0xFF0277BD);
-      case themeprovider.ThemeMode.reef:
-        return const Color(0xFFFF7043);
-      case themeprovider.ThemeMode.cherry:
-        return const Color(0xFFE91E63);
-      case themeprovider.ThemeMode.lavender:
-        return const Color(0xFF9C27B0);
-      case themeprovider.ThemeMode.autumn:
-        return const Color(0xFFD84315);
-      case themeprovider.ThemeMode.winter:
-        return const Color(0xFF1976D2);
-      case themeprovider.ThemeMode.desert:
-        return const Color(0xFFD7CCC8);
-      case themeprovider.ThemeMode.galaxy:
-        return const Color(0xFF7C4DFF);
-      case themeprovider.ThemeMode.emerald:
-        return const Color(0xFF00695C);
-      case themeprovider.ThemeMode.ruby:
-        return const Color(0xFFC62828);
-      case themeprovider.ThemeMode.sapphire:
-        return const Color(0xFF1565C0);
-      case themeprovider.ThemeMode.amber:
-        return const Color(0xFFFF8F00);
-      default:
-        return Theme.of(context).colorScheme.primary;
-    }
-  }
-
 
   // Navigation Bar Selector Widget
   Widget _buildNavigationBarSelector() {

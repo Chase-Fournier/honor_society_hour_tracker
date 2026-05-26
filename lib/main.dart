@@ -353,7 +353,7 @@ class _MyAppState extends State<MyApp> {
                     Locale('en', 'US'), 
                 ],
                     navigatorKey: _navigatorKey, // Assign the navigatorKey
-                    title: 'Society Hour Tracking',
+                    title: 'Wheeler Honor Societies',
                     debugShowCheckedModeBanner: false,
                     theme: themeProvider
                         .getThemeData(widget.themeNotifier.themeColor),

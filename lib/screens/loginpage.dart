@@ -146,7 +146,7 @@ class _LoginPageState extends State<LoginPage>
         const SizedBox(height: AppDesign.spacingM),
         Center(
           child: Text(
-            'Society Hour Tracking',
+            'Wheeler Honor Societies',
             style: TextStyle(
               fontSize: 28.0,
               fontWeight: FontWeight.bold,
@@ -181,7 +181,7 @@ class _LoginPageState extends State<LoginPage>
         ),
         const SizedBox(height: AppDesign.spacingL),
         Text(
-          'Society Hour Tracking',
+          'Wheeler Honor Societies',
           style: TextStyle(
             fontSize: 32.0,
             fontWeight: FontWeight.bold,

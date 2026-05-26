@@ -200,25 +200,6 @@ class SocietySelectionPage extends StatelessWidget {
                           ),
                         ),
 
-                  // Gradient overlay at the bottom for better text contrast if needed
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      height: 4,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            cardColor.withOpacity(0.0),
-                            cardColor.withOpacity(0.3),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -341,23 +322,12 @@ class SocietySelectionPage extends StatelessWidget {
     final primaryColor = Theme.of(context).colorScheme.primary;
     final surfaceColor = Theme.of(context).colorScheme.surface;
 
-    // For the gradient effect
-    final gradientColors = [
-      primaryColor.withOpacity(0.05),
-      primaryColor.withOpacity(0.1),
-    ];
-
     if (isWideScreen) {
       // Web layout - horizontal arrangement
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         decoration: BoxDecoration(
           color: surfaceColor,
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: gradientColors,
-          ),
           boxShadow: [
             BoxShadow(
               color: Theme.of(context).colorScheme.shadow.withOpacity(0.08),
@@ -437,11 +407,6 @@ class SocietySelectionPage extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         decoration: BoxDecoration(
           color: surfaceColor,
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: gradientColors,
-          ),
           boxShadow: [
             BoxShadow(
               color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),

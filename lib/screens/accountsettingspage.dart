@@ -375,7 +375,9 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   Widget _buildProfileSection() {
     final currentYear = DateTime.now().year;
     final List<String> graduationYears =
-        List.generate(3, (i) => (currentYear + i + 1).toString());
+        List.generate(7, (i) => (currentYear - 2 + i).toString());
+    final storedYear = _graduationYearController.text;
+    final dropdownValue = graduationYears.contains(storedYear) ? storedYear : null;
     return AppSurfaceCard(
       child: Form(
         key: _profileFormKey,
@@ -391,12 +393,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             const SizedBox(height: AppDesign.spacingL),
 
             DropdownButtonFormField<String>(
-              value: _graduationYearController.text.isEmpty
-                  ? null
-                  : (_graduationYearController.text.length == 4 &&
-                          int.tryParse(_graduationYearController.text) != null)
-                      ? _graduationYearController.text
-                      : null,
+              value: dropdownValue,
               decoration: const InputDecoration(
                 labelText: 'Graduation Year',
                 prefixIcon: Icon(Icons.school),

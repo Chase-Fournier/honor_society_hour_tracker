@@ -750,11 +750,11 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
     }
   }
 
-// Enhanced Meeting Notes Header with Material Design 3
 Widget _buildMeetingNotesHeader() {
   final hasNotes = _meetingNotes.isNotEmpty;
   final noteCount = _meetingNotes.length;
-  
+  final colorScheme = Theme.of(context).colorScheme;
+
   return Container(
     margin: AppDesign.paddingMedium,
     child: Hero(
@@ -763,132 +763,72 @@ Widget _buildMeetingNotesHeader() {
         color: Colors.transparent,
         child: Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Theme.of(context).colorScheme.secondaryContainer,
-                Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.8),
-              ],
+            color: colorScheme.secondaryContainer.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: colorScheme.outlineVariant.withOpacity(0.5),
+              width: 1,
             ),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
           ),
           child: InkWell(
             onTap: () {
-              final hapticsProvider =
-                  Provider.of<HapticsProvider>(context, listen: false);
-              hapticsProvider.light();
+              Provider.of<HapticsProvider>(context, listen: false).light();
               _showEnhancedMeetingNotesDialog();
             },
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(20),
             child: Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
                 children: [
-                  // Animated icon container
-                  TweenAnimationBuilder<double>(
-                    duration: const Duration(milliseconds: 600),
-                    curve: Curves.elasticOut,
-                    tween: Tween(begin: 0, end: 1),
-                    builder: (context, value, child) {
-                      return Transform.scale(
-                        scale: value,
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.secondary,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Theme.of(context).colorScheme.secondary.withOpacity(0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            Icons.notes_rounded,
-                            color: Theme.of(context).colorScheme.onSecondary,
-                            size: 28,
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: colorScheme.secondary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.notes_rounded,
+                      color: colorScheme.onSecondary,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Text(
+                          'Meeting Notes',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSecondaryContainer,
                           ),
                         ),
-                      );
-                    },
-                  ),
-                  const SizedBox(width: 16),
-                  
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              'Meeting Notes',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        if (hasNotes) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: colorScheme.secondary,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '$noteCount',
+                              style: TextStyle(
+                                fontSize: 11,
                                 fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.onSecondaryContainer,
+                                color: colorScheme.onSecondary,
                               ),
                             ),
-                            if (hasNotes) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.secondary,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  '$noteCount',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.onSecondary,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          hasNotes 
-                            ? 'Tap to view important meeting information'
-                            : 'No notes available yet',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onSecondaryContainer.withOpacity(0.8),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
-                  
-                  // Animated arrow
-                  TweenAnimationBuilder<double>(
-                    duration: const Duration(seconds: 2),
-                    curve: Curves.easeInOut,
-                    tween: Tween(begin: 0, end: 1),
-                    builder: (context, value, child) {
-                      return Transform.translate(
-                        offset: Offset(value * 4 - 2, 0),
-                        child: Icon(
-                          Icons.arrow_forward_ios_rounded,
-                          size: 18,
-                          color: Theme.of(context).colorScheme.onSecondaryContainer.withOpacity(0.7),
-                        ),
-                      );
-                    },
-                    onEnd: () {
-                      // Loop the animation
-                      setState(() {});
-                    },
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 16,
+                    color: colorScheme.onSecondaryContainer.withOpacity(0.6),
                   ),
                 ],
               ),
@@ -935,14 +875,7 @@ void _showEnhancedMeetingNotesDialog() {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.7),
-                    Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.3),
-                  ],
-                ),
+                color: Theme.of(context).colorScheme.secondaryContainer,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
               ),
               child: Row(
@@ -1181,81 +1114,53 @@ void _showEnhancedNoteDetailsDialog(MeetingNote note) {
   showDialog(
     context: context,
     builder: (context) => Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 500),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 600,
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            // Header (keep existing design)
             Container(
+              width: double.infinity,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Theme.of(context).colorScheme.primaryContainer,
-                    Theme.of(context).colorScheme.secondaryContainer,
-                  ],
-                ),
+                color: Theme.of(context).colorScheme.secondaryContainer,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
               ),
-              padding: const EdgeInsets.all(24),
-              child: Row(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Icon(
-                      Icons.article_rounded,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      size: 24,
+                  Text(
+                    note.title,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSecondaryContainer,
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          note.title,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onPrimaryContainer,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          DateFormat.yMMMd().format(note.createdAt),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.8),
-                          ),
-                        ),
-                      ],
+                  const SizedBox(height: 4),
+                  Text(
+                    DateFormat.yMMMd().format(note.createdAt),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSecondaryContainer.withOpacity(0.7),
                     ),
                   ),
                 ],
               ),
             ),
-            
-            // Content - replace SingleChildScrollView with QuillEditor
-            Flexible(
-              child: Container(
-                width: double.maxFinite,
-                height: 300,
+
+            Expanded(
+              child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: QuillEditor.basic(
                   controller: displayController,
-                  config: QuillEditorConfig(
-                  ),
+                  config: const QuillEditorConfig(),
                 ),
               ),
             ),
-            
-            // Actions (keep existing)
+
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
