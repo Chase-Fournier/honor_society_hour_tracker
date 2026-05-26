@@ -229,42 +229,42 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
                     child: _buildMeetingNotesHeader(),
                   ),
 
-                  // Summary Cards
-                  SliverPadding(
-                    padding: const EdgeInsets.all(AppDesign.spacingM),
-                    sliver: SliverGrid(
-                      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 300,
-                        childAspectRatio:
-                            MediaQuery.of(context).size.width > 600 ? 2.2 : 1.8,
-                        crossAxisSpacing: AppDesign.spacingM,
-                        mainAxisSpacing: AppDesign.spacingM,
-                      ),
-                      delegate: SliverChildListDelegate([
-                        _buildSummaryCard(
-                          title: 'Total Hours',
-                          value: _calculateTotalHours().toStringAsFixed(1),
-                          subtitle: 'All activities',
-                          icon: Icons.timer,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        _buildSummaryCard(
-                          title: 'Requirements',
-                          value:
-                              '${_countCompletedRequirements()}/${_requirementMap.length + 1}',
-                          subtitle: 'Completed',
-                          icon: Icons.check_circle,
-                          color: Theme.of(context).colorScheme.tertiary,
-                        ),
-                      ]),
-                    ),
-                  ),
-
                   // Requirements List
                   SliverToBoxAdapter(
                     child: _buildSectionHeader(
                       title: 'Your Requirements',
-                      subtitle: 'Track your progress towards graduation',
+                    ),
+                  ),
+
+                  // Summary Cards
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                          AppDesign.spacingM, 0, AppDesign.spacingM, AppDesign.spacingM),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _buildSummaryCard(
+                              title: 'Total Hours',
+                              value: _calculateTotalHours().toStringAsFixed(1),
+                              subtitle: 'All activities',
+                              icon: Icons.timer,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(width: AppDesign.spacingM),
+                          Expanded(
+                            child: _buildSummaryCard(
+                              title: 'Requirements',
+                              value:
+                                  '${_countCompletedRequirements()}/${_requirementMap.length + 1}',
+                              subtitle: 'Completed',
+                              icon: Icons.check_circle,
+                              color: Theme.of(context).colorScheme.tertiary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
 
@@ -320,28 +320,15 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
     return _completedHoursMap.values.fold(0.0, (sum, hours) => sum + hours);
   }
 
-  Widget _buildSectionHeader(
-      {required String title, required String subtitle}) {
+  Widget _buildSectionHeader({required String title}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(AppDesign.spacingM, AppDesign.spacingL,
           AppDesign.spacingM, AppDesign.spacingM),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-          ),
-        ],
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
       ),
     );
   }
@@ -363,35 +350,24 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
         ),
       ),
       child: Padding(
-        padding: AppDesign.paddingMedium,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              children: [
-                Icon(icon, color: color, size: 20),
-                const SizedBox(width: AppDesign.spacingS),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                ),
-              ],
-            ),
-            const Spacer(),
+            Icon(icon, color: color, size: 16),
+            const SizedBox(width: 6),
             Text(
-              value,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
+              title,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: color,
                   ),
             ),
           ],
@@ -860,66 +836,57 @@ void _showEnhancedMeetingNotesDialog() {
         ),
         child: Column(
           children: [
-            // Handle bar
+            // Handle bar + header combined
             Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            
-            // Header
-            Container(
-              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.secondaryContainer,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
               ),
-              child: Row(
+              child: Column(
                 children: [
+                  const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    width: 40,
+                    height: 4,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.secondary,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Icon(
-                      Icons.notes_rounded,
-                      color: Theme.of(context).colorScheme.onSecondary,
-                      size: 24,
+                      color: Theme.of(context).colorScheme.onSecondaryContainer.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 8, 20),
+                    child: Row(
                       children: [
-                        Text(
-                          'Meeting Notes',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSecondaryContainer,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Meeting Notes',
+                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.onSecondaryContainer,
+                                ),
+                              ),
+                              Text(
+                                '${_meetingNotes.length} ${_meetingNotes.length == 1 ? 'note' : 'notes'} available',
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSecondaryContainer.withOpacity(0.8),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        Text(
-                          '${_meetingNotes.length} notes available',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onSecondaryContainer.withOpacity(0.8),
-                          ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () {
+                            hapticsProvider.selection();
+                            Navigator.pop(context);
+                          },
+                          color: Theme.of(context).colorScheme.onSecondaryContainer,
                         ),
                       ],
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () {
-                      hapticsProvider.selection();
-                      Navigator.pop(context);
-                    },
-                    color: Theme.of(context).colorScheme.onSecondaryContainer,
                   ),
                 ],
               ),
@@ -1156,7 +1123,14 @@ void _showEnhancedNoteDetailsDialog(MeetingNote note) {
                 padding: const EdgeInsets.all(24),
                 child: QuillEditor.basic(
                   controller: displayController,
-                  config: const QuillEditorConfig(),
+                  config: QuillEditorConfig(
+                    onLaunchUrl: (url) async {
+                      final uri = Uri.tryParse(url);
+                      if (uri != null) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                  ),
                 ),
               ),
             ),

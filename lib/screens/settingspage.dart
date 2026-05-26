@@ -7,6 +7,7 @@ import '../snake.dart';
 import 'societyadminpage.dart';
 import 'accountsettingspage.dart';
 import 'appearancepage.dart';
+import 'notificationsettingspage.dart';
 import '../common/app_design.dart';
 import '../models/hourrequirement.dart';
 import '../models/honorsociety.dart';
@@ -480,16 +481,41 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildAccountSettingsCard() {
     return AppCard(
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
-      child: ListTile(
-        leading: Icon(
-          Icons.account_circle,
-          color: Theme.of(context).colorScheme.primary,
-          size: 28,
-        ),
-        title: const Text('Account Settings'),
-        subtitle: const Text('Update email and password'),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: _navigateToAccountSettings,
+      child: Column(
+        children: [
+          ListTile(
+            leading: Icon(
+              Icons.account_circle,
+              color: Theme.of(context).colorScheme.primary,
+              size: 28,
+            ),
+            title: const Text('Account Settings'),
+            subtitle: const Text('Update email and password'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _navigateToAccountSettings,
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: Icon(
+              Icons.notifications_outlined,
+              color: Theme.of(context).colorScheme.primary,
+              size: 28,
+            ),
+            title: const Text('Notifications'),
+            subtitle:
+                const Text('Reminders, meeting notes, hours, swap requests'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Provider.of<HapticsProvider>(context, listen: false)
+                  .selection();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const NotificationSettingsPage()),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

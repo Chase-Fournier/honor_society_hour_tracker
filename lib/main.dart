@@ -14,6 +14,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import '../providers/hapticsprovider.dart';
 import '../providers/navigationprovider.dart';
+import 'providers/notificationsprovider.dart';
+import 'services/notification_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 
@@ -39,11 +41,14 @@ void main() async {
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjdXlnaWd4anVjeHV0YXZqdnNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTI4NzU1NjgsImV4cCI6MjAyODQ1MTU2OH0.0x6jIeOANj6_Y5s7EQ9tuU3GhZLZblobDAt_W2dOLJA',
   );
 
+  await NotificationService.instance.init();
+
   final themeNotifier = ThemeNotifier();
   final themeProvider = themeprovider.ThemeProvider();
   final societyProvider = SocietyProvider();
   final hapticsProvider = HapticsProvider();
   final navigationProvider = NavigationProvider();
+  final notificationsProvider = NotificationsProvider();
 
   runApp(
     MultiProvider(
@@ -53,6 +58,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => societyProvider),
         ChangeNotifierProvider(create: (_) => hapticsProvider),
         ChangeNotifierProvider(create: (_) => navigationProvider),
+        ChangeNotifierProvider(create: (_) => notificationsProvider),
       ],
       child: MyApp(themeNotifier: themeNotifier),
     ),
@@ -114,6 +120,7 @@ class _MyAppState extends State<MyApp> {
                 "General Signed In event. Navigating to society selection.");
             Provider.of<SocietyProvider>(context, listen: false)
                 .loadUserSocieties();
+            NotificationService.instance.registerForPush();
             _navigatorKey.currentState?.pushNamedAndRemoveUntil(
                 '/society_selection', (route) => false);
             break;
