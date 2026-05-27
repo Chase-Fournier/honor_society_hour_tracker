@@ -8,6 +8,7 @@ import '../providers/societyprovider.dart';
 import '../common/app_design.dart';
 import '../models/completedhour.dart';
 import '../models/meetingnote.dart';
+import '../models/continuouseventsubmission.dart';
 import 'leaderboardpage.dart';
 import '../common/iconutils.dart';
 import '../providers/hapticsprovider.dart';
@@ -32,6 +33,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
 
   List<MeetingNote> _meetingNotes = [];
   bool _isLoading = true;
+  List<ContinuousEventSubmission> _pendingSubmissions = [];
 
   @override
   void initState() {
@@ -65,6 +67,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
       await Future.wait([
         _fetchCompletedHours(),
         _fetchMeetingNotes(),
+        _fetchPendingSubmissions(),
       ]);
 
       setState(() => _isLoading = false);
@@ -274,6 +277,22 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
                       ..._buildRequirementsList(),
                     ]),
                   ),
+
+                  // Pending Submissions (continuous events awaiting review)
+                  if (_pendingSubmissions.isNotEmpty) ...[
+                    SliverToBoxAdapter(
+                      child: _buildSectionHeader(
+                        title: 'Pending Submissions',
+                      ),
+                    ),
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) =>
+                            _buildPendingSubmissionTile(_pendingSubmissions[i]),
+                        childCount: _pendingSubmissions.length,
+                      ),
+                    ),
+                  ],
 
                   // Report Issue Button
                   SliverPadding(
@@ -1224,5 +1243,106 @@ String _getTimeAgo(DateTime dateTime) {
   } else {
     return 'Just now';
   }
+}
+
+Future<void> _fetchPendingSubmissions() async {
+  try {
+    final userId = supabase.auth.currentUser?.id;
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    if (userId == null || society == null) {
+      setState(() => _pendingSubmissions = []);
+      return;
+    }
+    final rows = await supabase
+        .from('continuous_event_submissions')
+        .select('*, continuous_events!inner(name)')
+        .eq('user_id', userId)
+        .eq('society_id', society.id)
+        .inFilter('status', ['pending', 'rejected'])
+        .order('created_at', ascending: false);
+
+    setState(() {
+      _pendingSubmissions = (rows as List)
+          .map((r) =>
+              ContinuousEventSubmission.fromJson(r as Map<String, dynamic>))
+          .toList();
+    });
+  } catch (e) {
+    print('Error fetching pending submissions: $e');
+  }
+}
+
+Widget _buildPendingSubmissionTile(ContinuousEventSubmission s) {
+  final scheme = Theme.of(context).colorScheme;
+  final dateFmt = DateFormat.yMMMd();
+  final isRejected = s.isRejected;
+  final statusColor = isRejected ? scheme.error : scheme.primary;
+  final statusLabel = isRejected ? 'Rejected' : 'Pending review';
+  final eventName = s.continuousEventName ?? 'Ongoing opportunity';
+
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(
+        AppDesign.spacingM, 0, AppDesign.spacingM, AppDesign.spacingS),
+    child: Material(
+      color: scheme.surface,
+      elevation: 1,
+      borderRadius: AppDesign.borderMedium,
+      child: Padding(
+        padding: AppDesign.paddingMedium,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    eventName,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.15),
+                    borderRadius: AppDesign.borderRound,
+                  ),
+                  child: Text(
+                    statusLabel,
+                    style: TextStyle(
+                        color: statusColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${s.hours} hr • ${dateFmt.format(s.activityDate)}',
+              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
+            ),
+            if (isRejected &&
+                s.reviewerNotes != null &&
+                s.reviewerNotes!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: AppDesign.paddingSmall,
+                decoration: BoxDecoration(
+                  color: scheme.errorContainer.withOpacity(0.4),
+                  borderRadius: AppDesign.borderSmall,
+                ),
+                child: Text('Reviewer: ${s.reviewerNotes!}',
+                    style: const TextStyle(fontSize: 12)),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ),
+  );
 }
 }

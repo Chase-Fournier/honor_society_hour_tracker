@@ -16,6 +16,8 @@ import '../models/event.dart';
 import '../models/swaprequest.dart';
 import '../models/userprofile.dart';
 import '../models/attendee.dart';
+import '../models/continuousevent.dart';
+import '../models/continuouseventsubmission.dart';
 import '../common/customexpansiontile.dart';
 import '../common/nhsformatutils.dart';
 import '../models/logactivity.dart';
@@ -23,6 +25,7 @@ import '../common/iconutils.dart';
 import '../common/normalizetype.dart';
 import 'package:provider/provider.dart';
 import '../providers/hapticsprovider.dart';
+import 'continuouseventdetailpage.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -46,6 +49,9 @@ class _HomePageState extends State<HomePage> {
   int _meetingRequirement = 5;
   List<String> _availableEventTypes = ['All'];
   bool _isLoading = true;
+  List<ContinuousEvent> _continuousEvents = [];
+  // event id -> most recent submission for the current user (for status pill)
+  Map<int, ContinuousEventSubmission> _myLatestSubmissionByEvent = {};
   final DateFormat formatter = DateFormat('jm');
 
   @override
@@ -91,6 +97,7 @@ class _HomePageState extends State<HomePage> {
         _fetchEvents(),
         _fetchCollections(),
         _fetchCompletedHours(),
+        _fetchContinuousEvents(),
       ]);
 
       setState(() => _isLoading = false);
@@ -426,10 +433,264 @@ class _HomePageState extends State<HomePage> {
                           }
                         },
                       ),
+
+                    // Ongoing / external opportunities
+                    if (_continuousEvents.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      _buildOngoingHeader(),
+                      const SizedBox(height: 8),
+                      ..._continuousEvents
+                          .map((ce) => _buildContinuousEventCard(ce)),
+                    ],
                   ],
                 ),
               ),
             ),
+    );
+  }
+
+  Future<void> _fetchContinuousEvents() async {
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (society == null || userId == null) {
+      if (mounted) {
+        setState(() {
+          _continuousEvents = [];
+          _myLatestSubmissionByEvent = {};
+        });
+      }
+      return;
+    }
+
+    try {
+      final eventRows = await Supabase.instance.client
+          .from('continuous_events')
+          .select()
+          .eq('society_id', society.id)
+          .eq('is_active', true)
+          .order('created_at', ascending: false);
+
+      final events = (eventRows as List)
+          .map((e) => ContinuousEvent.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      Map<int, ContinuousEventSubmission> latest = {};
+      if (events.isNotEmpty) {
+        final subRows = await Supabase.instance.client
+            .from('continuous_event_submissions')
+            .select()
+            .eq('user_id', userId)
+            .inFilter('continuous_event_id', events.map((e) => e.id).toList())
+            .order('created_at', ascending: false);
+
+        for (final row in (subRows as List)) {
+          final s = ContinuousEventSubmission.fromJson(
+              row as Map<String, dynamic>);
+          latest.putIfAbsent(s.continuousEventId, () => s);
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _continuousEvents = events;
+        _myLatestSubmissionByEvent = latest;
+      });
+    } catch (e) {
+      print('Error fetching continuous events: $e');
+    }
+  }
+
+  Widget _buildOngoingHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Row(
+        children: [
+          Icon(Icons.repeat,
+              color: Theme.of(context).colorScheme.primary, size: 22),
+          const SizedBox(width: 8),
+          Text(
+            'Ongoing Opportunities',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContinuousEventCard(ContinuousEvent ce) {
+    final scheme = Theme.of(context).colorScheme;
+    final latest = _myLatestSubmissionByEvent[ce.id];
+
+    Widget? statusPill;
+    if (latest != null) {
+      Color color;
+      String label;
+      switch (latest.status) {
+        case 'approved':
+          color = Colors.green;
+          label = 'Approved';
+          break;
+        case 'rejected':
+          color = scheme.error;
+          label = 'Rejected';
+          break;
+        default:
+          color = scheme.primary;
+          label = 'Pending';
+      }
+      statusPill = _buildBadge(
+        label,
+        latest.isApproved
+            ? Icons.check_circle
+            : latest.isRejected
+                ? Icons.cancel
+                : Icons.hourglass_top,
+        color,
+      );
+    }
+
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: AppDesign.borderMedium,
+      ),
+      elevation: 1,
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          // Event type indicator line
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 4,
+            child: Container(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+
+          // Main content with padding to account for the type indicator
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: InkWell(
+              onTap: () async {
+                Provider.of<HapticsProvider>(context, listen: false)
+                    .selection();
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ContinuousEventDetailPage(event: ce),
+                  ),
+                );
+                _fetchContinuousEvents();
+              },
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Event icon
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: scheme.primary.withOpacity(0.15),
+                      child: Icon(
+                        getIconForType(ce.type, context),
+                        color: scheme.primary,
+                        size: 16,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+
+                    // Event details
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Title and status badge row
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  ce.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16.0,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (statusPill != null) statusPill,
+                            ],
+                          ),
+
+                          // Ongoing label and type chip
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.repeat,
+                                size: 14,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${ce.steps.length} step${ce.steps.length == 1 ? '' : 's'}',
+                                style: TextStyle(
+                                  fontSize: 13.0,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: scheme.primary.withOpacity(0.1),
+                                  borderRadius: AppDesign.borderSmall,
+                                ),
+                                child: Text(
+                                  ce.type,
+                                  style: TextStyle(
+                                    fontSize: 12.0,
+                                    fontWeight: FontWeight.w500,
+                                    color: scheme.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          if (ce.description.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              ce.description,
+                              style: TextStyle(
+                                fontSize: 13.0,
+                                color: scheme.onSurface.withOpacity(0.8),
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    // Affordance chevron
+                    Icon(
+                      Icons.chevron_right,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

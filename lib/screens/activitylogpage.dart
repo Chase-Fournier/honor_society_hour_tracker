@@ -363,6 +363,21 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
         iconColor = Colors.red;
         actionText = 'removed from manual event:';
         break;
+      case 'continuous_submission_approved':
+        iconData = Icons.verified;
+        iconColor = Colors.green;
+        actionText = 'submitted ongoing hours for';
+        break;
+      case 'continuous_submission_rejected':
+        iconData = Icons.cancel;
+        iconColor = Colors.red;
+        actionText = 'submission rejected for';
+        break;
+      case 'continuous_submission_undone':
+        iconData = Icons.undo;
+        iconColor = Colors.orange;
+        actionText = 'review undone for';
+        break;
 
       default:
         iconData = Icons.info;
@@ -398,7 +413,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Time: ${log.timeslot}'),
+            if (log.timeslot.isNotEmpty) Text('Time: ${log.timeslot}'),
             Text('Hours: ${log.hours}'),
             if (log.actionType == 'swap')
               Text('Swapped with: ${log.newUserName ?? 'Unknown'}'),

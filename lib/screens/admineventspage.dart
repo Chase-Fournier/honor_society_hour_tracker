@@ -11,9 +11,12 @@ import '../models/honorsociety.dart';
 import '../models/collection.dart';
 import '../models/event.dart';
 import '../models/attendee.dart';
+import '../models/continuousevent.dart';
+import '../models/continuouseventstep.dart';
 import '../common/normalizetype.dart';
 import '../common/iconutils.dart';
 import '../providers/hapticsprovider.dart';
+import 'continuouseventsubmissionspage.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -33,10 +36,17 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   bool _isLoading = false;
   String _selectedEventType = 'All';
 
+  // Continuous (ongoing / external) events
+  String _listMode = 'Events'; // 'Events' | 'Ongoing'
+  List<ContinuousEvent> _continuousEvents = [];
+  Map<int, int> _continuousPendingCounts = {}; // event id -> pending submissions
+  bool _isLoadingContinuous = false;
+
   @override
   void initState() {
     super.initState();
     _fetchDataOptimized();
+    _fetchContinuousEvents();
   }
 
   // Get available requirement types from current society
@@ -109,8 +119,27 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
           ),
         ),
         centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'Events', label: Text('Events')),
+                ButtonSegment(value: 'Ongoing', label: Text('Ongoing')),
+              ],
+              selected: {_listMode},
+              onSelectionChanged: (sel) {
+                Provider.of<HapticsProvider>(context, listen: false).selection();
+                setState(() => _listMode = sel.first);
+              },
+            ),
+          ),
+        ),
       ),
-      body: Row(
+      body: _listMode == 'Ongoing'
+          ? _buildContinuousEventsBody(isWideScreen)
+          : Row(
         children: [
           // Optional side panel for wide screens
           if (isWideScreen)
@@ -304,32 +333,43 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
       // Only show FAB on mobile
       floatingActionButton: isWideScreen
           ? null
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                FloatingActionButton(
+          : _listMode == 'Ongoing'
+              ? FloatingActionButton.extended(
                   onPressed: () {
-                    final hapticsProvider =
-                        Provider.of<HapticsProvider>(context, listen: false);
-                    hapticsProvider.selection();
-                    showAddEventDialog();
+                    Provider.of<HapticsProvider>(context, listen: false)
+                        .selection();
+                    showAddContinuousEventDialog();
                   },
-                  heroTag: 'addEvent',
-                  child: const Icon(Icons.add),
+                  heroTag: 'addContinuous',
+                  icon: const Icon(Icons.add),
+                  label: const Text('Ongoing'),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    FloatingActionButton(
+                      onPressed: () {
+                        final hapticsProvider =
+                            Provider.of<HapticsProvider>(context, listen: false);
+                        hapticsProvider.selection();
+                        showAddEventDialog();
+                      },
+                      heroTag: 'addEvent',
+                      child: const Icon(Icons.add),
+                    ),
+                    const SizedBox(width: 16),
+                    FloatingActionButton(
+                      onPressed: () {
+                        final hapticsProvider =
+                            Provider.of<HapticsProvider>(context, listen: false);
+                        hapticsProvider.selection();
+                        _showAddCollectionDialog();
+                      },
+                      heroTag: 'addCollection',
+                      child: const Icon(Icons.create_new_folder),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 16),
-                FloatingActionButton(
-                  onPressed: () {
-                    final hapticsProvider =
-                        Provider.of<HapticsProvider>(context, listen: false);
-                    hapticsProvider.selection();
-                    _showAddCollectionDialog();
-                  },
-                  heroTag: 'addCollection',
-                  child: const Icon(Icons.create_new_folder),
-                ),
-              ],
-            ),
     );
   }
 
@@ -2723,5 +2763,745 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
       _events.remove(event);
     });
     await Supabase.instance.client.from('Events').delete().eq('id', event.id);
+  }
+
+  // =========================================================================
+  // Continuous (ongoing / external) events
+  // =========================================================================
+
+  Future<void> _fetchContinuousEvents() async {
+    setState(() => _isLoadingContinuous = true);
+    try {
+      final societyId =
+          Provider.of<SocietyProvider>(context, listen: false).currentSociety?.id;
+      if (societyId == null) {
+        setState(() {
+          _continuousEvents = [];
+          _continuousPendingCounts = {};
+          _isLoadingContinuous = false;
+        });
+        return;
+      }
+
+      final eventRows = await supabase
+          .from('continuous_events')
+          .select()
+          .eq('society_id', societyId)
+          .order('created_at', ascending: false);
+
+      final parsed = (eventRows as List)
+          .map((e) => ContinuousEvent.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      // Fetch pending counts in one batch.
+      Map<int, int> counts = {};
+      if (parsed.isNotEmpty) {
+        final pendingRows = await supabase
+            .from('continuous_event_submissions')
+            .select('continuous_event_id')
+            .eq('society_id', societyId)
+            .eq('status', 'pending');
+
+        for (final row in (pendingRows as List)) {
+          final id = (row['continuous_event_id'] as num).toInt();
+          counts[id] = (counts[id] ?? 0) + 1;
+        }
+      }
+
+      setState(() {
+        _continuousEvents = parsed;
+        _continuousPendingCounts = counts;
+        _isLoadingContinuous = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingContinuous = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load ongoing events: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildContinuousEventsBody(bool isWideScreen) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _isLoadingContinuous
+                    ? 'Loading ongoing events...'
+                    : '${_continuousEvents.length} ongoing '
+                        '${_continuousEvents.length == 1 ? 'opportunity' : 'opportunities'}',
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              if (isWideScreen)
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Provider.of<HapticsProvider>(context, listen: false)
+                        .selection();
+                    showAddContinuousEventDialog();
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Ongoing'),
+                ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _isLoadingContinuous
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                  onRefresh: _fetchContinuousEvents,
+                  child: _continuousEvents.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(top: 96),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.repeat,
+                                      size: 64,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant
+                                          .withOpacity(0.5)),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No ongoing opportunities yet',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineSmall,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Tap + to create one.',
+                                    style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          itemCount: _continuousEvents.length,
+                          itemBuilder: (context, i) =>
+                              _buildContinuousEventCard(_continuousEvents[i]),
+                        ),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContinuousEventCard(ContinuousEvent ce) {
+    final scheme = Theme.of(context).colorScheme;
+    final pendingCount = _continuousPendingCounts[ce.id] ?? 0;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: AppDesign.borderLarge,
+        border: Border.all(
+          color: ce.isActive
+              ? scheme.outlineVariant
+              : scheme.outlineVariant.withOpacity(0.4),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.shadow.withOpacity(0.08),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: AppDesign.paddingMedium,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: scheme.primary.withOpacity(0.15),
+                  child: Icon(getIconForType(ce.type, context),
+                      color: scheme.primary),
+                ),
+                const SizedBox(width: AppDesign.spacingM),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        ce.name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: ce.isActive
+                              ? scheme.onSurface
+                              : scheme.onSurfaceVariant,
+                        ),
+                      ),
+                      Text(
+                        '${ce.type} • ${ce.steps.length} step${ce.steps.length == 1 ? '' : 's'}'
+                        '${ce.allowMultipleSubmissions ? ' • multiple submissions' : ' • single submission'}',
+                        style: TextStyle(
+                            fontSize: 12, color: scheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!ce.isActive)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceVariant.withOpacity(0.5),
+                      borderRadius: AppDesign.borderRound,
+                    ),
+                    child: const Text('Inactive',
+                        style: TextStyle(fontSize: 11)),
+                  ),
+              ],
+            ),
+            if (ce.description.isNotEmpty) ...[
+              const SizedBox(height: AppDesign.spacingS),
+              Text(
+                ce.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: scheme.onSurfaceVariant),
+              ),
+            ],
+            const SizedBox(height: AppDesign.spacingM),
+            Row(
+              children: [
+                ActionChip(
+                  avatar: Icon(
+                    pendingCount > 0
+                        ? Icons.notifications_active
+                        : Icons.inbox_outlined,
+                    size: 18,
+                    color: pendingCount > 0 ? scheme.primary : null,
+                  ),
+                  label: Text('Pending ($pendingCount)'),
+                  onPressed: () async {
+                    Provider.of<HapticsProvider>(context, listen: false)
+                        .selection();
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            ContinuousEventSubmissionsPage(event: ce),
+                      ),
+                    );
+                    _fetchContinuousEvents();
+                  },
+                ),
+                const Spacer(),
+                IconButton(
+                  tooltip: ce.isActive ? 'Deactivate' : 'Activate',
+                  icon: Icon(ce.isActive
+                      ? Icons.visibility
+                      : Icons.visibility_off_outlined),
+                  onPressed: () => _toggleContinuousActive(ce),
+                ),
+                IconButton(
+                  tooltip: 'Edit',
+                  icon: const Icon(Icons.edit),
+                  onPressed: () => showAddContinuousEventDialog(existing: ce),
+                ),
+                IconButton(
+                  tooltip: 'Delete permanently',
+                  icon: Icon(Icons.delete_outline, color: scheme.error),
+                  onPressed: () => _confirmDeleteContinuous(ce),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _toggleContinuousActive(ContinuousEvent ce) async {
+    final haptics = Provider.of<HapticsProvider>(context, listen: false);
+    try {
+      await supabase
+          .from('continuous_events')
+          .update({
+            'is_active': !ce.isActive,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', ce.id);
+      haptics.success();
+      await _fetchContinuousEvents();
+    } catch (e) {
+      haptics.error();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Update failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmDeleteContinuous(ContinuousEvent ce) async {
+    final haptics = Provider.of<HapticsProvider>(context, listen: false);
+    haptics.selection();
+
+    final countRows = await supabase
+        .from('continuous_event_submissions')
+        .select('id')
+        .eq('continuous_event_id', ce.id);
+    final submissionCount = (countRows as List).length;
+
+    if (!mounted) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Delete permanently?'),
+          content: Text(
+            submissionCount == 0
+                ? 'Delete "${ce.name}"? This cannot be undone.'
+                : 'Delete "${ce.name}"? This will also delete '
+                    '$submissionCount submission${submissionCount == 1 ? '' : 's'} '
+                    '(approved hours already credited will remain). '
+                    'This cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                  foregroundColor: Theme.of(context).colorScheme.onError),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await supabase.from('continuous_events').delete().eq('id', ce.id);
+      haptics.success();
+      await _fetchContinuousEvents();
+    } catch (e) {
+      haptics.error();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Delete failed: $e')),
+        );
+      }
+    }
+  }
+
+  void showAddContinuousEventDialog({ContinuousEvent? existing}) {
+    final formKey = GlobalKey<FormState>();
+    String name = existing?.name ?? '';
+    String description = existing?.description ?? '';
+    String? selectedType = existing?.type;
+    bool allowMultiple = existing?.allowMultipleSubmissions ?? true;
+    bool isActive = existing?.isActive ?? true;
+    final steps = List<ContinuousEventStep>.from(existing?.steps ?? const []);
+    final societyProvider =
+        Provider.of<SocietyProvider>(context, listen: false);
+    final societyId =
+        existing?.societyId ?? societyProvider.currentSociety?.id ?? 1;
+    final hourReqs = societyProvider.currentSociety?.hourRequirements ?? [];
+
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return StatefulBuilder(
+          builder: (BuildContext ctx, StateSetter setSt) {
+            void addOrEditStep({ContinuousEventStep? edit, int? index}) {
+              final descCtl =
+                  TextEditingController(text: edit?.description ?? '');
+              final linkCtl = TextEditingController(text: edit?.link ?? '');
+              showDialog(
+                context: ctx,
+                builder: (sCtx) {
+                  return AlertDialog(
+                    title: Text(edit == null ? 'Add Step' : 'Edit Step'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextField(
+                          controller: descCtl,
+                          maxLines: 3,
+                          decoration: const InputDecoration(
+                            labelText: 'Description',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: linkCtl,
+                          keyboardType: TextInputType.url,
+                          decoration: const InputDecoration(
+                            labelText: 'Link (optional)',
+                            hintText: 'https://...',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(sCtx).pop(),
+                        child: const Text('Cancel'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          final desc = descCtl.text.trim();
+                          if (desc.isEmpty) return;
+                          final link = linkCtl.text.trim();
+                          setSt(() {
+                            final step = ContinuousEventStep(
+                              order: index ?? steps.length,
+                              description: desc,
+                              link: link.isEmpty ? null : link,
+                            );
+                            if (index != null) {
+                              steps[index] = step;
+                            } else {
+                              steps.add(step);
+                            }
+                          });
+                          Navigator.of(sCtx).pop();
+                        },
+                        child: const Text('Save'),
+                      ),
+                    ],
+                  );
+                },
+              );
+            }
+
+            final activeTypes = hourReqs
+                .where((r) => r.isActive || r.type == selectedType)
+                .map((r) => r.type)
+                .toSet()
+                .toList();
+            if (selectedType != null && !activeTypes.contains(selectedType)) {
+              activeTypes.add(selectedType!);
+            }
+
+            return AlertDialog(
+              title: Text(existing == null
+                  ? 'Add Ongoing Opportunity'
+                  : 'Edit Ongoing Opportunity'),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextFormField(
+                        initialValue: name,
+                        decoration:
+                            const InputDecoration(labelText: 'Name'),
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? 'Required' : null,
+                        onSaved: (v) => name = v!.trim(),
+                      ),
+                      TextFormField(
+                        initialValue: description,
+                        decoration: const InputDecoration(
+                            labelText: 'Description'),
+                        maxLines: 3,
+                        onSaved: (v) => description = (v ?? '').trim(),
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        value: selectedType,
+                        items: activeTypes
+                            .map((t) => DropdownMenuItem(
+                                  value: t,
+                                  child: Text(t),
+                                ))
+                            .toList(),
+                        onChanged: (v) => setSt(() => selectedType = v),
+                        decoration:
+                            const InputDecoration(labelText: 'Hour Type'),
+                        validator: (v) => v == null ? 'Pick a type' : null,
+                      ),
+                      const SizedBox(height: 8),
+                      CheckboxListTile(
+                        value: allowMultiple,
+                        onChanged: (v) =>
+                            setSt(() => allowMultiple = v ?? true),
+                        title: const Text('Allow multiple submissions'),
+                        subtitle: const Text(
+                            'Members can log hours more than once'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      if (existing != null)
+                        CheckboxListTile(
+                          value: isActive,
+                          onChanged: (v) =>
+                              setSt(() => isActive = v ?? true),
+                          title: const Text('Active'),
+                          subtitle: const Text('Visible to members'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Steps (${steps.length}/10)',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          TextButton.icon(
+                            icon: const Icon(Icons.add),
+                            label: const Text('Add Step'),
+                            onPressed: steps.length >= 10
+                                ? null
+                                : () => addOrEditStep(),
+                          ),
+                        ],
+                      ),
+                      if (steps.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Text(
+                            'No steps yet. Add up to 10 so members know what to do.',
+                            style: TextStyle(
+                              color:
+                                  Theme.of(context).colorScheme.onSurfaceVariant,
+                              fontSize: 12,
+                            ),
+                          ),
+                        )
+                      else
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (int i = 0; i < steps.length; i++)
+                              Padding(
+                                key: ValueKey('step-$i-${steps[i].description}'),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 4),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 12,
+                                          child: Text('${i + 1}',
+                                              style: const TextStyle(
+                                                  fontSize: 11)),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                steps[i].description,
+                                                maxLines: 2,
+                                                overflow:
+                                                    TextOverflow.ellipsis,
+                                              ),
+                                              if (steps[i].link != null)
+                                                Text(
+                                                  steps[i].link!,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurfaceVariant,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.end,
+                                      children: [
+                                        IconButton(
+                                          visualDensity: VisualDensity.compact,
+                                          tooltip: 'Move up',
+                                          icon: const Icon(Icons.arrow_upward,
+                                              size: 20),
+                                          onPressed: i == 0
+                                              ? null
+                                              : () => setSt(() {
+                                                    final item =
+                                                        steps.removeAt(i);
+                                                    steps.insert(i - 1, item);
+                                                    for (var j = 0;
+                                                        j < steps.length;
+                                                        j++) {
+                                                      steps[j] = steps[j]
+                                                          .copyWith(order: j);
+                                                    }
+                                                  }),
+                                        ),
+                                        IconButton(
+                                          visualDensity: VisualDensity.compact,
+                                          tooltip: 'Move down',
+                                          icon: const Icon(
+                                              Icons.arrow_downward,
+                                              size: 20),
+                                          onPressed: i == steps.length - 1
+                                              ? null
+                                              : () => setSt(() {
+                                                    final item =
+                                                        steps.removeAt(i);
+                                                    steps.insert(i + 1, item);
+                                                    for (var j = 0;
+                                                        j < steps.length;
+                                                        j++) {
+                                                      steps[j] = steps[j]
+                                                          .copyWith(order: j);
+                                                    }
+                                                  }),
+                                        ),
+                                        IconButton(
+                                          visualDensity: VisualDensity.compact,
+                                          tooltip: 'Edit',
+                                          icon: const Icon(Icons.edit,
+                                              size: 20),
+                                          onPressed: () => addOrEditStep(
+                                              edit: steps[i], index: i),
+                                        ),
+                                        IconButton(
+                                          visualDensity: VisualDensity.compact,
+                                          tooltip: 'Delete',
+                                          icon: const Icon(Icons.delete,
+                                              size: 20),
+                                          onPressed: () => setSt(() {
+                                            steps.removeAt(i);
+                                            for (var j = 0;
+                                                j < steps.length;
+                                                j++) {
+                                              steps[j] = steps[j]
+                                                  .copyWith(order: j);
+                                            }
+                                          }),
+                                        ),
+                                      ],
+                                    ),
+                                    const Divider(height: 1),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (!formKey.currentState!.validate()) return;
+                    formKey.currentState!.save();
+                    Navigator.of(ctx).pop();
+                    await _saveContinuousEvent(
+                      existing: existing,
+                      societyId: societyId,
+                      name: name,
+                      description: description,
+                      type: selectedType!,
+                      allowMultiple: allowMultiple,
+                      isActive: isActive,
+                      steps: steps,
+                    );
+                  },
+                  child: Text(existing == null ? 'Create' : 'Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _saveContinuousEvent({
+    ContinuousEvent? existing,
+    required int societyId,
+    required String name,
+    required String description,
+    required String type,
+    required bool allowMultiple,
+    required bool isActive,
+    required List<ContinuousEventStep> steps,
+  }) async {
+    final haptics = Provider.of<HapticsProvider>(context, listen: false);
+    final reorderedSteps = [
+      for (int i = 0; i < steps.length; i++) steps[i].copyWith(order: i)
+    ];
+
+    try {
+      final Map<String, dynamic> payload = {
+        'name': name,
+        'description': description,
+        'type': type,
+        'allow_multiple_submissions': allowMultiple,
+        'is_active': isActive,
+        'steps': reorderedSteps.map((s) => s.toJson()).toList(),
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      if (existing == null) {
+        payload['society_id'] = societyId;
+        payload['created_by'] = supabase.auth.currentUser?.id;
+        await supabase.from('continuous_events').insert(payload);
+      } else {
+        await supabase
+            .from('continuous_events')
+            .update(payload)
+            .eq('id', existing.id);
+      }
+      haptics.success();
+      await _fetchContinuousEvents();
+    } catch (e) {
+      haptics.error();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Save failed: $e')),
+        );
+      }
+    }
   }
 }
