@@ -38,74 +38,67 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
     setState(() => _isLoading = true);
 
     try {
-      // Get current society from provider
       final society =
           Provider.of<SocietyProvider>(context, listen: false).currentSociety;
 
       if (society == null) {
-        setState(() {
-          _pendingRequests = [];
-          _processedRequests = [];
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _pendingRequests = [];
+            _processedRequests = [];
+            _isLoading = false;
+          });
+        }
         return;
       }
 
-      print(1);
-
-      // First, fetch the join requests
       final joinRequestsResponse = await supabase
           .from('society_join_requests')
           .select()
           .eq('society_id', society.id)
           .order('requested_at', ascending: false);
 
-      // Then, separately fetch user profiles for each request's user
+      // Collect every user_id we need to resolve (requesters + processors)
+      // and fetch them all in a single batched query instead of N+1.
+      final Set<String> userIds = {};
+      for (final req in joinRequestsResponse) {
+        if (req['user_id'] != null) userIds.add(req['user_id'] as String);
+        if (req['processed_by'] != null) {
+          userIds.add(req['processed_by'] as String);
+        }
+      }
+
+      final Map<String, Map<String, dynamic>> profilesById = {};
+      if (userIds.isNotEmpty) {
+        final profilesResponse = await supabase
+            .from('profiles')
+            .select('user_id, name, email')
+            .inFilter('user_id', userIds.toList());
+        for (final p in profilesResponse) {
+          profilesById[p['user_id'] as String] = p;
+        }
+      }
+
       final List<JoinRequest> pendingRequests = [];
       final List<JoinRequest> processedRequests = [];
 
-      print(2);
-
       for (final req in joinRequestsResponse) {
-        // Fetch user profile info separately
-        final userProfileResponse = await supabase
-            .from('profiles')
-            .select('name, email')
-            .eq('user_id', req['user_id'])
-            .single();
-
-        print(3);
-
-        // Fetch processor profile if processed
-        String? processorName;
-        if (req['processed_by'] != null) {
-          try {
-            final processorResponse = await supabase
-                .from('profiles')
-                .select('name')
-                .eq('user_id', req['processed_by'])
-                .single();
-
-            processorName = processorResponse['name'];
-          } catch (e) {
-            // If processor profile can't be found, just leave it null
-            print('Could not find processor profile: $e');
-          }
-        }
-
-        print(4);
+        final requester = profilesById[req['user_id']];
+        final processor = req['processed_by'] != null
+            ? profilesById[req['processed_by']]
+            : null;
 
         final joinRequest = JoinRequest(
           id: req['id'],
           status: req['status'],
           userId: req['user_id'],
-          userName: userProfileResponse['name'] ?? 'Unknown User',
-          userEmail: userProfileResponse['email'] ?? 'No email',
-          requestedAt: DateTime.parse(req['requested_at'] ?? DateTime.now()),
+          userName: requester?['name'] ?? 'Unknown User',
+          userEmail: requester?['email'] ?? 'No email',
+          requestedAt: DateTime.parse(req['requested_at']),
           processedAt: req['processed_at'] != null
               ? DateTime.parse(req['processed_at'])
               : null,
-          processorName: processorName,
+          processorName: processor?['name'] as String?,
         );
 
         if (joinRequest.status == 'pending') {
@@ -114,8 +107,6 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
           processedRequests.add(joinRequest);
         }
       }
-
-      print(5);
 
       if (mounted) {
         setState(() {
@@ -437,7 +428,7 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
                   final hapticsProvider =
                       Provider.of<HapticsProvider>(context, listen: false);
                   hapticsProvider.selection();
-                  _fetchJoinRequests;
+                  _fetchJoinRequests();
                 },
                 tooltip: 'Refresh',
               ),

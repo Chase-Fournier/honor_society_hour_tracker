@@ -392,17 +392,13 @@ class _SnakePageState extends State<SnakePage> with TickerProviderStateMixin {
                   color: Theme.of(context).colorScheme.surfaceVariant,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildModeButton('classic', 'Classic'),
-                        _buildModeButton('walls', 'Walls'),
-                        _buildModeButton('speed', 'Speed'),
-                        _buildModeButton('chaos', 'Chaos'),
-                      ],
-                    ),
+                  child: Row(
+                    children: [
+                      Expanded(child: _buildModeButton('classic', 'Classic')),
+                      Expanded(child: _buildModeButton('walls', 'Walls')),
+                      Expanded(child: _buildModeButton('speed', 'Speed')),
+                      Expanded(child: _buildModeButton('chaos', 'Chaos')),
+                    ],
                   ),
                 ),
 
@@ -436,13 +432,15 @@ class _SnakePageState extends State<SnakePage> with TickerProviderStateMixin {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: ElevatedButton(
-        onPressed: () {
-          final hapticsProvider =
-              Provider.of<HapticsProvider>(context, listen: false);
-          hapticsProvider.selection();
-          _selectGameMode(mode);
-        },
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: () {
+            final hapticsProvider =
+                Provider.of<HapticsProvider>(context, listen: false);
+            hapticsProvider.selection();
+            _selectGameMode(mode);
+          },
         style: ElevatedButton.styleFrom(
           backgroundColor: isSelected
               ? Theme.of(context).colorScheme.primary
@@ -467,6 +465,7 @@ class _SnakePageState extends State<SnakePage> with TickerProviderStateMixin {
           style: TextStyle(
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           ),
+        ),
         ),
       ),
     );

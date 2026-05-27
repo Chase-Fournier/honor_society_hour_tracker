@@ -316,7 +316,16 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
 
       return Scaffold(
         appBar: AppBar(
-          title: Text('${society.name} Dashboard'),
+          elevation: 0,
+          backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
+          title: Text(
+            'Dashboard',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 24.0,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
           actions: [
             IconButton(
               icon: const Icon(Icons.note_add),

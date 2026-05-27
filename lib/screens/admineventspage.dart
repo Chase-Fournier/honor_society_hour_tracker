@@ -341,10 +341,23 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
     // Get color for event type
     final Color typeColor = Theme.of(context).colorScheme.primary;
 
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: AppDesign.borderMedium),
-      elevation: 1,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: AppDesign.borderLarge,
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       clipBehavior: Clip.antiAlias,
       child: Draggable<Event>(
         data: event,
@@ -431,22 +444,9 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
             _onEventDropped(event, null);
           }
         },
-        child: Stack(
-          children: [
-            // Type indicator side bar
-            Positioned(
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: 4,
-              child: Container(color: typeColor),
-            ),
-
-            // Main content with full expansion
-            Theme(
-              data:
-                  Theme.of(context).copyWith(dividerColor: Colors.transparent),
-              child: ExpansionTile(
+        child: Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
                 initiallyExpanded: false,
                 tilePadding: EdgeInsets.zero,
                 childrenPadding: EdgeInsets.zero,
@@ -721,8 +721,6 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                   }),
                 ],
               ),
-            ),
-          ],
         ),
       ),
     );

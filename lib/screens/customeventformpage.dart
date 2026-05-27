@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../providers/societyprovider.dart';
 import '../common/app_design.dart';
-import '../common/iconutils.dart';
 import '../models/userprofile.dart';
 import '../models/logactivity.dart';
 import '../providers/hapticsprovider.dart';
@@ -202,30 +201,62 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
-                      decoration: const InputDecoration(
-                        labelText: 'Event Name',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.title),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter an event name';
-                        }
-                        return null;
-                      },
-                      onChanged: (value) {
-                        setState(() {
-                          eventName = value;
-                        });
-                      },
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: TextFormField(
+                            decoration: const InputDecoration(
+                              labelText: 'Event Name',
+                              border: OutlineInputBorder(),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter an event name';
+                              }
+                              return null;
+                            },
+                            onChanged: (value) {
+                              setState(() {
+                                eventName = value;
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 1,
+                          child: TextFormField(
+                            initialValue: '0',
+                            decoration: const InputDecoration(
+                              labelText: 'Hours',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: const TextInputType.numberWithOptions(
+                                signed: true, decimal: true),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Required';
+                              }
+                              final h = double.tryParse(value);
+                              if (h == null) return 'Invalid';
+                              return null;
+                            },
+                            onChanged: (value) {
+                              setState(() {
+                                hours = double.tryParse(value) ?? 0.0;
+                              });
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     Row(
                       children: [
                         // Event Type Dropdown
                         Expanded(
-                          flex: 2,
+                          flex: 3,
                           child: DropdownButtonFormField<String>(
                             value: type,
                             onChanged: (value) {
@@ -239,10 +270,9 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                                       child: Text(type),
                                     ))
                                 .toList(),
-                            decoration: InputDecoration(
+                            decoration: const InputDecoration(
                               labelText: 'Event Type',
                               border: OutlineInputBorder(),
-                              prefixIcon: Icon(getIconForType(type, context)),
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -255,8 +285,37 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                         const SizedBox(width: 12),
                         // Time Selector
                         Expanded(
-                          flex: 1,
-                          child: InkWell(
+                          flex: 2,
+                          child: TextFormField(
+                            readOnly: true,
+                            controller: TextEditingController(
+                              text: selectedTime != null
+                                  ? selectedTime!.format(context)
+                                  : '',
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'Time',
+                              hintText: 'Select',
+                              border: const OutlineInputBorder(),
+                              suffixIcon: selectedTime != null
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear, size: 18),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                          minWidth: 32, minHeight: 32),
+                                      onPressed: () {
+                                        final hapticsProvider =
+                                            Provider.of<HapticsProvider>(
+                                                context,
+                                                listen: false);
+                                        hapticsProvider.selection();
+                                        setState(() {
+                                          selectedTime = null;
+                                        });
+                                      },
+                                    )
+                                  : null,
+                            ),
                             onTap: () async {
                               final hapticsProvider =
                                   Provider.of<HapticsProvider>(context,
@@ -272,66 +331,6 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                                   selectedTime = pickedTime;
                                 });
                               }
-                            },
-                            child: InputDecorator(
-                              decoration: InputDecoration(
-                                labelText: 'Time',
-                                border: const OutlineInputBorder(),
-                                prefixIcon: const Icon(Icons.access_time),
-                                suffixIcon: selectedTime != null
-                                    ? IconButton(
-                                        icon: const Icon(Icons.clear),
-                                        onPressed: () {
-                                          final hapticsProvider =
-                                              Provider.of<HapticsProvider>(
-                                                  context,
-                                                  listen: false);
-                                          hapticsProvider.selection();
-                                          setState(() {
-                                            selectedTime = null;
-                                          });
-                                        },
-                                      )
-                                    : null,
-                              ),
-                              child: Text(
-                                selectedTime != null
-                                    ? selectedTime!.format(context)
-                                    : 'Select',
-                                style: selectedTime == null
-                                    ? TextStyle(
-                                        color: Theme.of(context).hintColor)
-                                    : null,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        // Hours Input
-                        Expanded(
-                          flex: 1,
-                          child: TextFormField(
-                            decoration: const InputDecoration(
-                              labelText: 'Hours',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.timer),
-                            ),
-                            keyboardType: const TextInputType.numberWithOptions(
-                                signed: true, decimal: true),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Required';
-                              }
-                              final hours = double.tryParse(value);
-                              if (hours == null || hours == 0) {
-                                return 'Invalid';
-                              }
-                              return null;
-                            },
-                            onChanged: (value) {
-                              setState(() {
-                                hours = double.tryParse(value) ?? 0.0;
-                              });
                             },
                           ),
                         ),

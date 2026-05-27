@@ -641,28 +641,29 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
     final attendancePercentage =
         totalAttendees > 0 ? (presentAttendees / totalAttendees) * 100 : 0.0;
 
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: AppDesign.borderMedium),
-      elevation: 1,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          // Type indicator side bar
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: 4,
-            child: Container(color: typeColor),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: AppDesign.borderLarge,
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
-
-          // Main content with full expansion
-          Theme(
-            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-            child: ExpansionTile(
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
               initiallyExpanded: false,
-              tilePadding: EdgeInsets.zero,
+              tilePadding: const EdgeInsets.only(right: 12),
               childrenPadding: EdgeInsets.zero,
               title: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 0, 0),
@@ -741,15 +742,14 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                           const SizedBox(height: 6),
                           Row(
                             children: [
-                              Text(
-                                'Attendance: ',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                                ),
+                              Icon(
+                                Icons.how_to_reg_outlined,
+                                size: 14,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
                               ),
+                              const SizedBox(width: 4),
                               Text(
                                 '$presentAttendees/$totalAttendees',
                                 style: TextStyle(
@@ -846,15 +846,27 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                           ],
                         ),
                         subtitle: Padding(
-                          padding: const EdgeInsets.only(left: 18, top: 2),
-                          child: Text(
-                            'Attendance: $timeSlotPresent/$timeSlotAttendees',
-                            style: TextStyle(
-                              fontSize: 12.0,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.how_to_reg_outlined,
+                                size: 14,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '$timeSlotPresent/$timeSlotAttendees',
+                                style: TextStyle(
+                                  fontSize: 12.0,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         trailing: IconButton(
@@ -891,8 +903,6 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                 }).toList(),
               ],
             ),
-          ),
-        ],
       ),
     );
   }
