@@ -719,7 +719,9 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
               CircleAvatar(
                 radius: 32,
                 child: Text(
-                  society.name.substring(0, 1),
+                  society.name.isNotEmpty
+                      ? society.name.substring(0, 1)
+                      : '?',
                   style: const TextStyle(fontSize: 24),
                 ),
                 backgroundColor: Theme.of(context).colorScheme.primary,

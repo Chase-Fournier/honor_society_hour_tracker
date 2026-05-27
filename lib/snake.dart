@@ -366,7 +366,7 @@ class _SnakePageState extends State<SnakePage> with TickerProviderStateMixin {
               final hapticsProvider =
                   Provider.of<HapticsProvider>(context, listen: false);
               hapticsProvider.selection();
-              _togglePause;
+              _togglePause();
             },
             tooltip: _isPaused ? 'Resume Game' : 'Pause Game',
           ),

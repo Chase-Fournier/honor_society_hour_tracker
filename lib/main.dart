@@ -126,6 +126,7 @@ class _MyAppState extends State<MyApp> {
             break;
           case AuthChangeEvent.signedOut:
             debugPrint("Signed Out event. Navigating to login ('/').");
+            NotificationService.instance.unregisterDevice();
             _navigatorKey.currentState
                 ?.pushNamedAndRemoveUntil('/', (route) => false);
             break;
@@ -199,10 +200,11 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _handleDeepLink(Uri uri) {
-    bool isWebPasswordRecovery = false;
-    String? webAccessToken;
     debugPrint("Handling deep link: $uri");
-    if (uri.scheme == 'com.wheelermun.nhs' && uri.host == 'reset-password') {
+    final isCustomSchemeRecovery =
+        uri.scheme == 'com.wheelermun.nhs' && uri.host == 'reset-password';
+
+    if (isCustomSchemeRecovery) {
       if (mounted) {
         setState(() {
           _isProcessingPasswordRecovery = true;
@@ -211,75 +213,34 @@ class _MyAppState extends State<MyApp> {
       debugPrint(
           "Password reset link identified. Set _isProcessingPasswordRecovery=true.");
 
-      if (uri.hasFragment) {
-        final fragmentParams = Uri.parse('?$uri.fragment').queryParameters;
-        final accessToken = fragmentParams['access_token'];
-        final type = fragmentParams['type']; // Should be 'recovery'
-
-        if (kIsWeb && uri.hasFragment) {
-          final fragmentParams = Uri.parse('?$uri.fragment').queryParameters;
-          final type = fragmentParams['type'];
-          if (type == 'recovery' &&
-              fragmentParams.containsKey('access_token')) {
-            isWebPasswordRecovery = true;
-            webAccessToken = fragmentParams['access_token'];
-          }
-        }
-
-        if ((uri.scheme == 'com.wheelermun.nhs' &&
-                uri.host == 'reset-password') ||
-            isWebPasswordRecovery) {
-          if (mounted) {
-            setState(() {
-              _isProcessingPasswordRecovery = true;
-            });
-          }
-          debugPrint(
-              "Password reset link identified. Set _isProcessingPasswordRecovery=true.");
-
-          String? accessTokenToUse = (uri.scheme == 'com.wheelermun.nhs')
-              ? Uri.parse('?$uri.fragment')
-                  .queryParameters['access_token'] // For custom scheme
-              : webAccessToken; // For web
-
-          if (accessTokenToUse != null) {
-            debugPrint(
-                "Access token for recovery found. Navigating to /reset-password.");
-            _navigatorKey.currentState?.pushNamed(
-              '/reset-password',
-              arguments:
-                  ResetPasswordPageArguments(accessToken: accessTokenToUse),
-            );
-          } else {
-            debugPrint('Access token missing in password reset link fragment.');
-            if (mounted) {
-              setState(() {
-                _isProcessingPasswordRecovery = false;
-              });
-            }
-          }
-        }
-
-        if (accessToken != null && type == 'recovery') {
-          debugPrint(
-              "Access token for recovery found. Navigating to /reset-password.");
-          // Push ResetPasswordPage onto the stack.
-          // It should appear on top of whatever page is current (e.g., LoginPage).
-          _navigatorKey.currentState?.pushNamed(
-            '/reset-password',
-            arguments: ResetPasswordPageArguments(accessToken: accessToken),
-          );
-        } else {
-          debugPrint(
-              'Access token or recovery type missing/invalid in password reset link. Token: $accessToken, Type: $type');
-          if (mounted) {
-            setState(() {
-              _isProcessingPasswordRecovery = false;
-            });
-          }
-        }
-      } else {
+      if (!uri.hasFragment) {
         debugPrint('Password reset link fragment is missing.');
+        if (mounted) {
+          setState(() {
+            _isProcessingPasswordRecovery = false;
+          });
+        }
+        return;
+      }
+
+      // The fragment is a "?-less" query string of the form
+      //   access_token=...&type=recovery&...
+      // Uri.splitQueryString parses that directly without the brittle
+      // "?" + fragment hack the previous code used.
+      final fragmentParams = Uri.splitQueryString(uri.fragment);
+      final accessToken = fragmentParams['access_token'];
+      final type = fragmentParams['type'];
+
+      if (accessToken != null && type == 'recovery') {
+        debugPrint(
+            "Access token for recovery found. Navigating to /reset-password.");
+        _navigatorKey.currentState?.pushNamed(
+          '/reset-password',
+          arguments: ResetPasswordPageArguments(accessToken: accessToken),
+        );
+      } else {
+        debugPrint(
+            'Access token or recovery type missing/invalid in password reset link. Token: $accessToken, Type: $type');
         if (mounted) {
           setState(() {
             _isProcessingPasswordRecovery = false;

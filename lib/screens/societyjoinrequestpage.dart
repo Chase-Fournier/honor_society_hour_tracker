@@ -344,7 +344,9 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
                           ? NetworkImage(society.imageUrl!)
                           : null,
                       child: society.imageUrl == null
-                          ? Text(society.name.substring(0, 1))
+                          ? Text(society.name.isNotEmpty
+                              ? society.name.substring(0, 1)
+                              : '?')
                           : null,
                     ),
                     const SizedBox(width: AppDesign.spacingM),
@@ -679,7 +681,9 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
                 backgroundColor: Theme.of(context).colorScheme.primaryContainer,
                 child: society.imageUrl == null
                     ? Text(
-                        society.name.substring(0, 1),
+                        society.name.isNotEmpty
+                            ? society.name.substring(0, 1)
+                            : '?',
                         style: TextStyle(
                           color:
                               Theme.of(context).colorScheme.onPrimaryContainer,

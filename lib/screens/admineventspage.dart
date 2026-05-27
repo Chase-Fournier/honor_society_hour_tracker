@@ -2063,6 +2063,16 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                       hapticsProvider.selection();
                       if (_formKey.currentState!.validate()) {
                         _formKey.currentState!.save();
+                        final society =
+                            Provider.of<SocietyProvider>(context, listen: false)
+                                .currentSociety;
+                        if (society == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('No society selected')),
+                          );
+                          return;
+                        }
                         _updateEvent(
                             event.id,
                             _eventName,
@@ -2076,7 +2086,8 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                             _formLink,
                             Duration(hours: swapRequestDeadline),
                             _hasDelay,
-                            _delayHours);
+                            _delayHours,
+                            society.id);
                         Navigator.of(context).pop();
                       }
                     },
@@ -2158,41 +2169,57 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
 
       final newEventId = eventResponse['id'];
 
-      // Insert time slots
-      for (var timeSlot in timeSlots) {
-        final timeSlotResponse = await Supabase.instance.client
+      // Bulk-insert every time slot in one round-trip.
+      final nowIso = DateTime.now().toIso8601String();
+      final timeSlotRows = timeSlots
+          .map((ts) => {
+                'event_id': newEventId,
+                'start_time': DateTime(DateTime.now().year, date.month,
+                        date.day, ts.time.hour, ts.time.minute)
+                    .toIso8601String(),
+                'end_time': DateTime(DateTime.now().year, date.month, date.day,
+                        ts.endTime.hour, ts.endTime.minute)
+                    .toIso8601String(),
+                'number_of_people': ts.numberOfPeople,
+                'notes': ts.notes,
+                'created_at': nowIso,
+              })
+          .toList();
+
+      final List<int> newTimeSlotIds = [];
+      if (timeSlotRows.isNotEmpty) {
+        final inserted = await Supabase.instance.client
             .from('Time slots')
-            .insert({
-              'event_id': newEventId,
-              'start_time': DateTime(DateTime.now().year, date.month, date.day,
-                      timeSlot.time.hour, timeSlot.time.minute)
-                  .toIso8601String(),
-              'end_time': DateTime(DateTime.now().year, date.month, date.day,
-                      timeSlot.endTime.hour, timeSlot.endTime.minute)
-                  .toIso8601String(),
-              'number_of_people': timeSlot.numberOfPeople,
-              'notes': timeSlot.notes,
-              'created_at': DateTime.now().toIso8601String(),
-            })
-            .select()
-            .single();
+            .insert(timeSlotRows)
+            .select('id');
+        for (final row in inserted as List) {
+          newTimeSlotIds.add(row['id'] as int);
+        }
+      }
 
-        final newTimeSlotId = timeSlotResponse['id'];
+      // If the event is mandatory, attach every member of the society as an
+      // attendee for every new time slot — one batched insert instead of
+      // (slots × members) round-trips.
+      if ((isMandatory || type == "Meeting") && newTimeSlotIds.isNotEmpty) {
+        final usersResponse = await Supabase.instance.client
+            .from('user_society_memberships')
+            .select('user_id')
+            .eq('society_id', societyId);
 
-        // If the event is mandatory, add all users of the society as attendees
-        if (isMandatory || type == "Meeting") {
-          final usersResponse = await Supabase.instance.client
-              .from('user_society_memberships')
-              .select('user_id')
-              .eq('society_id', societyId);
-
-          for (var user in usersResponse) {
-            await Supabase.instance.client.from('Attendees').insert({
-              'timeslot_id': newTimeSlotId,
+        final attendeeRows = <Map<String, dynamic>>[];
+        for (final slotId in newTimeSlotIds) {
+          for (final user in usersResponse as List) {
+            attendeeRows.add({
+              'timeslot_id': slotId,
               'user_id': user['user_id'],
               'is_present': false,
             });
           }
+        }
+        if (attendeeRows.isNotEmpty) {
+          await Supabase.instance.client
+              .from('Attendees')
+              .insert(attendeeRows);
         }
       }
 
@@ -2328,6 +2355,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
     Duration swapRequestDeadline,
     bool hasDelay,
     int delayHours,
+    int societyId,
   ) async {
     try {
       // Update the event
@@ -2345,113 +2373,140 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
         'delay_hours': delayHours,
       }).eq('id', eventId);
 
-      // Fetch existing time slots
+      // Fetch existing time slots once.
       final existingTimeSlotsResponse = await Supabase.instance.client
           .from('Time slots')
           .select()
           .eq('event_id', eventId);
 
-      final existingTimeSlots = existingTimeSlotsResponse
+      final existingTimeSlots = (existingTimeSlotsResponse as List)
           .map((slot) => TimeSlot.fromJson(slot))
           .toList();
 
-      // Update, add, or delete time slots
-      for (var timeSlot in timeSlots) {
-        // Check if this timeSlot exists in our existingTimeSlots list
-        if (existingTimeSlots.any((slot) => slot.id == timeSlot.id)) {
-          // Update existing time slot
-          await Supabase.instance.client.from('Time slots').update({
-            'start_time': DateTime(DateTime.now().year, date.month, date.day,
-                    timeSlot.time.hour, timeSlot.time.minute)
-                .toIso8601String(),
-            'end_time': DateTime(DateTime.now().year, date.month, date.day,
-                    timeSlot.endTime.hour, timeSlot.endTime.minute)
-                .toIso8601String(),
-            'number_of_people': timeSlot.numberOfPeople,
-            'notes': timeSlot.notes,
-          }).eq('id', timeSlot.id ?? 0);
+      final Set<int> incomingIds =
+          timeSlots.map((s) => s.id).whereType<int>().toSet();
 
-          // Remove from existingTimeSlots list
-          existingTimeSlots.removeWhere((slot) => slot.id == timeSlot.id);
+      // Categorize incoming slots into updates vs. inserts.
+      final List<TimeSlot> toUpdate = [];
+      final List<TimeSlot> toInsert = [];
+      for (final ts in timeSlots) {
+        if (ts.id != null && existingTimeSlots.any((e) => e.id == ts.id)) {
+          toUpdate.add(ts);
         } else {
-          // Add new time slot
-          final newTimeSlotResponse = await Supabase.instance.client
-              .from('Time slots')
-              .insert({
-                'event_id': eventId,
-                'start_time': DateTime(DateTime.now().year, date.month,
-                        date.day, timeSlot.time.hour, timeSlot.time.minute)
-                    .toIso8601String(),
-                'end_time': DateTime(DateTime.now().year, date.month, date.day,
-                        timeSlot.endTime.hour, timeSlot.endTime.minute)
-                    .toIso8601String(),
-                'number_of_people': timeSlot.numberOfPeople,
-                'notes': timeSlot.notes,
-                'created_at': DateTime.now().toIso8601String(),
-              })
-              .select()
-              .single();
-
-          final newTimeSlotId = newTimeSlotResponse['id'];
-
-          // If the event is mandatory, add all users as attendees for the new time slot
-          if (isMandatory) {
-            final usersResponse = await Supabase.instance.client
-                .from('profiles')
-                .select('user_id');
-
-            for (var user in usersResponse) {
-              await Supabase.instance.client.from('Attendees').insert({
-                'timeslot_id': newTimeSlotId,
-                'user_id': user['user_id'],
-                'is_present': false,
-              });
-            }
-          }
+          toInsert.add(ts);
         }
       }
 
-      // Delete time slots that are no longer present
-      for (var slotToDelete in existingTimeSlots) {
-        await Supabase.instance.client
-            .from('Time slots')
-            .delete()
-            .eq('id', slotToDelete.id ?? 0);
+      final nowIso = DateTime.now().toIso8601String();
 
-        // Also delete associated attendees
+      // Run all existing-slot updates in parallel (no true bulk update for
+      // per-row payloads in PostgREST, but parallelism turns N RTTs into 1).
+      await Future.wait(toUpdate.map((ts) {
+        return Supabase.instance.client.from('Time slots').update({
+          'start_time': DateTime(DateTime.now().year, date.month, date.day,
+                  ts.time.hour, ts.time.minute)
+              .toIso8601String(),
+          'end_time': DateTime(DateTime.now().year, date.month, date.day,
+                  ts.endTime.hour, ts.endTime.minute)
+              .toIso8601String(),
+          'number_of_people': ts.numberOfPeople,
+          'notes': ts.notes,
+        }).eq('id', ts.id!);
+      }));
+
+      // Bulk-insert any brand-new slots.
+      final List<int> insertedSlotIds = [];
+      if (toInsert.isNotEmpty) {
+        final insertRows = toInsert
+            .map((ts) => {
+                  'event_id': eventId,
+                  'start_time': DateTime(DateTime.now().year, date.month,
+                          date.day, ts.time.hour, ts.time.minute)
+                      .toIso8601String(),
+                  'end_time': DateTime(DateTime.now().year, date.month,
+                          date.day, ts.endTime.hour, ts.endTime.minute)
+                      .toIso8601String(),
+                  'number_of_people': ts.numberOfPeople,
+                  'notes': ts.notes,
+                  'created_at': nowIso,
+                })
+            .toList();
+        final inserted = await Supabase.instance.client
+            .from('Time slots')
+            .insert(insertRows)
+            .select('id');
+        for (final row in inserted as List) {
+          insertedSlotIds.add(row['id'] as int);
+        }
+      }
+
+      // Delete every slot that's no longer in the incoming set, plus their
+      // attendees, in two batched calls.
+      final deletedSlotIds = existingTimeSlots
+          .map((e) => e.id)
+          .whereType<int>()
+          .where((id) => !incomingIds.contains(id))
+          .toList();
+      if (deletedSlotIds.isNotEmpty) {
         await Supabase.instance.client
             .from('Attendees')
             .delete()
-            .eq('timeslot_id', slotToDelete.id ?? 0);
+            .inFilter('timeslot_id', deletedSlotIds);
+        await Supabase.instance.client
+            .from('Time slots')
+            .delete()
+            .inFilter('id', deletedSlotIds);
       }
 
-      // If the event has become mandatory, add all users to all time slots
+      // If the event is mandatory, make sure every member is an attendee on
+      // every (still-existing or newly-inserted) time slot — without firing
+      // (slots × users) duplicate-check queries.
       if (isMandatory) {
-        final allTimeSlots = await Supabase.instance.client
-            .from('Time slots')
-            .select()
-            .eq('event_id', eventId);
+        final List<int> allSlotIds = [
+          ...existingTimeSlots
+              .map((e) => e.id)
+              .whereType<int>()
+              .where((id) => incomingIds.contains(id)),
+          ...insertedSlotIds,
+        ];
 
-        final usersResponse =
-            await Supabase.instance.client.from('profiles').select('user_id');
+        if (allSlotIds.isNotEmpty) {
+          // Pull members of THIS society — previously this hit `profiles`
+          // with no filter, which silently added attendee rows for users
+          // from every other society too.
+          final usersResponse = await Supabase.instance.client
+              .from('user_society_memberships')
+              .select('user_id')
+              .eq('society_id', societyId);
 
-        for (var timeSlot in allTimeSlots) {
-          for (var user in usersResponse) {
-            // Check if the user is already an attendee
-            final existingAttendee = await Supabase.instance.client
-                .from('Attendees')
-                .select()
-                .eq('timeslot_id', timeSlot['id'])
-                .eq('user_id', user['user_id'])
-                .maybeSingle();
+          // What attendee rows already exist for these slots?
+          final existingAttendeesResp = await Supabase.instance.client
+              .from('Attendees')
+              .select('timeslot_id, user_id')
+              .inFilter('timeslot_id', allSlotIds);
 
-            if (existingAttendee == null) {
-              await Supabase.instance.client.from('Attendees').insert({
-                'timeslot_id': timeSlot['id'],
-                'user_id': user['user_id'],
-                'is_present': false,
-              });
+          final Set<String> existingPairs = {
+            for (final a in existingAttendeesResp as List)
+              '${a['timeslot_id']}|${a['user_id']}'
+          };
+
+          final attendeeRows = <Map<String, dynamic>>[];
+          for (final slotId in allSlotIds) {
+            for (final user in usersResponse as List) {
+              final key = '$slotId|${user['user_id']}';
+              if (!existingPairs.contains(key)) {
+                attendeeRows.add({
+                  'timeslot_id': slotId,
+                  'user_id': user['user_id'],
+                  'is_present': false,
+                });
+              }
             }
+          }
+          if (attendeeRows.isNotEmpty) {
+            await Supabase.instance.client
+                .from('Attendees')
+                .insert(attendeeRows);
           }
         }
       }

@@ -396,7 +396,7 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
                 final hapticsProvider =
                     Provider.of<HapticsProvider>(context, listen: false);
                 hapticsProvider.selection();
-                _showUpdateDialog;
+                _showUpdateDialog();
               },
               tooltip: 'Edit Selected',
             ),

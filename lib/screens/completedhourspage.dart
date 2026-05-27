@@ -614,7 +614,9 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
                   backgroundColor:
                       Theme.of(context).colorScheme.primary.withOpacity(0.1),
                   child: Text(
-                    hour.title.substring(0, 1).toUpperCase(),
+                    hour.title.isNotEmpty
+                        ? hour.title.substring(0, 1).toUpperCase()
+                        : '?',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.primary,
                       fontWeight: FontWeight.bold,

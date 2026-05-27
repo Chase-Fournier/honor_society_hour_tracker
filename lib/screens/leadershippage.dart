@@ -109,6 +109,7 @@ class _LeadershipPageState extends State<LeadershipPage> {
                       child: Text(
                         role.holderName
                             .split(' ')
+                            .where((part) => part.isNotEmpty)
                             .map((name) => name[0])
                             .take(2)
                             .join(),
@@ -438,6 +439,7 @@ class _LeadershipPageState extends State<LeadershipPage> {
                   child: Text(
                     role.holderName
                         .split(' ')
+                        .where((part) => part.isNotEmpty)
                         .map((name) => name[0])
                         .take(2)
                         .join(),
@@ -553,6 +555,7 @@ class _LeadershipPageState extends State<LeadershipPage> {
                       child: Text(
                         role.holderName
                             .split(' ')
+                            .where((part) => part.isNotEmpty)
                             .map((name) => name[0])
                             .take(2)
                             .join(),

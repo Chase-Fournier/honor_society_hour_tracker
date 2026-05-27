@@ -105,6 +105,7 @@ class _HomePageState extends State<HomePage> {
         Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     if (society == null) return;
 
+    // 1) Fetch all events for the society.
     final eventResponse = await Supabase.instance.client
         .from('Events')
         .select()
@@ -113,44 +114,66 @@ class _HomePageState extends State<HomePage> {
             DateTime.now().subtract(const Duration(days: 1)).toIso8601String())
         .order('date');
 
-    final List<dynamic> eventData = eventResponse;
     final List<Event> events =
-        eventData.map((json) => Event.fromJson(json)).toList();
+        (eventResponse as List).map((json) => Event.fromJson(json)).toList();
 
-    // Fetch time slots for each event
-    for (var event in events) {
-      final timeSlotResponse = await Supabase.instance.client
-          .from('Time slots')
-          .select()
-          .eq('event_id', event.id);
+    if (events.isEmpty) {
+      if (mounted) setState(() => _events = []);
+      return;
+    }
 
-      final List<dynamic> timeSlotData = timeSlotResponse;
-      final List<TimeSlot> timeSlots =
-          timeSlotData.map((json) => TimeSlot.fromJson(json)).toList();
+    final List<int> eventIds =
+        events.map((e) => e.id).whereType<int>().toList();
 
-      for (var timeSlot in timeSlots) {
-        final attendeeResponse = await Supabase.instance.client
-            .from('Attendees')
-            .select('*, profiles!inner(name)')
-            .eq('timeslot_id', timeSlot.id ?? 0);
+    // 2) Fetch every time slot for those events in a single batched query.
+    final timeSlotResponse = await Supabase.instance.client
+        .from('Time slots')
+        .select()
+        .inFilter('event_id', eventIds);
 
-        final List<Attendee> attendees = attendeeResponse
-            .map((json) => Attendee.fromJson({
-                  ...json,
-                  'name': json['profiles']['name'],
-                }))
-            .toList();
+    final List<TimeSlot> timeSlots = (timeSlotResponse as List)
+        .map((json) => TimeSlot.fromJson(json))
+        .toList();
 
-        timeSlot.attendees = attendees;
+    final Map<int, List<TimeSlot>> slotsByEvent = {};
+    for (final ts in timeSlots) {
+      slotsByEvent.putIfAbsent(ts.eventId, () => []).add(ts);
+    }
+
+    // 3) Fetch every attendee for those time slots in a single batched query.
+    final List<int> timeSlotIds =
+        timeSlots.map((ts) => ts.id).whereType<int>().toList();
+
+    final Map<int, List<Attendee>> attendeesBySlot = {};
+    if (timeSlotIds.isNotEmpty) {
+      final attendeeResponse = await Supabase.instance.client
+          .from('Attendees')
+          .select('*, profiles!inner(name)')
+          .inFilter('timeslot_id', timeSlotIds);
+
+      for (final json in attendeeResponse as List) {
+        final attendee = Attendee.fromJson({
+          ...json,
+          'name': json['profiles']['name'],
+        });
+        final tsId = json['timeslot_id'] as int?;
+        if (tsId != null) {
+          attendeesBySlot.putIfAbsent(tsId, () => []).add(attendee);
+        }
       }
+    }
 
-      event.timeSlots = timeSlots;
+    // 4) Stitch attendees into time slots and time slots into events.
+    for (final ts in timeSlots) {
+      if (ts.id != null) ts.attendees = attendeesBySlot[ts.id!] ?? [];
+    }
+    for (final event in events) {
+      event.timeSlots = slotsByEvent[event.id] ?? [];
     }
 
     if (mounted) {
       setState(() {
         _events = events;
-        // Sort events from closest to furthest date
         _events.sort((a, b) => a.date.compareTo(b.date));
       });
     }
