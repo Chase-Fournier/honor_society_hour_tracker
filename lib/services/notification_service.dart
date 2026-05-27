@@ -216,6 +216,13 @@ class NotificationService {
 
   Future<void> registerForPush() async {
     final token = await FirebaseMessagingService.instance.getToken();
+    if (token == null || token.isEmpty) {
+      debugPrint(
+          'NotificationService.registerForPush: no FCM token returned — check Firebase init and platform setup.');
+      return;
+    }
+    debugPrint(
+        'NotificationService.registerForPush: got FCM token (len=${token.length}), syncing to Supabase…');
     await syncFcmToken(token);
   }
 

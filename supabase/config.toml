@@ -1,0 +1,10 @@
+# Supabase project config used by the CLI.
+# This file is committed; per-environment secrets live in `supabase secrets`.
+
+project_id = "wheeler-nhs"
+
+[functions.send-push]
+verify_jwt = false
+# Triggers call this with the service role key in the Authorization header,
+# so JWT verification is intentionally off. Treat the URL as private — the
+# function itself uses the service role to query device_tokens.

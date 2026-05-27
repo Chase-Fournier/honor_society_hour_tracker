@@ -575,6 +575,16 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
                     fontWeight: FontWeight.bold,
                   ),
             ),
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () {
+                final hapticsProvider =
+                    Provider.of<HapticsProvider>(context, listen: false);
+                hapticsProvider.selection();
+                _showAddNotesDialog();
+              },
+              tooltip: 'Add Note',
+            ),
           ],
         ),
         const SizedBox(height: 12),
@@ -1387,25 +1397,14 @@ Widget _buildActivityItem(ActivitySummary activity, int index) {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Row(
             children: [
-              // Animated icon with ripple effect
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: 1),
-                duration: Duration(milliseconds: 600 + (index * 100)),
-                curve: Curves.elasticOut,
-                builder: (context, value, child) {
-                  return Transform.scale(
-                    scale: value,
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: color.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Icon(icon, color: color, size: 24),
-                    ),
-                  );
-                },
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: color, size: 24),
               ),
               const SizedBox(width: 16),
               
@@ -1508,72 +1507,6 @@ Widget _buildEnhancedMeetingNotes() {
         clipBehavior: Clip.antiAlias,
         child: Column(
           children: [
-            // Header with floating action button
-            Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.secondaryContainer,
-              ),
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.secondary,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Icon(
-                      Icons.notes,
-                      color: Theme.of(context).colorScheme.onSecondary,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Meeting Notes',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSecondaryContainer,
-                          ),
-                        ),
-                        Text(
-                          '${notes.length} notes recorded',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSecondaryContainer.withOpacity(0.8),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Add button
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.secondary,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: _showAddNotesDialog,
-                        borderRadius: BorderRadius.circular(16),
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Icon(
-                            Icons.add,
-                            color: Theme.of(context).colorScheme.onSecondary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
             // Notes content
             if (notes.isEmpty)
               _buildEmptyNotesState()
@@ -1687,23 +1620,6 @@ Widget _buildNoteItem(MeetingNote note) {
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.access_time,
-                        size: 14,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _getTimeAgo(note.createdAt),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),

@@ -40,31 +40,40 @@ The packages added are:
 
 ---
 
-## Step 2 — Supabase: `device_tokens` table
+## Step 2 — Supabase: migrations + Edge Function
 
-Create a table to hold FCM tokens per device. Run this in the Supabase SQL editor:
+All the database and serverless side has been scaffolded under [supabase/](supabase/). Detailed deploy steps live in [supabase/README.md](supabase/README.md). The short version:
 
-```sql
-create table public.device_tokens (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  fcm_token text not null unique,
-  platform text not null check (platform in ('ios','android','other')),
-  updated_at timestamptz not null default now()
-);
-
-create index on public.device_tokens (user_id);
-
-alter table public.device_tokens enable row level security;
-
-create policy "Users manage their own tokens"
-  on public.device_tokens
-  for all
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+```sh
+supabase login
+supabase link --project-ref <project-ref>
+supabase db push                                 # runs the 3 migrations
+supabase functions deploy send-push              # deploys the FCM sender
 ```
 
-`NotificationService.syncFcmToken` upserts into this table on `onConflict: 'fcm_token'`, so re-installs/refreshes don't duplicate.
+Then **once** in the SQL editor (see [supabase/README.md](supabase/README.md) §4):
+
+```sql
+select vault.create_secret(
+  'https://<project-ref>.functions.supabase.co', 'edge_url',
+  'Edge Functions base URL used by notification triggers');
+select vault.create_secret(
+  '<service-role-key>', 'service_role_key',
+  'Used by notification triggers to call send-push');
+```
+
+And set FCM secrets:
+
+```sh
+supabase secrets set FCM_PROJECT_ID=<firebase-project-id>
+supabase secrets set FCM_SERVICE_ACCOUNT_JSON="$(cat firebase-service-account.json)"
+```
+
+What the migrations install:
+
+- [supabase/migrations/20260526000001_device_tokens.sql](supabase/migrations/20260526000001_device_tokens.sql) — `device_tokens` table + RLS. `NotificationService.syncFcmToken` upserts here on `onConflict: 'fcm_token'`.
+- [supabase/migrations/20260526000002_notification_helpers.sql](supabase/migrations/20260526000002_notification_helpers.sql) — `send_push_to_users(uuid[], title, body, data)` and `send_push_to_society(...)` helpers that invoke the Edge Function via `pg_net`.
+- [supabase/migrations/20260526000003_notification_triggers.sql](supabase/migrations/20260526000003_notification_triggers.sql) — triggers on `"Notes"` (new meeting notes), `activity_logs` (attendance/hour changes), and `swap_requests` (request created / status changed).
 
 ---
 
@@ -127,107 +136,18 @@ and import the generated `firebase_options.dart`. Without `flutterfire configure
 
 ## Step 4 — Sending push notifications
 
-You can send pushes from a **Supabase Edge Function** triggered by database changes. Example function: `supabase/functions/send-push/index.ts`
+Already implemented in [supabase/functions/send-push/index.ts](supabase/functions/send-push/index.ts) and the three migrations under [supabase/migrations/](supabase/migrations/). See [supabase/README.md](supabase/README.md) for the architecture diagram and deploy commands.
 
-```ts
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { JWT } from "https://deno.land/x/google_auth_library@v0.1.0/mod.ts";
+The Edge Function accepts either explicit `tokens` or `user_ids` (which it resolves against `device_tokens` using the service role). Database triggers always use `user_ids`.
 
-const FCM_PROJECT_ID = Deno.env.get("FCM_PROJECT_ID")!;
-const SERVICE_ACCOUNT = JSON.parse(Deno.env.get("FCM_SERVICE_ACCOUNT_JSON")!);
+To send an ad-hoc push from anywhere (Dart, curl, another Edge Function):
 
-async function getAccessToken() {
-  const jwt = new JWT({
-    email: SERVICE_ACCOUNT.client_email,
-    key: SERVICE_ACCOUNT.private_key,
-    scopes: ["https://www.googleapis.com/auth/firebase.messaging"],
-  });
-  return (await jwt.authorize()).access_token;
-}
-
-serve(async (req) => {
-  const { tokens, title, body, data } = await req.json();
-  const accessToken = await getAccessToken();
-
-  const results = await Promise.all(
-    (tokens as string[]).map((token) =>
-      fetch(
-        `https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID}/messages:send`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            message: { token, notification: { title, body }, data },
-          }),
-        },
-      ).then((r) => r.json()),
-    ),
-  );
-
-  return new Response(JSON.stringify({ results }), {
-    headers: { "Content-Type": "application/json" },
-  });
-});
+```bash
+curl -X POST https://<project-ref>.functions.supabase.co/send-push \
+  -H "Authorization: Bearer <service-role-key>" \
+  -H "Content-Type: application/json" \
+  -d '{"user_ids":["<uuid>"],"title":"Hi","body":"Manual test"}'
 ```
-
-Then deploy and set secrets:
-
-```sh
-supabase functions deploy send-push
-supabase secrets set FCM_PROJECT_ID=your-firebase-project-id
-supabase secrets set FCM_SERVICE_ACCOUNT_JSON="$(cat firebase-service-account.json)"
-```
-
-Get the service account JSON from Firebase Console → Project Settings → Service accounts → Generate new private key.
-
-### Database triggers
-
-Wire the trigger to events you care about. Example for meeting notes (Step 3 of the original ask — "New meeting notes posted"):
-
-```sql
-create or replace function notify_new_meeting_note()
-returns trigger as $$
-declare
-  recipient_tokens text[];
-begin
-  -- Collect tokens of all members of the society
-  select array_agg(dt.fcm_token) into recipient_tokens
-  from device_tokens dt
-  join user_society_memberships usm on usm.user_id = dt.user_id
-  where usm.society_id = NEW.society_id;
-
-  if recipient_tokens is not null then
-    perform net.http_post(
-      url := 'https://YOUR-PROJECT.functions.supabase.co/send-push',
-      headers := jsonb_build_object(
-        'Content-Type', 'application/json',
-        'Authorization', 'Bearer ' || current_setting('app.service_role_key')
-      ),
-      body := jsonb_build_object(
-        'tokens', recipient_tokens,
-        'title', 'New meeting notes',
-        'body', NEW.title,
-        'data', jsonb_build_object('type', 'meeting_notes', 'id', NEW.id)
-      )
-    );
-  end if;
-  return NEW;
-end;
-$$ language plpgsql security definer;
-
-create trigger trg_meeting_note_insert
-  after insert on meeting_notes
-  for each row execute procedure notify_new_meeting_note();
-```
-
-> The `net.http_post` helper requires the `pg_net` extension: `create extension if not exists pg_net;`
-
-Repeat the same pattern for:
-- **Hours updated** → trigger on `activity_logs` insert where `action_type in ('attendance_marked','manual_addition')`, look up the affected `user_id`'s tokens.
-- **Swap requests** → trigger on `swap_requests` insert/update, targeting the counterparty's tokens.
 
 ---
 
@@ -286,8 +206,8 @@ await NotificationService.instance.cancel(timeslot.id);
 | Local notification plumbing | Done — works after `flutter pub get`. |
 | Notification settings UI (Profile → Notifications) | Done. |
 | FCM token sync to Supabase on sign-in | Done. |
-| `device_tokens` table | **You** — run the SQL in Step 2. |
+| `device_tokens` table | Migration scaffolded — run `supabase db push`. |
 | Firebase project + `google-services.json` / `GoogleService-Info.plist` | **You** — Step 3. |
-| `send-push` Edge Function | **You** — Step 4. |
-| Triggers for meeting notes / hours / swaps | **You** — Step 4. |
+| `send-push` Edge Function | Scaffolded — run `supabase functions deploy send-push`. |
+| Triggers for meeting notes / hours / swaps | Scaffolded in migrations — applied via `supabase db push`. |
 | Schedule reminder on event sign-up | **You** — Step 5; one-line call in your signup handler. |

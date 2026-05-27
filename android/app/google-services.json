@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1878127003",
+    "project_id": "wheelernhs-7d62e",
+    "storage_bucket": "wheelernhs-7d62e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1878127003:android:f8edd69adcdb6070f7f13e",
+        "android_client_info": {
+          "package_name": "com.wheelermun.wheeler_nhs"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAv45exKh3o2kooeiQznsIUUWgvxaapgNQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

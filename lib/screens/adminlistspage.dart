@@ -2509,13 +2509,10 @@ class _AdminListPageState extends State<AdminListPage> {
                     radius: 16,
                     backgroundColor:
                         Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                    child: Text(
-                      hour.eventName.substring(0, 1).toUpperCase(),
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
+                    child: Icon(
+                      getIconForType(hour.type, context),
+                      size: 18,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                   ),
                   title: Text(

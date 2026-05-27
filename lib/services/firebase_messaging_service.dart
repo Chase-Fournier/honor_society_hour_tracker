@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+
+import 'notification_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -39,7 +42,15 @@ class FirebaseMessagingService {
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
     _foregroundSub = FirebaseMessaging.onMessage.listen((message) {
-      debugPrint('FCM foreground: ${message.notification?.title}');
+      final n = message.notification;
+      debugPrint('FCM foreground: ${n?.title}');
+      if (n == null) return;
+      NotificationService.instance.showLocal(
+        id: message.messageId?.hashCode ?? DateTime.now().millisecondsSinceEpoch,
+        title: n.title ?? 'Notification',
+        body: n.body ?? '',
+        payload: message.data.isEmpty ? null : message.data.toString(),
+      );
     });
 
     _tokenRefreshSub =
@@ -58,11 +69,32 @@ class FirebaseMessagingService {
   Future<String?> getToken() async {
     if (!_firebaseAvailable) return null;
     try {
+      if (Platform.isIOS || Platform.isMacOS) {
+        final apns = await _waitForApnsToken();
+        if (apns == null) {
+          debugPrint(
+              'FirebaseMessagingService: APNS token not available after wait — skipping FCM token fetch.');
+          return null;
+        }
+      }
       return await FirebaseMessaging.instance.getToken();
     } catch (e) {
       debugPrint('FirebaseMessagingService: getToken failed: $e');
       return null;
     }
+  }
+
+  Future<String?> _waitForApnsToken({
+    Duration timeout = const Duration(seconds: 15),
+    Duration interval = const Duration(milliseconds: 500),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      final token = await FirebaseMessaging.instance.getAPNSToken();
+      if (token != null) return token;
+      await Future.delayed(interval);
+    }
+    return null;
   }
 
   Future<void> deleteToken() async {
