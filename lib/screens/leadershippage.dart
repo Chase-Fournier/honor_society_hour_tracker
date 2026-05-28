@@ -5,7 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../providers/societyprovider.dart';
 import '../models/leadershiprole.dart';
 import '../common/app_design.dart';
-import '../common/app_widgets.dart';
 import '../providers/hapticsprovider.dart';
 
 final supabase = Supabase.instance.client;
@@ -415,6 +414,33 @@ class _LeadershipPageState extends State<LeadershipPage> {
     }
   }
 
+  // Bordered card with a soft shadow, matching the rest of the app's cards.
+  Widget _appStyleCard({required Widget child, VoidCallback? onTap}) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: AppDesign.borderLarge,
+        border: Border.all(color: scheme.outlineVariant, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.shadow.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: AppDesign.paddingMedium,
+          child: child,
+        ),
+      ),
+    );
+  }
+
   Widget _buildListLayout() {
     return ListView.builder(
       padding: AppDesign.paddingMedium,
@@ -423,7 +449,7 @@ class _LeadershipPageState extends State<LeadershipPage> {
         final role = _leadershipRoles[index];
         return Container(
           margin: const EdgeInsets.only(bottom: AppDesign.spacingM),
-          child: AppCard(
+          child: _appStyleCard(
             onTap: () {
               final hapticsProvider =
                   Provider.of<HapticsProvider>(context, listen: false);
@@ -535,7 +561,7 @@ class _LeadershipPageState extends State<LeadershipPage> {
       itemCount: _leadershipRoles.length,
       itemBuilder: (context, index) {
         final role = _leadershipRoles[index];
-        return AppCard(
+        return _appStyleCard(
           onTap: () {
             final hapticsProvider =
                 Provider.of<HapticsProvider>(context, listen: false);

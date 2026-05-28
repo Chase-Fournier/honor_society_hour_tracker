@@ -94,13 +94,9 @@ class NotificationService {
     } else if (Platform.isAndroid) {
       final status = await Permission.notification.request();
       granted = status.isGranted;
-      final android = _plugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-      final exact = await android?.requestExactAlarmsPermission();
-      if (exact == false) {
-        debugPrint(
-            'NotificationService: exact-alarm permission not granted, falling back to inexact.');
-      }
+      // Reminders are scheduled with AndroidScheduleMode.inexactAllowWhileIdle,
+      // so we deliberately do NOT request exact-alarm permission. Google Play
+      // restricts USE_EXACT_ALARM / SCHEDULE_EXACT_ALARM to calendar/alarm apps.
     }
 
     return granted;
