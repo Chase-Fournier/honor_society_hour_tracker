@@ -42,6 +42,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
   }
 
   Future<void> _fetchData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
     try {
@@ -49,7 +50,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
       final society =
           Provider.of<SocietyProvider>(context, listen: false).currentSociety;
       if (society == null) {
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoading = false);
         return;
       }
 
@@ -70,10 +71,10 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
         _fetchPendingSubmissions(),
       ]);
 
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     } catch (e) {
       print('Error fetching data: $e');
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -89,6 +90,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
           .eq('society_id', society.id)
           .order('created_at', ascending: false);
 
+      if (!mounted) return;
       setState(() {
         _meetingNotes =
             response.map((json) => MeetingNote.fromJson(json)).toList();
@@ -151,6 +153,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
         }
       }
 
+      if (!mounted) return;
       setState(() {
         _completedHoursMap = hoursMap;
         _hoursByTypeMap = hoursByType;
@@ -1251,7 +1254,7 @@ Future<void> _fetchPendingSubmissions() async {
     final society =
         Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     if (userId == null || society == null) {
-      setState(() => _pendingSubmissions = []);
+      if (mounted) setState(() => _pendingSubmissions = []);
       return;
     }
     final rows = await supabase
@@ -1262,6 +1265,7 @@ Future<void> _fetchPendingSubmissions() async {
         .inFilter('status', ['pending', 'rejected'])
         .order('created_at', ascending: false);
 
+    if (!mounted) return;
     setState(() {
       _pendingSubmissions = (rows as List)
           .map((r) =>
