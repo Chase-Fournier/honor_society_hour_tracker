@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gaimon/gaimon.dart';
 
@@ -7,6 +7,15 @@ class HapticsProvider extends ChangeNotifier {
   bool _isHapticsEnabled = true;
 
   bool get isHapticsEnabled => _isHapticsEnabled;
+
+  /// gaimon only ships iOS/Android implementations. On web and desktop the
+  /// platform channel is missing, so calling it throws MissingPluginException.
+  /// Gate every call so haptics are a silent no-op off mobile.
+  static final bool _platformSupportsHaptics = !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.android);
+
+  bool get _canVibrate => _isHapticsEnabled && _platformSupportsHaptics;
 
   HapticsProvider() {
     _loadHapticsPreference();
@@ -43,63 +52,63 @@ class HapticsProvider extends ChangeNotifier {
 
   /// Trigger selection haptic (for taps, selections)
   void selection() {
-    if (_isHapticsEnabled) {
+    if (_canVibrate) {
       Gaimon.selection();
     }
   }
 
   /// Trigger success haptic (for successful actions)
   void success() {
-    if (_isHapticsEnabled) {
+    if (_canVibrate) {
       Gaimon.success();
     }
   }
 
   /// Trigger error haptic (for errors, validation failures)
   void error() {
-    if (_isHapticsEnabled) {
+    if (_canVibrate) {
       Gaimon.error();
     }
   }
 
   /// Trigger warning haptic (for warnings, confirmations)
   void warning() {
-    if (_isHapticsEnabled) {
+    if (_canVibrate) {
       Gaimon.warning();
     }
   }
 
   /// Trigger light haptic (for subtle interactions)
   void light() {
-    if (_isHapticsEnabled) {
+    if (_canVibrate) {
       Gaimon.light();
     }
   }
 
   /// Trigger medium haptic (for standard interactions)
   void medium() {
-    if (_isHapticsEnabled) {
+    if (_canVibrate) {
       Gaimon.medium();
     }
   }
 
   /// Trigger heavy haptic (for important interactions)
   void heavy() {
-    if (_isHapticsEnabled) {
+    if (_canVibrate) {
       Gaimon.heavy();
     }
   }
 
   /// Trigger rigid haptic (for quick, strong feedback)
   void rigid() {
-    if (_isHapticsEnabled) {
+    if (_canVibrate) {
       Gaimon.rigid();
     }
   }
 
   /// Trigger soft haptic (for gentle feedback)
   void soft() {
-    if (_isHapticsEnabled) {
+    if (_canVibrate) {
       Gaimon.soft();
     }
   }

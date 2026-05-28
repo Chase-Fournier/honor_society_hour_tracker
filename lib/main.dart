@@ -11,7 +11,6 @@ import 'screens/societyselectionpage.dart';
 import 'screens/reset_password_page.dart';
 import 'package:app_links/app_links.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter/foundation.dart';
 import '../providers/hapticsprovider.dart';
 import '../providers/navigationprovider.dart';
 import 'providers/notificationsprovider.dart';
@@ -81,6 +80,13 @@ class _MyAppState extends State<MyApp> {
   StreamSubscription<AuthState>? _authSubscription; // To manage auth listener
 
   bool _isProcessingPasswordRecovery = false; // Flag for password recovery flow
+
+  // Created once, not on every build. Recreating it inside build() made the
+  // FutureBuilder revert to its "waiting" MaterialApp on each rebuild/hot
+  // reload, swapping the root view and triggering the web engine's
+  // "render a disposed EngineFlutterView" assertion.
+  late final Future<void> _themeColorFuture =
+      _fetchUserThemeColor(widget.themeNotifier);
 
   @override
   void initState() {
@@ -283,7 +289,7 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider(create: (_) => themeprovider.ThemeProvider()),
       ],
       child: FutureBuilder<void>(
-        future: _fetchUserThemeColor(widget.themeNotifier),
+        future: _themeColorFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const MaterialApp(

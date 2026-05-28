@@ -279,18 +279,13 @@ class _HomePageState extends State<HomePage> {
   List<Widget> _buildEventTypeChips(ThemeData theme) {
     return _availableEventTypes.map((type) {
       final bool isSelected = _selectedEventType == type;
-      return Padding(
-        padding: const EdgeInsets.only(
-            right: AppDesign.spacingS + 2,
-            bottom: AppDesign.spacingS), // Added bottom padding for wrap
-        child: _buildAnimatedFilterChip(
-          theme: theme,
-          label: type,
-          isSelected: isSelected,
-          onSelected: () {
-            if (mounted) setState(() => _selectedEventType = type);
-          },
-        ),
+      return _buildAnimatedFilterChip(
+        theme: theme,
+        label: type,
+        isSelected: isSelected,
+        onSelected: () {
+          if (mounted) setState(() => _selectedEventType = type);
+        },
       );
     }).toList();
   }
@@ -405,9 +400,16 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 20),
 
                     // Event type filter chips
-                    Wrap(
-                      spacing: 4,
-                      children: _buildEventTypeChips(Theme.of(context)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
+                          children: _buildEventTypeChips(Theme.of(context)),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 20),
 
@@ -552,30 +554,22 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: AppDesign.borderMedium,
-      ),
-      elevation: 1,
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          // Event type indicator line
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: 4,
-            child: Container(
-              color: Theme.of(context).colorScheme.primary,
-            ),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: AppDesign.borderLarge,
+        border: Border.all(color: scheme.outlineVariant, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.shadow.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
-
-          // Main content with padding to account for the type indicator
-          Padding(
-            padding: const EdgeInsets.only(left: 4),
-            child: InkWell(
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
               onTap: () async {
                 Provider.of<HapticsProvider>(context, listen: false)
                     .selection();
@@ -593,12 +587,12 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     // Event icon
                     CircleAvatar(
-                      radius: 16,
+                      radius: 20,
                       backgroundColor: scheme.primary.withOpacity(0.15),
                       child: Icon(
                         getIconForType(ce.type, context),
                         color: scheme.primary,
-                        size: 16,
+                        size: 18,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -688,9 +682,6 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1191,38 +1182,33 @@ class _HomePageState extends State<HomePage> {
         event.timeSlots.any((timeSlot) => timeSlot.attendees
             .any((attendee) => attendee.userId == currentUserId));
 
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: AppDesign.borderMedium,
-      ),
-      elevation: 1,
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          // Event type indicator line
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: 4,
-            child: Container(
-              color: Theme.of(context).colorScheme.primary,
-            ),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: AppDesign.borderLarge,
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
-
-          // Main content with padding to account for the type indicator
-          Padding(
-            padding: const EdgeInsets.only(left: 4),
-            child: CustomExpansionTile(
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: CustomExpansionTile(
               title: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 12, 8, 4),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Event icon
                     CircleAvatar(
-                      radius: 16,
+                      radius: 20,
                       backgroundColor: Theme.of(context)
                           .colorScheme
                           .primary
@@ -1230,7 +1216,7 @@ class _HomePageState extends State<HomePage> {
                       child: Icon(
                         getIconForType(event.type, context),
                         color: Theme.of(context).colorScheme.primary,
-                        size: 16,
+                        size: 18,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1333,9 +1319,6 @@ class _HomePageState extends State<HomePage> {
               ),
               children: _buildTimeSlotItems(event, currentUserId),
             ),
-          ),
-        ],
-      ),
     );
   }
 

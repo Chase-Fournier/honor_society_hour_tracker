@@ -545,6 +545,94 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
                   },
                   child: isWideScreen ? _buildGridView() : _buildListView(),
                 ),
+      bottomNavigationBar: _buildContactBar(),
+    );
+  }
+
+  Widget _buildContactBar() {
+    final scheme = Theme.of(context).colorScheme;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: Material(
+          color: scheme.primaryContainer,
+          borderRadius: AppDesign.borderLarge,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () {
+              Provider.of<HapticsProvider>(context, listen: false).selection();
+              _showContactInfo();
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Icon(Icons.add_business_outlined,
+                      color: scheme.onPrimaryContainer, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Want your honor society here?',
+                      style: TextStyle(
+                        color: scheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: scheme.onPrimaryContainer),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showContactInfo() {
+    final scheme = Theme.of(context).colorScheme;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: AppDesign.borderLarge),
+          title: Row(
+            children: [
+              Icon(Icons.add_business_outlined, color: scheme.primary),
+              const SizedBox(width: 8),
+              const Expanded(child: Text('Add your honor society')),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Interested in bringing your honor society onto the Honor Society Tracking App? '
+                'Reach out and we\'ll help get you set up.',
+              ),
+              const SizedBox(height: 16),
+              Text('Contact',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, color: scheme.primary)),
+              const SizedBox(height: 4),
+              const Text('Chase Fournier'),
+              const SelectableText('Fournier.chase2@gmail.com'),
+              const SizedBox(height: 8),
+              Text(
+                'or the current NHS Webmaster',
+                style: TextStyle(color: scheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
     );
   }
 

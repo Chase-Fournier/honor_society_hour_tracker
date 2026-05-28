@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 
 import '../common/app_design.dart';
 import '../providers/hapticsprovider.dart';
 import '../providers/notificationsprovider.dart';
+import '../providers/societyprovider.dart';
 import '../services/notification_service.dart';
 
 class NotificationSettingsPage extends StatelessWidget {
@@ -129,6 +131,10 @@ class NotificationSettingsPage extends StatelessWidget {
                             notifications.setSwapRequests(v);
                           },
                         ),
+                        // Admin-only: server-side preference for the
+                        // "hours submitted for review" push.
+                        if (context.watch<SocietyProvider>().isAdmin)
+                          const _AdminSubmissionNotifyTile(),
                       ],
                     ),
                   ),
@@ -195,6 +201,91 @@ class NotificationSettingsPage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Admin-only toggle for the "hours submitted for review" push. Backed by
+/// user_society_memberships.notify_continuous_submissions for the current
+/// society, so toggling it actually stops the server from sending the push.
+class _AdminSubmissionNotifyTile extends StatefulWidget {
+  const _AdminSubmissionNotifyTile();
+
+  @override
+  State<_AdminSubmissionNotifyTile> createState() =>
+      _AdminSubmissionNotifyTileState();
+}
+
+class _AdminSubmissionNotifyTileState
+    extends State<_AdminSubmissionNotifyTile> {
+  bool _value = true;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final supabase = Supabase.instance.client;
+    final userId = supabase.auth.currentUser?.id;
+    final societyId = context.read<SocietyProvider>().currentSociety?.id;
+    if (userId == null || societyId == null) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+    try {
+      final row = await supabase
+          .from('user_society_memberships')
+          .select('notify_continuous_submissions')
+          .eq('user_id', userId)
+          .eq('society_id', societyId)
+          .maybeSingle();
+      if (mounted) {
+        setState(() {
+          _value = (row?['notify_continuous_submissions'] as bool?) ?? true;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _set(bool v) async {
+    final supabase = Supabase.instance.client;
+    final userId = supabase.auth.currentUser?.id;
+    final societyId = context.read<SocietyProvider>().currentSociety?.id;
+    if (userId == null || societyId == null) return;
+
+    context.read<HapticsProvider>().selection();
+    setState(() => _value = v);
+    try {
+      await supabase
+          .from('user_society_memberships')
+          .update({'notify_continuous_submissions': v})
+          .eq('user_id', userId)
+          .eq('society_id', societyId);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _value = !v); // revert on failure
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not update preference: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      title: const Text('Ongoing event submissions'),
+      subtitle: const Text(
+          'When a member submits hours for review (admins only)'),
+      secondary: const Icon(Icons.assignment_turned_in),
+      value: _value,
+      onChanged: _loading ? null : _set,
     );
   }
 }

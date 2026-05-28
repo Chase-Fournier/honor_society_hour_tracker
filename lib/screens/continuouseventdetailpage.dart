@@ -109,37 +109,75 @@ class _ContinuousEventDetailPageState extends State<ContinuousEventDetailPage> {
           : ListView(
               padding: AppDesign.paddingMedium,
               children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: scheme.primary.withOpacity(0.15),
-                      child: Icon(getIconForType(event.type, context),
-                          color: scheme.primary),
-                    ),
-                    const SizedBox(width: AppDesign.spacingM),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                // Title + description group
+                _sectionCard(
+                  scheme: scheme,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          Text(event.name,
-                              style: const TextStyle(
-                                  fontSize: 20, fontWeight: FontWeight.bold)),
-                          Text(event.type,
-                              style: TextStyle(
-                                  color: scheme.onSurfaceVariant)),
+                          CircleAvatar(
+                            radius: 24,
+                            backgroundColor: scheme.primary.withOpacity(0.15),
+                            child: Icon(getIconForType(event.type, context),
+                                color: scheme.primary),
+                          ),
+                          const SizedBox(width: AppDesign.spacingM),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(event.name,
+                                    style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: scheme.primary.withOpacity(0.1),
+                                    borderRadius: AppDesign.borderSmall,
+                                  ),
+                                  child: Text(
+                                    event.type,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: scheme.primary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
-                    ),
-                  ],
+                      if (event.description.isNotEmpty) ...[
+                        const SizedBox(height: AppDesign.spacingM),
+                        Text(
+                          event.description,
+                          style: TextStyle(
+                            color: scheme.onSurfaceVariant,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-                if (event.description.isNotEmpty) ...[
+                if (event.steps.isNotEmpty) ...[
                   const SizedBox(height: AppDesign.spacingM),
-                  AppSurfaceCard(child: Text(event.description)),
+                  _sectionCard(
+                      scheme: scheme,
+                      child: _buildStepsSection(event.steps)),
                 ],
-                const SizedBox(height: AppDesign.spacingL),
-                _buildStepsSection(event.steps),
-                const SizedBox(height: AppDesign.spacingL),
-                _buildMySubmissionsSection(),
+                if (_mySubmissions.isNotEmpty) ...[
+                  const SizedBox(height: AppDesign.spacingM),
+                  _sectionCard(
+                      scheme: scheme, child: _buildMySubmissionsSection()),
+                ],
                 const SizedBox(height: 80),
               ],
             ),
@@ -160,6 +198,27 @@ class _ContinuousEventDetailPageState extends State<ContinuousEventDetailPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _sectionCard(
+      {required ColorScheme scheme, required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: AppDesign.paddingMedium,
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: AppDesign.borderLarge,
+        border: Border.all(color: scheme.outlineVariant, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.shadow.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: child,
     );
   }
 

@@ -272,45 +272,25 @@ class SocietySelectionPage extends StatelessWidget {
   void _selectSociety(BuildContext context, HonorSociety society) async {
     final provider = Provider.of<SocietyProvider>(context, listen: false);
 
-    // Save the navigator state before any async operations
+    // Capture navigator/messenger before any async gaps.
     final NavigatorState navigator = Navigator.of(context);
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
 
-    // Show loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => const Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
-
+    // No manual loading dialog here: setCurrentSociety() flips
+    // SocietyProvider.isLoading, which the Consumer body already renders as a
+    // single spinner. Showing a dialog on top produced two overlapping
+    // loading circles.
     try {
-      // Set the current society
       await provider.setCurrentSociety(society.id);
 
-      // We can use the saved navigator regardless of if the original context is mounted
-      // First close the dialog
-      navigator.pop();
-
-      // Then navigate to MainScreen
       navigator.pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const MainScreen()),
         (route) => false, // This removes all previous routes
       );
     } catch (e) {
-      // Make sure to close loading dialog on error
-      try {
-        navigator.pop(); // Close the dialog
-
-        // Show error message if possible
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error selecting society: $e')),
-        );
-      } catch (dialogError) {
-        // If even this fails, log the error
-        print('Error handling society selection failure: $dialogError');
-        print('Original error: $e');
-      }
+      messenger.showSnackBar(
+        SnackBar(content: Text('Error selecting society: $e')),
+      );
     }
   }
 

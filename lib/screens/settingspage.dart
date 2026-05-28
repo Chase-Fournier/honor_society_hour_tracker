@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -494,31 +495,42 @@ class _SettingsPageState extends State<SettingsPage> {
             trailing: const Icon(Icons.chevron_right),
             onTap: _navigateToAccountSettings,
           ),
-          const Divider(height: 1),
-          ListTile(
-            leading: Icon(
-              Icons.notifications_outlined,
-              color: Theme.of(context).colorScheme.primary,
-              size: 28,
+          // Push notifications are only supported on mobile (Android/iOS).
+          // Hide the entry on web and desktop.
+          if (_supportsPushNotifications) ...[
+            const Divider(height: 1),
+            ListTile(
+              leading: Icon(
+                Icons.notifications_outlined,
+                color: Theme.of(context).colorScheme.primary,
+                size: 28,
+              ),
+              title: const Text('Notifications'),
+              subtitle:
+                  const Text('Reminders, meeting notes, hours, swap requests'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Provider.of<HapticsProvider>(context, listen: false)
+                    .selection();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const NotificationSettingsPage()),
+                );
+              },
             ),
-            title: const Text('Notifications'),
-            subtitle:
-                const Text('Reminders, meeting notes, hours, swap requests'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Provider.of<HapticsProvider>(context, listen: false)
-                  .selection();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const NotificationSettingsPage()),
-              );
-            },
-          ),
+          ],
         ],
       ),
     );
   }
+
+  /// True only on mobile platforms, where FCM push is available. Excludes web
+  /// and desktop (macOS/Windows/Linux).
+  static bool get _supportsPushNotifications =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
 
   // Appearance Settings Card
     Widget _buildAppearanceCard() {

@@ -1281,14 +1281,23 @@ Widget _buildPendingSubmissionTile(ContinuousEventSubmission s) {
   final statusLabel = isRejected ? 'Rejected' : 'Pending review';
   final eventName = s.continuousEventName ?? 'Ongoing opportunity';
 
-  return Padding(
-    padding: const EdgeInsets.fromLTRB(
+  return Container(
+    margin: const EdgeInsets.fromLTRB(
         AppDesign.spacingM, 0, AppDesign.spacingM, AppDesign.spacingS),
-    child: Material(
+    decoration: BoxDecoration(
       color: scheme.surface,
-      elevation: 1,
-      borderRadius: AppDesign.borderMedium,
-      child: Padding(
+      borderRadius: AppDesign.borderLarge,
+      border: Border.all(color: scheme.outlineVariant, width: 1),
+      boxShadow: [
+        BoxShadow(
+          color: scheme.shadow.withOpacity(0.1),
+          blurRadius: 4,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: Padding(
         padding: AppDesign.paddingMedium,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1296,12 +1305,24 @@ Widget _buildPendingSubmissionTile(ContinuousEventSubmission s) {
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    eventName,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 15),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        eventName,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${s.hours} hr • ${dateFmt.format(s.activityDate)}',
+                        style: TextStyle(
+                            color: scheme.onSurfaceVariant, fontSize: 13),
+                      ),
+                    ],
                   ),
                 ),
+                const SizedBox(width: 8),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -1318,11 +1339,6 @@ Widget _buildPendingSubmissionTile(ContinuousEventSubmission s) {
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '${s.hours} hr • ${dateFmt.format(s.activityDate)}',
-              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
             ),
             if (isRejected &&
                 s.reviewerNotes != null &&
@@ -1342,7 +1358,6 @@ Widget _buildPendingSubmissionTile(ContinuousEventSubmission s) {
           ],
         ),
       ),
-    ),
   );
 }
 }
