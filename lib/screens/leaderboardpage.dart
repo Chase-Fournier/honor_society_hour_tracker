@@ -95,7 +95,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
         });
       }
     } catch (e) {
-      print('Error fetching leaderboard data: $e');
+      debugPrint('Error fetching leaderboard data: $e');
       setState(() => _isLoading = false);
     }
   }

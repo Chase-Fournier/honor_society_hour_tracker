@@ -83,7 +83,7 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
         });
       }
     } catch (e) {
-      print('Error loading dashboard data: $e');
+      debugPrint('Error loading dashboard data: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading dashboard data: $e')),
@@ -230,7 +230,7 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
         upcomingEvents: upcomingEvents,
       );
     } catch (e) {
-      print('Error fetching society stats: $e');
+      debugPrint('Error fetching society stats: $e');
       // Return default stats on error
       return SocietyStats(
         totalMembers: 0,
@@ -267,7 +267,7 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
         );
       }).toList();
     } catch (e) {
-      print('Error fetching activity: $e');
+      debugPrint('Error fetching activity: $e');
       return [];
     }
   }
@@ -889,7 +889,7 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
           .map<MeetingNote>((json) => MeetingNote.fromJson(json))
           .toList();
     } catch (e) {
-      print('Error fetching meeting notes: $e');
+      debugPrint('Error fetching meeting notes: $e');
       return [];
     }
   }

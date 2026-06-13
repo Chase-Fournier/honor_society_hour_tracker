@@ -1,4 +1,6 @@
 // lib/models/completeduserhour.dart
+import 'package:flutter/foundation.dart';
+
 class CompletedUserHour {
   final int? id; // <-- Add this ID field
   final String eventName;
@@ -21,7 +23,7 @@ class CompletedUserHour {
       hours = hoursValue;
     } else {
       // Provide a default or handle the error differently if needed
-      print(
+      debugPrint(
           'Warning: Invalid hours value received: $hoursValue. Defaulting to 0.');
       hours = 0.0;
       // Optionally: throw FormatException('Invalid hours value: $hoursValue');

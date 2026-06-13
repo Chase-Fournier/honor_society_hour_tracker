@@ -28,7 +28,7 @@ class HapticsProvider extends ChangeNotifier {
       _isHapticsEnabled = prefs.getBool('haptics_enabled') ?? true;
       notifyListeners();
     } catch (e) {
-      print('Error loading haptics preference: $e');
+      debugPrint('Error loading haptics preference: $e');
     }
   }
 
@@ -46,7 +46,7 @@ class HapticsProvider extends ChangeNotifier {
         selection();
       }
     } catch (e) {
-      print('Error saving haptics preference: $e');
+      debugPrint('Error saving haptics preference: $e');
     }
   }
 

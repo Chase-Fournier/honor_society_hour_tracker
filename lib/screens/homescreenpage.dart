@@ -112,7 +112,7 @@ class _HomePageState extends State<HomePage> {
 
       setState(() => _isLoading = false);
     } catch (e) {
-      print('Error fetching data: $e');
+      debugPrint('Error fetching data: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -576,7 +576,7 @@ class _HomePageState extends State<HomePage> {
         _myLatestSubmissionByEvent = latest;
       });
     } catch (e) {
-      print('Error fetching continuous events: $e');
+      debugPrint('Error fetching continuous events: $e');
     }
   }
 
@@ -855,7 +855,7 @@ class _HomePageState extends State<HomePage> {
         });
       }
     } catch (e) {
-      print('Error fetching collections: $e');
+      debugPrint('Error fetching collections: $e');
       if (mounted) {
         setState(() => _collections = []);
       }
@@ -2620,10 +2620,10 @@ class _HomePageState extends State<HomePage> {
           await _showSwapRequestNotification(
               swapRequest, eventData, profileData, _events);
         } else {
-          print('Invalid swap request data: $request');
+          debugPrint('Invalid swap request data: $request');
         }
       } catch (e) {
-        print('Error processing swap request: $e');
+        debugPrint('Error processing swap request: $e');
       }
     }
   }
@@ -2781,7 +2781,7 @@ class _HomePageState extends State<HomePage> {
         societyId: society?.id,
       );
     } catch (e) {
-      print('Error swapping attendees: $e');
+      debugPrint('Error swapping attendees: $e');
       rethrow;
     }
     if (mounted) {

@@ -92,7 +92,7 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
             .toList();
       });
     } catch (e) {
-      print('Error loading societies: $e');
+      debugPrint('Error loading societies: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -133,7 +133,7 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
         _requestDates = dateMap;
       });
     } catch (e) {
-      print('Error fetching request statuses: $e');
+      debugPrint('Error fetching request statuses: $e');
     }
   }
 

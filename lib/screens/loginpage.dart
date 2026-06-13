@@ -341,7 +341,7 @@ class _LoginPageState extends State<LoginPage>
             },
             onError: (error) {
               // Handle the error
-              print('Social sign-in error: $error');
+              debugPrint('Social sign-in error: $error');
             },
           ),
         ],

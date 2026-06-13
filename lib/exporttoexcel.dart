@@ -145,7 +145,7 @@ Future<void> exportToExcel(
               : maxEvents;
         }
       } catch (e) {
-        print('Error processing entry: $e');
+        debugPrint('Error processing entry: $e');
         continue;
       }
     }
