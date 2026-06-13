@@ -232,7 +232,7 @@ class _HomePageState extends State<HomePage> {
 
         // Process completed hours
         for (final entry in data) {
-          final hours = entry['hours'] + 0.0 ?? 0.0;
+          final hours = (entry['hours'] as num?)?.toDouble() ?? 0.0;
           final eventType = entry['type'] as String;
           final eventName = entry['event_name'] as String? ?? 'Unknown Event';
           final dateString = entry['date'] as String?;
