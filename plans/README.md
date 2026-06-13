@@ -20,9 +20,9 @@ when done.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 001 | Fix null-`hours` precedence in hour totals | P1 | S | — | TODO |
-| 002 | Pass `societyId` on signup activity log | P1 | S | — | TODO |
-| 003 | Make time-slot signup atomic (no oversell) | P1 | M | — | TODO |
+| 001 | Fix null-`hours` precedence in hour totals | P1 | S | — | DONE |
+| 002 | Pass `societyId` on signup activity log | P1 | S | — | DONE |
+| 003 | Make time-slot signup atomic (no oversell) | P1 | M | — | DONE (client merged-pending; migration needs operator `supabase db push`) |
 | 004 | Replace `print()` with `debugPrint()` | P2 | M | 001,002,003 | TODO |
 | 005 | Consolidate admin event-fetch into one path | P2 | M | — (before 008) | TODO |
 | 006 | Swap-request inbox on home screen | P2 | M | — (before 008) | TODO |
@@ -31,6 +31,20 @@ when done.
 | 009 | UI consistency — align all screens to the Attendance design | P2 | L | — (coordinate with 008 on home) | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED (one-line rationale)
+
+## Execution log
+
+- **2026-06-13 — 001, 002, 003 executed and reviewed (advisor `execute`).** Because
+  all three touch `lib/screens/homescreenpage.dart` (002 and 003 rewrite the same
+  signup block), they were stacked as three commits on a single branch rather than
+  three conflicting branches:
+  - Branch: `advisor/correctness-fixes-001-003` (in the executor worktree; **not merged, not pushed**).
+  - `68cccca` Fix null-hours precedence in hour totals (001)
+  - `90e063a` Pass societyId on signup activity log (002)
+  - `9770cac` Make timeslot signup atomic via RPC (003)
+  - Verified by reviewer: scope clean per plan, `flutter analyze` → 0 errors (pre-existing info/warning lints only), 002's `societyId` preserved through 003's rewrite.
+  - **Operator action outstanding (003 Step 4):** apply `supabase/migrations/20260613000001_signup_for_timeslot.sql` via `supabase db push` **before** shipping the client change, or signup throws "function not found". Then verify capacity is enforced (no oversell / negative count, idempotent re-signup).
+  - **Reviewer follow-up flagged (003):** the `security definer` function trusts `p_user_id`; consider deriving from `auth.uid()` if RLS on `Attendees` is not strict. Not a regression (old client also trusted client-side userId) — deferred.
 
 ## Dependency notes
 
