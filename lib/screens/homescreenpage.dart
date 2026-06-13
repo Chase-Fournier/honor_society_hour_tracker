@@ -43,6 +43,10 @@ class _HomePageState extends State<HomePage> {
   List<Collection> _collections = [];
   List<Event> _events = [];
   String _selectedEventType = 'All';
+  String _searchQuery = '';
+  bool _showSignedUpOnly = false;
+  String _dateFilter = 'All';
+  final TextEditingController _searchController = TextEditingController();
   late Map<String, double> _completedHoursMap = {};
   late Map<String, double> _potentialHoursMap = {};
   late Map<String, double> _requirementMap = {};
@@ -59,6 +63,12 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _fetchData();
     _checkPendingSwapRequests();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchData() async {
@@ -290,16 +300,43 @@ class _HomePageState extends State<HomePage> {
     }).toList();
   }
 
-  // Filter events based on selected type
   List<Event> _getFilteredEvents() {
-    if (_selectedEventType == 'All') {
-      return _events;
-    } else {
-      return _events
-          .where((event) =>
-              normalizeType(event.type) == normalizeType(_selectedEventType))
+    List<Event> events = _events;
+
+    if (_selectedEventType != 'All') {
+      events = events
+          .where((e) => normalizeType(e.type) == normalizeType(_selectedEventType))
           .toList();
     }
+
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      events = events
+          .where((e) =>
+              e.name.toLowerCase().contains(q) ||
+              e.description.toLowerCase().contains(q) ||
+              (e.location?.toLowerCase().contains(q) ?? false))
+          .toList();
+    }
+
+    if (_showSignedUpOnly) {
+      final userId = supabase.auth.currentUser?.id;
+      events = events
+          .where((e) =>
+              e.timeSlots.any((ts) => ts.attendees.any((a) => a.userId == userId)))
+          .toList();
+    }
+
+    if (_dateFilter == 'This Week') {
+      final cutoff = DateTime.now().add(const Duration(days: 7));
+      events = events.where((e) => !e.date.isAfter(cutoff)).toList();
+    } else if (_dateFilter == 'This Month') {
+      final now = DateTime.now();
+      final cutoff = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+      events = events.where((e) => !e.date.isAfter(cutoff)).toList();
+    }
+
+    return events;
   }
 
   Widget _buildAnimatedFilterChip({
@@ -399,19 +436,59 @@ class _HomePageState extends State<HomePage> {
 
                     const SizedBox(height: 20),
 
-                    // Event type filter chips
+                    // Search bar
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Wrap(
-                          spacing: 4,
-                          runSpacing: 4,
-                          children: _buildEventTypeChips(Theme.of(context)),
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Search events…',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() => _searchQuery = '');
+                                  },
+                                )
+                              : null,
+                          filled: true,
+                          fillColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest
+                              .withValues(alpha: 0.5),
+                          border: OutlineInputBorder(
+                            borderRadius: AppDesign.borderMedium,
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 0),
                         ),
+                        onChanged: (v) => setState(() => _searchQuery = v),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 12),
+
+                    // Event type filter chips
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        spacing: 6,
+                        children: [
+                          ..._buildEventTypeChips(Theme.of(context)),
+                          _buildAnimatedFilterChip(
+                            theme: Theme.of(context),
+                            label: 'Signed Up',
+                            isSelected: _showSignedUpOnly,
+                            onSelected: () => setState(
+                                () => _showSignedUpOnly = !_showSignedUpOnly),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
 
                     // Collections and Events
                     if (totalItems == 0)
@@ -1298,6 +1375,36 @@ class _HomePageState extends State<HomePage> {
                             ],
                           ),
 
+                          if (event.location != null &&
+                              event.location!.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.location_on,
+                                  size: 14,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    event.location!,
+                                    style: TextStyle(
+                                      fontSize: 13.0,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+
                           const SizedBox(height: 4),
                           Text(
                             event.description,
@@ -1902,18 +2009,27 @@ class _HomePageState extends State<HomePage> {
   /// Returns:
   /// - Future<void>
   Future<List<UserProfile>> _fetchAllUsers() async {
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    if (society == null) return [];
+
     final response = await Supabase.instance.client
-        .from('profiles')
-        .select('user_id, name')
-        .order('name');
+        .from('user_society_memberships')
+        .select('profiles!inner(user_id, name)')
+        .eq('society_id', society.id)
+        .order('user_id');
 
     return (response as List)
-        .map((user) => UserProfile(
-              id: user['user_id'],
-              name: user['name'],
-              completedHours: [], // You might want to fetch this information separately if needed
-            ))
-        .toList();
+        .map((row) {
+          final profile = row['profiles'] as Map<String, dynamic>;
+          return UserProfile(
+            id: profile['user_id'],
+            name: profile['name'],
+            completedHours: [],
+          );
+        })
+        .toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
   }
 
   /// Displays dialog for managing form submissions.
@@ -2432,6 +2548,7 @@ class _HomePageState extends State<HomePage> {
     final calendarEventp = add2cal.Event(
       title: event.name,
       description: event.description,
+      location: event.location,
       startDate: DateTime(
         event.date.year,
         event.date.month,

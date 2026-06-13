@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_nav_bar/google_nav_bar.dart';
-import 'package:circle_nav_bar/circle_nav_bar.dart';
-import 'package:flutter_floating_bottom_bar/flutter_floating_bottom_bar.dart';
-import '../providers/navigationprovider.dart';
 import '../providers/hapticsprovider.dart';
-import '../common/app_design.dart';
+import 'app_design.dart';
 
 class NavigationTabData {
   final String title;
   final IconData icon;
-  final String? shortText; // For circle nav bar
+  final String? shortText; // Shown as the pill label when selected
 
   NavigationTabData({
     required this.title,
@@ -19,6 +15,12 @@ class NavigationTabData {
   });
 }
 
+/// A single, custom bottom navigation bar.
+///
+/// Replaces the previous swappable (google / circle / floating) variants with
+/// one design: a flat surface bar whose selected tab animates into a pill that
+/// reveals its label. The label width and the pill background animate smoothly,
+/// so neighbouring tabs slide as the selection moves.
 class CustomNavigationBar extends StatelessWidget {
   final int selectedIndex;
   final Function(int) onTabChanged;
@@ -37,242 +39,140 @@ class CustomNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<NavigationProvider>(
-      builder: (context, navigationProvider, child) {
-        switch (navigationProvider.navigationBarType) {
-          case NavigationBarType.google:
-            return _buildWithGoogleNavBar(context);
-          case NavigationBarType.circle:
-            return _buildWithCircleNavBar(context);
-          case NavigationBarType.floating:
-            return _buildWithFloatingNavBar(context);
-        }
-      },
-    );
-  }
-
-  Widget _buildWithGoogleNavBar(BuildContext context) {
-    return Scaffold(
-      body: body,
-      bottomNavigationBar: _buildGoogleNavBar(context),
-    );
-  }
-
-  Widget _buildWithCircleNavBar(BuildContext context) {
-    return Scaffold(
-      body: body,
-      bottomNavigationBar: _buildCircleNavBar(context),
-    );
-  }
-
-  Widget _buildWithFloatingNavBar(BuildContext context) {
-    return BottomBar(
-      child: _buildFloatingNavContent(context),
-      body: (context, controller) => body,
-      hideOnScroll: true,
-      scrollOpposite: false,
-      width: MediaQuery.of(context).size.width * 0.85,
-      barColor: Colors.transparent,
-      borderRadius: BorderRadius.circular(AppDesign.radiusRound),
-      duration: AppDesign.animationMedium,
-      curve: Curves.easeInOutCubic,
-      showIcon: false,
-      offset: 16,
-      barAlignment: Alignment.bottomCenter,
-      barDecoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerLowest.withOpacity(0.95),
-        borderRadius: BorderRadius.circular(AppDesign.radiusRound),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-            spreadRadius: 0,
-          ),
-        ],
-      ),
-    );
-  }
-
-   Widget _buildGoogleNavBar(BuildContext context) {
     final theme = Theme.of(context);
-    
-    // Admin users get smaller sizing
-    final iconSize = isAdmin ? 20.0 : 24.0;
-    final horizontalPadding = isAdmin ? AppDesign.spacingS : AppDesign.spacingM;
-    final verticalPadding = isAdmin ? AppDesign.spacingS : AppDesign.spacingM;
-    final tabHorizontalPadding = isAdmin ? AppDesign.spacingM : AppDesign.spacingL;
-    final tabVerticalPadding = isAdmin ? AppDesign.spacingS : AppDesign.spacingM;
-    final gap = isAdmin ? AppDesign.spacingXS : AppDesign.spacingS;
-    
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.shadow.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: horizontalPadding,
-            vertical: verticalPadding,
-          ),
-          child: GNav(
-            selectedIndex: selectedIndex,
-            onTabChange: (index) {
-              final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-              hapticsProvider.selection();
-              onTabChanged(index);
-            },
-            gap: gap,
-            activeColor: theme.colorScheme.onPrimaryContainer,
-            iconSize: iconSize,
+
+    return Scaffold(
+      body: body,
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          boxShadow: [
+            BoxShadow(
+              color: theme.colorScheme.shadow.withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
             padding: EdgeInsets.symmetric(
-              horizontal: tabHorizontalPadding,
-              vertical: tabVerticalPadding,
+              horizontal: AppDesign.spacingS,
+              vertical: isAdmin ? AppDesign.spacingXS : AppDesign.spacingS,
             ),
-            duration: AppDesign.animationMedium,
-            tabBackgroundColor: theme.colorScheme.primaryContainer,
-            color: theme.colorScheme.onSurfaceVariant,
-            tabBorderRadius: 50, // More pill-shaped (circular)
-            curve: Curves.easeInOutCubic,
-            haptic: false, // We handle haptics ourselves
-            tabs: tabs.map((tab) => GButton(
-              icon: tab.icon,
-              text: tab.title,
-            )).toList(),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: tabs.asMap().entries.map((entry) {
+                final index = entry.key;
+                final tab = entry.value;
+                return _NavBarItem(
+                  tab: tab,
+                  isSelected: index == selectedIndex,
+                  isAdmin: isAdmin,
+                  onTap: () {
+                    if (index == selectedIndex) return;
+                    Provider.of<HapticsProvider>(context, listen: false)
+                        .selection();
+                    onTabChanged(index);
+                  },
+                );
+              }).toList(),
+            ),
           ),
         ),
       ),
     );
   }
+}
 
+class _NavBarItem extends StatelessWidget {
+  final NavigationTabData tab;
+  final bool isSelected;
+  final bool isAdmin;
+  final VoidCallback onTap;
 
-  Widget _buildCircleNavBar(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return CircleNavBar(
-      activeIcons: tabs.map((tab) => Icon(
-        tab.icon,
-        color: theme.colorScheme.onPrimary,
-        size: 24,
-      )).toList(),
-      inactiveIcons: tabs.map((tab) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            tab.icon,
-            color: theme.colorScheme.onSurfaceVariant,
-            size: 20,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            tab.shortText ?? tab.title,
-            style: TextStyle(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      )).toList(),
-      color: theme.colorScheme.surfaceContainerLowest,
-      circleColor: theme.colorScheme.primary,
-      height: 60,
-      circleWidth: 60,
-      activeIndex: selectedIndex,
-      onTap: (index) {
-        final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-        hapticsProvider.selection();
-        onTabChanged(index);
-      },
-      padding: const EdgeInsets.only(
-        left: AppDesign.spacingM,
-        right: AppDesign.spacingM,
-        bottom: AppDesign.spacingM,
-      ),
-      cornerRadius: BorderRadius.only(
-        topLeft: Radius.circular(AppDesign.radiusSmall),
-        topRight: Radius.circular(AppDesign.radiusSmall),
-        bottomLeft: Radius.circular(AppDesign.radiusLarge),
-        bottomRight: Radius.circular(AppDesign.radiusLarge),
-      ),
-      shadowColor: theme.colorScheme.shadow.withOpacity(0.05),
-      circleShadowColor: theme.colorScheme.shadow.withOpacity(0.05),
-      elevation: 5, // Reduced elevation
-      // Removed gradients for flatter look
+  const _NavBarItem({
+    Key? key,
+    required this.tab,
+    required this.isSelected,
+    required this.isAdmin,
+    required this.onTap,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    final double iconSize = isAdmin ? 22 : 24;
+    final double labelSize = isAdmin ? 12 : 13;
+    final EdgeInsets pillPadding = EdgeInsets.symmetric(
+      horizontal: isAdmin ? AppDesign.spacingM - 2 : AppDesign.spacingM,
+      vertical: isAdmin ? AppDesign.spacingS : AppDesign.spacingS + 2,
     );
-  }
 
-  Widget _buildFloatingNavContent(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return Container(
-      height: 60,
-      padding: const EdgeInsets.symmetric(horizontal: AppDesign.spacingXS),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: tabs.asMap().entries.map((entry) {
-          final index = entry.key;
-          final tab = entry.value;
-          final isSelected = index == selectedIndex;
-          
-          return Expanded(
-            child: GestureDetector(
-              onTap: () {
-                final hapticsProvider = Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                onTabChanged(index);
+    final Color foreground =
+        isSelected ? scheme.onPrimaryContainer : scheme.onSurfaceVariant;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: AppDesign.animationMedium,
+        curve: Curves.easeInOutCubic,
+        padding: pillPadding,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? scheme.primaryContainer
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppDesign.radiusRound),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Icon colour cross-fades for a smooth selected/unselected swap.
+            TweenAnimationBuilder<double>(
+              duration: AppDesign.animationMedium,
+              curve: Curves.easeInOutCubic,
+              tween: Tween<double>(begin: 0, end: isSelected ? 1 : 0),
+              builder: (context, t, _) {
+                return Icon(
+                  tab.icon,
+                  size: iconSize,
+                  color: Color.lerp(
+                    scheme.onSurfaceVariant,
+                    scheme.onPrimaryContainer,
+                    t,
+                  ),
+                );
               },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppDesign.spacingS,
-                  vertical: AppDesign.spacingS,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected 
-                    ? theme.colorScheme.primaryContainer.withOpacity(0.8)
-                    : Colors.transparent,
-                  borderRadius: BorderRadius.circular(100),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      tab.icon,
-                      color: isSelected 
-                        ? theme.colorScheme.onPrimaryContainer
-                        : theme.colorScheme.onSurfaceVariant,
-                      size: 22,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      tab.shortText ?? tab.title,
-                      style: TextStyle(
-                        color: isSelected 
-                          ? theme.colorScheme.onPrimaryContainer
-                          : theme.colorScheme.onSurfaceVariant,
-                        fontSize: 10,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
+            ),
+            // The label only exists when selected; AnimatedSize tweens its
+            // width in/out so the pill grows and shrinks smoothly.
+            ClipRect(
+              child: AnimatedSize(
+                duration: AppDesign.animationMedium,
+                curve: Curves.easeInOutCubic,
+                child: isSelected
+                    ? Padding(
+                        padding: const EdgeInsets.only(left: AppDesign.spacingS),
+                        child: Text(
+                          tab.shortText ?? tab.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.clip,
+                          softWrap: false,
+                          style: TextStyle(
+                            color: foreground,
+                            fontSize: labelSize,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
               ),
             ),
-          );
-        }).toList(),
+          ],
+        ),
       ),
     );
   }

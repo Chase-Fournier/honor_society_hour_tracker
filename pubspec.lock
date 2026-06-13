@@ -113,14 +113,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.2"
-  bottom_navy_bar:
-    dependency: "direct main"
-    description:
-      name: bottom_navy_bar
-      sha256: ed54e0a18748106cc4d3648390bf94e88c0913db6bd3018dd30ab0810f0c26d6
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.1.0"
   characters:
     dependency: transitive
     description:
@@ -145,14 +137,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.4"
-  circle_nav_bar:
-    dependency: "direct main"
-    description:
-      name: circle_nav_bar
-      sha256: "322b35143fedec52f744e6ce6eea5468c9995ece75a50df7516c7324871226eb"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.2.0"
   cli_util:
     dependency: transitive
     description:
@@ -406,14 +390,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.0"
-  flutter_floating_bottom_bar:
-    dependency: "direct main"
-    description:
-      name: flutter_floating_bottom_bar
-      sha256: "75a2daf16e883b6e565d00ee052256012638bfbd352ffe66da70312e5be03d6a"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.4.0"
   flutter_html:
     dependency: "direct main"
     description:
@@ -605,14 +581,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.3.3+1"
-  google_nav_bar:
-    dependency: "direct main"
-    description:
-      name: google_nav_bar
-      sha256: bb12dd21514ee1b041ab3127673e2fd85e693337df308f7f2b75cd1e8e92eaf4
-      url: "https://pub.dev"
-    source: hosted
-    version: "5.0.7"
   google_sign_in:
     dependency: "direct main"
     description:

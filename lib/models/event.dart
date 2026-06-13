@@ -15,6 +15,7 @@ class Event {
   final bool hasDelay;
   final int delayHours;
   final Duration swapRequestDeadline; // New property
+  final String? location;
 
   Event({
     required this.id,
@@ -31,6 +32,7 @@ class Event {
     this.swapRequestDeadline = const Duration(days: 1),
     this.hasDelay = false,
     this.delayHours = 0,
+    this.location,
   }) : timeSlots = timeSlots ?? [];
 
   factory Event.fromJson(Map<String, dynamic> json) {
@@ -53,6 +55,7 @@ class Event {
           Duration(hours: json['swap_request_deadline_hours'] ?? 24),
       hasDelay: json['has_delay'] ?? false,
       delayHours: json['delay_hours'] ?? 0,
+      location: json['location'] as String?,
     );
   }
 
@@ -72,6 +75,7 @@ class Event {
       'swap_request_deadline_hours': swapRequestDeadline.inHours,
       'has_delay': hasDelay,
       'delay_hours': delayHours,
+      'location': location,
     };
   }
 
@@ -106,6 +110,7 @@ class Event {
     Duration? swapRequestDeadline,
     bool? hasDelay,
     int? delayHours,
+    String? location,
   }) {
     return Event(
         id: id ?? this.id,
@@ -121,6 +126,7 @@ class Event {
         formLink: formLink ?? this.formLink,
         hasDelay: hasDelay ?? this.hasDelay,
         delayHours: delayHours ?? this.delayHours,
-        swapRequestDeadline: swapRequestDeadline ?? this.swapRequestDeadline);
+        swapRequestDeadline: swapRequestDeadline ?? this.swapRequestDeadline,
+        location: location ?? this.location);
   }
 }

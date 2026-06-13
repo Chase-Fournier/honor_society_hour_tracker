@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:provider/provider.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import 'package:intl/intl.dart';
@@ -84,15 +85,26 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
     return types;
   }
 
-  // Add this filtered events getter
   List<Event> get _filteredEvents {
-    if (_selectedEventType == 'All') return _events;
+    final events = _selectedEventType == 'All'
+        ? List<Event>.from(_events)
+        : _events
+            .where((e) =>
+                normalizeType(e.type) == normalizeType(_selectedEventType))
+            .toList();
+    events.sort((a, b) => a.date.compareTo(b.date));
+    return events;
+  }
 
-    return _events
-        .where((event) =>
-            normalizeType(event.type) == normalizeType(_selectedEventType))
+  List<Collection> _getCollectionsWithEvents() {
+    final filtered = _filteredEvents;
+    return _collections
+        .where((c) => filtered.any((e) => e.collectionId == c.id))
         .toList();
   }
+
+  List<Event> _getUncategorizedEvents() =>
+      _filteredEvents.where((e) => e.collectionId == null).toList();
 
   // Build event type filter chips based on society requirements
   List<Widget> _buildEventTypeChips() {
@@ -269,13 +281,21 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                             ],
                           ),
                         )
-                      : ListView.builder(
-                          itemCount: _filteredEvents.length,
-                          itemBuilder: (context, index) {
-                            final event = _filteredEvents[index];
-                            return _buildEventCard(event);
-                          },
-                        ),
+                      : Builder(builder: (context) {
+                          final collections = _getCollectionsWithEvents();
+                          final uncategorized = _getUncategorizedEvents();
+                          final total = collections.length + uncategorized.length;
+                          return ListView.builder(
+                            itemCount: total,
+                            itemBuilder: (context, index) {
+                              if (index < collections.length) {
+                                return _buildCollectionCard(collections[index]);
+                              }
+                              return _buildEventCard(
+                                  uncategorized[index - collections.length]);
+                            },
+                          );
+                        }),
                 ),
               ],
             ),
@@ -623,8 +643,237 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
     );
   }
 
-  // Usage in your original build method:
-  
+  /// Shows a dialog with a copyable list of attendee emails for a time slot,
+  /// with the option to expand to every attendee across the whole event, plus
+  /// a copy-to-clipboard button.
+  Future<void> _showAttendeeEmailsDialog(Event event, TimeSlot timeSlot) async {
+    final Set<String> slotUserIds =
+        timeSlot.attendees.map((a) => a.userId).toSet();
+    final Set<String> eventUserIds = event.timeSlots
+        .expand((ts) => ts.attendees)
+        .map((a) => a.userId)
+        .toSet();
+
+    if (eventUserIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No attendees to export.')),
+      );
+      return;
+    }
+
+    // Fetch emails for every attendee that could be shown, in one query.
+    final Map<String, String> emailMap = {};
+    try {
+      final resp = await supabase
+          .from('profiles')
+          .select('user_id, email')
+          .inFilter('user_id', eventUserIds.toList());
+      for (final item in resp as List) {
+        emailMap[item['user_id']] = (item['email'] as String?) ?? '';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching emails: $e')),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+
+    bool wholeEvent = false;
+
+    List<String> emailsFor(Set<String> ids) {
+      final list = ids
+          .map((id) => emailMap[id] ?? '')
+          .where((e) => e.isNotEmpty)
+          .toList()
+        ..sort();
+      return list;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setLocalState) {
+            final emails = emailsFor(wholeEvent ? eventUserIds : slotUserIds);
+            final text = emails.join('\n');
+            return AlertDialog(
+              title: const Text('Attendee Emails'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${emails.length} ${emails.length == 1 ? 'email' : 'emails'} • '
+                      '${wholeEvent ? 'entire event' : 'this time slot'}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 240),
+                      width: double.maxFinite,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(ctx)
+                            .colorScheme
+                            .surfaceContainerHighest
+                            .withValues(alpha: 0.4),
+                        borderRadius: AppDesign.borderSmall,
+                      ),
+                      child: emails.isEmpty
+                          ? Text(
+                              'No emails found.',
+                              style: TextStyle(
+                                color:
+                                    Theme.of(ctx).colorScheme.onSurfaceVariant,
+                              ),
+                            )
+                          : SingleChildScrollView(
+                              child: SelectableText(
+                                text,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            ),
+                    ),
+                    if (!wholeEvent && event.timeSlots.length > 1) ...[
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        icon: const Icon(Icons.group_add, size: 18),
+                        label: const Text("Add entire event's attendees"),
+                        onPressed: () {
+                          Provider.of<HapticsProvider>(ctx, listen: false)
+                              .selection();
+                          setLocalState(() => wholeEvent = true);
+                        },
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Close'),
+                ),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.copy, size: 18),
+                  label: const Text('Copy'),
+                  onPressed: emails.isEmpty
+                      ? null
+                      : () {
+                          Provider.of<HapticsProvider>(ctx, listen: false)
+                              .success();
+                          Clipboard.setData(ClipboardData(text: text));
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'Copied ${emails.length} ${emails.length == 1 ? 'email' : 'emails'} to clipboard'),
+                            ),
+                          );
+                        },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildCollectionCard(Collection collection) {
+    final events = _filteredEvents
+        .where((e) => e.collectionId == collection.id)
+        .toList();
+    if (events.isEmpty) return const SizedBox.shrink();
+
+    final earliest = events.map((e) => e.date).reduce((a, b) => a.isBefore(b) ? a : b);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppDesign.borderLarge,
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+          width: 1,
+        ),
+      ),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: colorScheme.secondaryContainer.withValues(alpha: 0.4),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: false,
+          shape: RoundedRectangleBorder(borderRadius: AppDesign.borderLarge),
+          collapsedShape: RoundedRectangleBorder(borderRadius: AppDesign.borderLarge),
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: colorScheme.secondary,
+              borderRadius: AppDesign.borderSmall,
+            ),
+            child: Icon(Icons.folder_rounded, color: colorScheme.onSecondary, size: 20),
+          ),
+          title: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      collection.name,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: colorScheme.onSecondaryContainer,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Icon(Icons.schedule, size: 12, color: colorScheme.onSurfaceVariant),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Next: ${DateFormat('MMM d, y').format(earliest)}',
+                          style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: colorScheme.secondary,
+                  borderRadius: AppDesign.borderMedium,
+                ),
+                child: Text(
+                  '${events.length}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          children: events.map((e) => _buildEventCard(e)).toList(),
+        ),
+      ),
+    );
+  }
+
   Widget _buildEventCard(Event event) {
     // Get color for event type
     final Color typeColor = _getColorForEventType(event.type, context);
@@ -869,33 +1118,55 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                             ],
                           ),
                         ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.checklist, size: 20),
-                          color: Theme.of(context).colorScheme.onSurface,
-                          onPressed: () {
-                            final hapticsProvider =
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.email_outlined, size: 20),
+                              color: Theme.of(context).colorScheme.onSurface,
+                              tooltip: 'Export emails',
+                              onPressed: () {
                                 Provider.of<HapticsProvider>(context,
-                                    listen: false);
-                            hapticsProvider.selection();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => AttendanceCheckPage(
-                                  event: event,
-                                  timeSlot: timeSlot,
-                                ),
-                              ),
-                            ).then((_) => _fetchData());
-                          },
-                          style: ElevatedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: AppDesign.borderSmall,
+                                        listen: false)
+                                    .selection();
+                                _showAttendeeEmailsDialog(event, timeSlot);
+                              },
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 0),
+                              constraints: const BoxConstraints(),
+                              visualDensity: VisualDensity.compact,
                             ),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 0),
-                            minimumSize: const Size(0, 28),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
+                            IconButton(
+                              icon: const Icon(Icons.checklist, size: 20),
+                              color: Theme.of(context).colorScheme.onSurface,
+                              tooltip: 'Track attendance',
+                              onPressed: () {
+                                final hapticsProvider =
+                                    Provider.of<HapticsProvider>(context,
+                                        listen: false);
+                                hapticsProvider.selection();
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => AttendanceCheckPage(
+                                      event: event,
+                                      timeSlot: timeSlot,
+                                    ),
+                                  ),
+                                ).then((_) => _fetchData());
+                              },
+                              style: ElevatedButton.styleFrom(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: AppDesign.borderSmall,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 0),
+                                minimumSize: const Size(0, 28),
+                                tapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),

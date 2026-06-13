@@ -529,6 +529,7 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
       bottomNavigationBar: BottomAppBar(
         color: Theme.of(context).colorScheme.surface,
         elevation: 8,
+        padding: EdgeInsets.zero,
         child: Padding(
           padding: AppDesign.paddingSmall,
           child: Row(
@@ -542,7 +543,7 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                     Navigator.of(context).pop();
                   },
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   child: const Text('Cancel'),
                 ),
@@ -552,7 +553,7 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _validateAndSave,
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     backgroundColor: Theme.of(context).colorScheme.primary,
                     foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   ),

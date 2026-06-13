@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
+import 'package:intl/intl.dart';
 import '../providers/societyprovider.dart';
 import '../common/app_design.dart';
 import '../models/completeduserhour.dart';
@@ -653,6 +654,20 @@ class _AdminListPageState extends State<AdminListPage> {
                 MaterialPageRoute(
                     builder: (context) => const BulkEditEventsPage()),
               );
+            },
+          ),
+          // Delete service hours entered after a chosen date
+          IconButton(
+            icon: Icon(
+              Icons.delete_sweep,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            tooltip: 'Delete hours by entry date',
+            onPressed: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
+              _deleteHoursAfterDate();
             },
           ),
           // Show export button on all screen sizes
@@ -2381,19 +2396,6 @@ class _AdminListPageState extends State<AdminListPage> {
           ),
           tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           childrenPadding: const EdgeInsets.only(bottom: 8),
-          leading: CircleAvatar(
-            radius: 20,
-            backgroundColor:
-                Theme.of(context).colorScheme.primary.withOpacity(0.1),
-            child: Text(
-              user.name.isNotEmpty ? user.name[0] : '?',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-          ),
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -3521,6 +3523,168 @@ class _AdminListPageState extends State<AdminListPage> {
         .eq('user_id', userId);
 
     _fetchUsers();
+  }
+
+  /// Deletes every service-hour record for the current society whose
+  /// `created_at` (entry time) is on or after a chosen date. This is
+  /// irreversible, so it is gated behind a date picker plus two separate
+  /// warning dialogs and a typed confirmation.
+  Future<void> _deleteHoursAfterDate() async {
+    final society =
+        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+    if (society == null) return;
+
+    // Step 1 — pick the cutoff date.
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: DateTime(2020),
+      lastDate: now,
+      helpText: 'Delete hours entered on or after',
+    );
+    if (picked == null || !mounted) return;
+
+    final cutoff = DateTime(picked.year, picked.month, picked.day);
+    final cutoffLabel = DateFormat('MMM d, y').format(cutoff);
+
+    // Count how many records would be affected so the warnings are concrete.
+    int affectedCount;
+    try {
+      final affected = await supabase
+          .from('Service hours')
+          .select('id')
+          .eq('society_id', society.id)
+          .gte('created_at', cutoff.toIso8601String());
+      affectedCount = (affected as List).length;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error checking hours: $e')),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+
+    if (affectedCount == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No hours were entered on or after $cutoffLabel.')),
+      );
+      return;
+    }
+
+    // Warning page 1 — explain scope and count.
+    final firstConfirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: Icon(Icons.warning_amber_rounded,
+            color: Theme.of(ctx).colorScheme.error, size: 36),
+        title: const Text('Delete entered hours?'),
+        content: Text(
+          'This will permanently delete $affectedCount service-hour '
+          '${affectedCount == 1 ? 'record' : 'records'} for "${society.name}" '
+          'that ${affectedCount == 1 ? 'was' : 'were'} entered on or after '
+          '$cutoffLabel.\n\nThis cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(
+                foregroundColor: Theme.of(ctx).colorScheme.error),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+    if (firstConfirm != true || !mounted) return;
+
+    // Warning page 2 — final, requires typing DELETE.
+    final controller = TextEditingController();
+    final secondConfirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocalState) {
+          final typed = controller.text.trim().toUpperCase() == 'DELETE';
+          return AlertDialog(
+            icon: Icon(Icons.delete_forever,
+                color: Theme.of(ctx).colorScheme.error, size: 36),
+            title: const Text('Final confirmation'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Type DELETE to permanently remove $affectedCount '
+                  '${affectedCount == 1 ? 'record' : 'records'}. '
+                  'There is no way to recover them.',
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: const InputDecoration(
+                    labelText: 'Type DELETE',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (_) => setLocalState(() {}),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(ctx).colorScheme.error,
+                  foregroundColor: Theme.of(ctx).colorScheme.onError,
+                ),
+                onPressed:
+                    typed ? () => Navigator.of(ctx).pop(true) : null,
+                child: const Text('Delete permanently'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    controller.dispose();
+    if (secondConfirm != true || !mounted) return;
+
+    // Perform the delete.
+    try {
+      await supabase
+          .from('Service hours')
+          .delete()
+          .eq('society_id', society.id)
+          .gte('created_at', cutoff.toIso8601String());
+
+      if (mounted) {
+        Provider.of<HapticsProvider>(context, listen: false).success();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Deleted $affectedCount ${affectedCount == 1 ? 'record' : 'records'} entered on or after $cutoffLabel.'),
+          ),
+        );
+        _fetchUsers();
+      }
+    } catch (e) {
+      if (mounted) {
+        Provider.of<HapticsProvider>(context, listen: false).error();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting hours: $e')),
+        );
+      }
+    }
   }
 
   void _openBulkCustomEventForm(BuildContext context) async {

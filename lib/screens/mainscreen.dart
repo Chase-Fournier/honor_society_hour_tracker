@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:bottom_navy_bar/bottom_navy_bar.dart';
 import '../providers/societyprovider.dart';
 import 'societyadmindashboard.dart';
 import 'adminattendencepage.dart';
@@ -9,8 +8,6 @@ import 'admineventspage.dart';
 import 'homescreenpage.dart';
 import 'settingspage.dart';
 import 'adminlistspage.dart';
-import '../providers/hapticsprovider.dart';
-import '../providers/navigationprovider.dart';
 import '../common/customnavigationbar.dart';
 
 class MainScreen extends StatefulWidget {

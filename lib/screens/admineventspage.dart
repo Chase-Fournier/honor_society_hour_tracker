@@ -674,7 +674,37 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                             context,
                             listen: false);
                         hapticsProvider.selection();
-                        _deleteEvent(event);
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Delete Event'),
+                            content: Text(
+                                'Are you sure you want to delete "${event.name}"? This cannot be undone.'),
+                            actions: [
+                              TextButton(
+                                child: const Text('Cancel'),
+                                onPressed: () {
+                                  hapticsProvider.selection();
+                                  Navigator.of(ctx).pop();
+                                },
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.error,
+                                  foregroundColor:
+                                      Theme.of(context).colorScheme.onError,
+                                ),
+                                child: const Text('Delete'),
+                                onPressed: () {
+                                  hapticsProvider.selection();
+                                  Navigator.of(ctx).pop();
+                                  _deleteEvent(event);
+                                },
+                              ),
+                            ],
+                          ),
+                        );
                       },
                       tooltip: 'Delete Event',
                       padding: AppDesign.paddingSmall,
@@ -922,6 +952,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
     final _formKey = GlobalKey<FormState>();
     String _eventName = '';
     String _eventDescription = '';
+    String _location = '';
     DateTime _eventDate = DateTime.now();
     List<TimeSlot> _timeSlots = [];
     bool _isMandatory = false;
@@ -1021,6 +1052,12 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                             ? 'Please enter a description'
                             : null,
                         onSaved: (value) => _eventDescription = value!,
+                      ),
+                      TextFormField(
+                        decoration: const InputDecoration(
+                          labelText: 'Location (optional)',
+                        ),
+                        onSaved: (value) => _location = value ?? '',
                       ),
                       SizedBox(
                         height: 15,
@@ -1224,6 +1261,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                       _addEvent(
                         _eventName,
                         _eventDescription,
+                        _location,
                         _eventDate,
                         _selectedEventType!,
                         _isMandatory,
@@ -1882,6 +1920,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
     final _formKey = GlobalKey<FormState>();
     String _eventName = event.name;
     String _eventDescription = event.description;
+    String _location = event.location ?? '';
     DateTime _eventDate = event.date;
     List<TimeSlot> _timeSlots = List.from(event.timeSlots);
     bool _isMandatory = event.isMandatory;
@@ -1926,6 +1965,13 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                               ? 'Please enter a description'
                               : null,
                           onSaved: (value) => _eventDescription = value!,
+                        ),
+                        TextFormField(
+                          initialValue: _location,
+                          decoration: const InputDecoration(
+                            labelText: 'Location (optional)',
+                          ),
+                          onSaved: (value) => _location = value ?? '',
                         ),
                         SizedBox(
                           height: 10,
@@ -2117,6 +2163,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                             event.id,
                             _eventName,
                             _eventDescription,
+                            _location,
                             _eventDate,
                             _selectedEventType!,
                             _isMandatory,
@@ -2173,6 +2220,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   Future<void> _addEvent(
     String name,
     String description,
+    String location,
     DateTime date,
     String type,
     bool isMandatory,
@@ -2183,7 +2231,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
     Duration swapRequestDeadline,
     bool hasDelay,
     int delayHours,
-    int societyId, // Add new parameter
+    int societyId,
   ) async {
     try {
       // Insert the event
@@ -2192,6 +2240,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
           .insert({
             'name': name,
             'description': description,
+            'location': location.isEmpty ? null : location,
             'date': date.toIso8601String(),
             'type': type,
             'isMandatory': isMandatory,
@@ -2202,7 +2251,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
             'swap_request_deadline_hours': swapRequestDeadline.inHours,
             'has_delay': hasDelay,
             'delay_hours': delayHours,
-            'society_id': societyId, // Add society_id
+            'society_id': societyId,
           })
           .select()
           .single();
@@ -2385,6 +2434,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
     int eventId,
     String name,
     String description,
+    String location,
     DateTime date,
     String type,
     bool isMandatory,
@@ -2402,6 +2452,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
       await Supabase.instance.client.from('Events').update({
         'name': name,
         'description': description,
+        'location': location.isEmpty ? null : location,
         'date': date.toIso8601String(),
         'type': type,
         'isMandatory': isMandatory,

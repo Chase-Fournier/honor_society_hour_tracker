@@ -12,7 +12,6 @@ import 'screens/reset_password_page.dart';
 import 'package:app_links/app_links.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/hapticsprovider.dart';
-import '../providers/navigationprovider.dart';
 import 'providers/notificationsprovider.dart';
 import 'services/notification_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -46,7 +45,6 @@ void main() async {
   final themeProvider = themeprovider.ThemeProvider();
   final societyProvider = SocietyProvider();
   final hapticsProvider = HapticsProvider();
-  final navigationProvider = NavigationProvider();
   final notificationsProvider = NotificationsProvider();
 
   runApp(
@@ -56,7 +54,6 @@ void main() async {
         ChangeNotifierProvider(create: (_) => themeProvider),
         ChangeNotifierProvider(create: (_) => societyProvider),
         ChangeNotifierProvider(create: (_) => hapticsProvider),
-        ChangeNotifierProvider(create: (_) => navigationProvider),
         ChangeNotifierProvider(create: (_) => notificationsProvider),
       ],
       child: MyApp(themeNotifier: themeNotifier),
