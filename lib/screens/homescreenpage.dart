@@ -2523,6 +2523,7 @@ class _HomePageState extends State<HomePage> {
             NhsFormatUtils.calculateDuration(timeSlot.time, timeSlot.endTime),
             'signup',
             userId,
+            societyId: society?.id,
           );
           hapticsProvider.success();
           _fetchEvents();
