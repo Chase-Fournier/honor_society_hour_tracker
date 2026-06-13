@@ -2495,28 +2495,17 @@ class _HomePageState extends State<HomePage> {
           );
           return;
         }
-        // Check if the user is already signed up
-        final existingAttendee = await Supabase.instance.client
-            .from('Attendees')
-            .select()
-            .eq('timeslot_id', timeSlot.id ?? 0)
-            .eq('user_id', userId)
-            .maybeSingle();
+        // Atomic signup — see supabase/migrations/.._signup_for_timeslot.sql.
+        // Returns 'ok' | 'full' | 'already'.
+        final status = await Supabase.instance.client.rpc(
+          'signup_for_timeslot',
+          params: {
+            'p_timeslot_id': timeSlot.id,
+            'p_user_id': userId,
+          },
+        ) as String?;
 
-        if (existingAttendee == null) {
-          // Add the user to the Attendees table
-          await Supabase.instance.client.from('Attendees').insert({
-            'timeslot_id': timeSlot?.id ?? 0,
-            'user_id': userId,
-            'is_present': false,
-          });
-
-          // Update the number of people in the time slot
-          await Supabase.instance.client
-              .from('Time slots')
-              .update({'number_of_people': timeSlot.numberOfPeople - 1}).eq(
-                  'id', timeSlot?.id ?? 0);
-
+        if (status == 'ok') {
           await logactivity(
             event.name,
             '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
@@ -2527,6 +2516,19 @@ class _HomePageState extends State<HomePage> {
           );
           hapticsProvider.success();
           _fetchEvents();
+        } else if (status == 'full') {
+          hapticsProvider.error();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('This time slot is now full.')),
+            );
+          }
+        } else if (status == 'already') {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("You're already signed up for this slot.")),
+            );
+          }
         }
       }
     } catch (e) {
