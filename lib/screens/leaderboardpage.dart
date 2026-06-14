@@ -106,13 +106,13 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       appBar: AppBar(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+        backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
         title: Text(
           'Leaderboard',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 24.0,
-            color: Theme.of(context).colorScheme.onPrimaryContainer,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         centerTitle: true,

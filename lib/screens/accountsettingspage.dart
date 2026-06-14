@@ -274,12 +274,17 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Account Settings',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 24.0,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
         ),
         centerTitle: true,
         elevation: AppDesign.elevationNone,
+        backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
         scrolledUnderElevation: AppDesign.elevationSmall,
       ),
       body: SafeArea(
