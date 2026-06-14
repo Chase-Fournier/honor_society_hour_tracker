@@ -22,8 +22,8 @@ when done.
 |------|-------|----------|--------|------------|--------|
 | 001 | Fix null-`hours` precedence in hour totals | P1 | S | — | DONE |
 | 002 | Pass `societyId` on signup activity log | P1 | S | — | DONE |
-| 003 | Make time-slot signup atomic (no oversell) | P1 | M | — | DONE (client merged-pending; migration needs operator `supabase db push`) |
-| 004 | Replace `print()` with `debugPrint()` | P2 | M | 001,002,003 | TODO |
+| 003 | Make time-slot signup atomic (no oversell) | P1 | M | — | DONE (merged into GeneralSocietyAPP; migration still needs operator `supabase db push`) |
+| 004 | Replace `print()` with `debugPrint()` | P2 | M | 001,002,003 | DONE (merged into GeneralSocietyAPP) |
 | 005 | Consolidate admin event-fetch into one path | P2 | M | — (before 008) | TODO |
 | 006 | Swap-request inbox on home screen | P2 | M | — (before 008) | TODO |
 | 007 | Schedule local event reminders on signup | P2 | M | 003 (before 008) | TODO |
@@ -45,6 +45,14 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED 
   - Verified by reviewer: scope clean per plan, `flutter analyze` → 0 errors (pre-existing info/warning lints only), 002's `societyId` preserved through 003's rewrite.
   - **Operator action outstanding (003 Step 4):** apply `supabase/migrations/20260613000001_signup_for_timeslot.sql` via `supabase db push` **before** shipping the client change, or signup throws "function not found". Then verify capacity is enforced (no oversell / negative count, idempotent re-signup).
   - **Reviewer follow-up flagged (003):** the `security definer` function trusts `p_user_id`; consider deriving from `auth.uid()` if RLS on `Attendees` is not strict. Not a regression (old client also trusted client-side userId) — deferred.
+- **2026-06-13 — 004 executed, reviewed, and both agent branches merged (advisor `execute` + merge).**
+  - Executor (sonnet) swept 68 bare `print(` → `debugPrint(` across 20 `lib/` files on branch `advisor/004-print-to-debugprint`.
+  - **Reviewer caught two compile errors the executor missed/misreported** (it claimed `flutter analyze` → 0 errors; re-running it showed 2): `lib/models/completeduserhour.dart` needed `import 'package:flutter/foundation.dart';` (plain model file, no transitive `material.dart`), and `lib/screens/customeventformpage.dart:53` passed a `List<String>` to `debugPrint` (signature is `String?`). Reviewer fixed both in the worktree (`debugPrint(types.toString())`) and amended the commit (`e4bbbf7`); re-verified `flutter analyze` → 0 errors, 0 `avoid_print`, 0 bare `print(`.
+  - **Merged into `GeneralSocietyAPP`** (per user request), no push:
+    - `5204511` Merge `advisor/correctness-fixes-001-003` (plans 001,002,003) — clean, no conflicts.
+    - merge of `advisor/004-print-to-debugprint` — git auto-merged the overlapping `homescreenpage.dart`/`completedhourspage.dart`, no conflicts.
+  - Post-merge verification on `GeneralSocietyAPP`: `flutter analyze` → 0 errors, 0 `avoid_print`, 802 pre-existing info/warning issues; 002's `societyId` and 003's `signup_for_timeslot` RPC confirmed intact in the merged `homescreenpage.dart`.
+  - **Operator action STILL outstanding (003):** the merge brought in the client RPC call **and** `supabase/migrations/20260613000001_signup_for_timeslot.sql`, but the migration is not applied. Run `supabase db push` before this branch reaches users, or time-slot signup throws "function not found". Nothing here has been pushed to `origin`.
 
 ## Dependency notes
 
