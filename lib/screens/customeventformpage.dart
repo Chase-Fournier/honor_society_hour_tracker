@@ -50,7 +50,7 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
       types.add('Service');
     }
 
-    print(types);
+    debugPrint(types.toString());
     return types;
   }
 

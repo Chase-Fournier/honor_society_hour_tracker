@@ -52,7 +52,7 @@ class _SnakePageState extends State<SnakePage> with TickerProviderStateMixin {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error fetching scores: $e');
+      debugPrint('Error fetching scores: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -70,7 +70,7 @@ class _SnakePageState extends State<SnakePage> with TickerProviderStateMixin {
 
       await _fetchTopScores();
     } catch (e) {
-      print('Error saving score: $e');
+      debugPrint('Error saving score: $e');
     }
   }
 

@@ -1318,7 +1318,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
         );
       }).toList();
     } catch (e) {
-      print('Error fetching user societies: $e');
+      debugPrint('Error fetching user societies: $e');
       return [];
     }
   }
@@ -1336,7 +1336,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
           .map<HourRequirement>((json) => HourRequirement.fromJson(json))
           .toList();
     } catch (e) {
-      print('Error fetching society hour requirements: $e');
+      debugPrint('Error fetching society hour requirements: $e');
       return [];
     }
   }
@@ -1446,7 +1446,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
         });
       }
     } catch (e) {
-      print('Error in optimized fetch: $e');
+      debugPrint('Error in optimized fetch: $e');
     }
   }
 
@@ -1557,7 +1557,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error fetching events: $e');
+      debugPrint('Error fetching events: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading events: $e')),
@@ -1586,7 +1586,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
         });
       }
     } catch (e) {
-      print('Error fetching collections: $e');
+      debugPrint('Error fetching collections: $e');
     }
   }
 
@@ -2408,7 +2408,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
       });
     } else {
       // Handle error
-      print('Failed to add collection');
+      debugPrint('Failed to add collection');
     }
   }
 

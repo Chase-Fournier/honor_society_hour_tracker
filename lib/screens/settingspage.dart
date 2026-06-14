@@ -120,7 +120,7 @@ class _SettingsPageState extends State<SettingsPage> {
         });
       }
     } catch (e) {
-      print('Error loading societies: $e');
+      debugPrint('Error loading societies: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -141,7 +141,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _isAdmin = response['is_admin'] ?? false;
       });
     } catch (e) {
-      print('Error checking admin status: $e');
+      debugPrint('Error checking admin status: $e');
     }
   }
 
@@ -745,7 +745,7 @@ class _SettingsPageState extends State<SettingsPage> {
       // Navigate to login page
       navigationState.pushNamedAndRemoveUntil('/', (route) => false);
     } catch (e) {
-      print('Error during logout: $e');
+      debugPrint('Error during logout: $e');
       hapticsProvider.error();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error during logout: $e')),

@@ -63,7 +63,7 @@ class SocietyProvider extends ChangeNotifier {
       }
 
       // Debug print
-      print('SocietyProvider: Loading societies for user $userId');
+      debugPrint('SocietyProvider: Loading societies for user $userId');
 
       final societies = await Supabase.instance.client
           .from('user_society_memberships')
@@ -88,7 +88,7 @@ class SocietyProvider extends ChangeNotifier {
             is_admin
           ''').eq('user_id', userId);
 
-      print('SocietyProvider: Found ${societies.length} societies');
+      debugPrint('SocietyProvider: Found ${societies.length} societies');
 
       _userSocieties = [];
       for (var membership in societies) {
@@ -119,7 +119,7 @@ class SocietyProvider extends ChangeNotifier {
 
       if (_currentSociety == null && _userSocieties.isNotEmpty) {
         // Set the first society as default if we still don't have one
-        print('SocietyProvider: Setting first society as default');
+        debugPrint('SocietyProvider: Setting first society as default');
         _currentSociety = _userSocieties.first;
 
         // Find admin status for this society
@@ -131,13 +131,13 @@ class SocietyProvider extends ChangeNotifier {
         _isAdmin = currentSocietyMembership['is_admin'] ?? false;
       }
 
-      print('SocietyProvider: Current society: ${_currentSociety?.name}');
+      debugPrint('SocietyProvider: Current society: ${_currentSociety?.name}');
 
       _isLoading = false;
       _isInitialized = true;
       notifyListeners();
     } catch (e) {
-      print('Error loading user societies: $e');
+      debugPrint('Error loading user societies: $e');
       _loadingError = e.toString();
       _isLoading = false;
       _isInitialized = true;
@@ -152,7 +152,7 @@ class SocietyProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print('SocietyProvider: Setting current society to ID $societyId');
+      debugPrint('SocietyProvider: Setting current society to ID $societyId');
 
       // First check if the society is in our existing list
       final existingSociety = _userSocieties.firstWhere(
@@ -167,7 +167,7 @@ class SocietyProvider extends ChangeNotifier {
       );
 
       if (existingSociety.id != -1) {
-        print(
+        debugPrint(
             'SocietyProvider: Found society in existing list: ${existingSociety.name}');
         _currentSociety = existingSociety;
         await _checkAdminStatus();
@@ -180,7 +180,7 @@ class SocietyProvider extends ChangeNotifier {
           return;
         }
 
-        print('SocietyProvider: Fetching society details from database');
+        debugPrint('SocietyProvider: Fetching society details from database');
         final response = await Supabase.instance.client
             .from('user_society_memberships')
             .select('''
@@ -223,7 +223,7 @@ class SocietyProvider extends ChangeNotifier {
           createdAt: DateTime.parse(societyData['created_at']),
         );
 
-        print(
+        debugPrint(
             'SocietyProvider: Set current society to: ${_currentSociety?.name}');
 
         _isAdmin = response['is_admin'] ?? false;
@@ -232,7 +232,7 @@ class SocietyProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     } catch (e) {
-      print('Error setting current society: $e');
+      debugPrint('Error setting current society: $e');
       _loadingError = e.toString();
       _isLoading = false;
       notifyListeners();
@@ -247,7 +247,7 @@ class SocietyProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print(
+      debugPrint(
           'SocietyProvider: Refreshing current society: ${_currentSociety?.name}');
       final societyId = _currentSociety!.id;
       final response =
@@ -290,12 +290,12 @@ class SocietyProvider extends ChangeNotifier {
         _userSocieties[index] = _currentSociety!;
       }
 
-      print('SocietyProvider: Successfully refreshed society data');
+      debugPrint('SocietyProvider: Successfully refreshed society data');
 
       _isLoading = false;
       notifyListeners();
     } catch (e) {
-      print('Error refreshing current society: $e');
+      debugPrint('Error refreshing current society: $e');
       _isLoading = false;
       notifyListeners();
     }
@@ -309,7 +309,7 @@ class SocietyProvider extends ChangeNotifier {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) return;
 
-      print(
+      debugPrint(
           'SocietyProvider: Checking admin status for society ${_currentSociety?.id}');
 
       final response = await Supabase.instance.client
@@ -320,9 +320,9 @@ class SocietyProvider extends ChangeNotifier {
           .single();
 
       _isAdmin = response['is_admin'] ?? false;
-      print('SocietyProvider: Admin status is $_isAdmin');
+      debugPrint('SocietyProvider: Admin status is $_isAdmin');
     } catch (e) {
-      print('Error checking admin status: $e');
+      debugPrint('Error checking admin status: $e');
       _isAdmin = false;
     }
   }
@@ -330,7 +330,7 @@ class SocietyProvider extends ChangeNotifier {
   /// Request to join a society
   Future<bool> requestJoinSociety(HonorSociety society) async {
     try {
-      print('SocietyProvider: Requesting to join society ${society.name}');
+      debugPrint('SocietyProvider: Requesting to join society ${society.name}');
       final result = await Supabase.instance.client.rpc(
           'request_society_membership',
           params: {'society_id_param': society.id});
@@ -341,7 +341,7 @@ class SocietyProvider extends ChangeNotifier {
       }
       return false;
     } catch (e) {
-      print('Error requesting to join society: $e');
+      debugPrint('Error requesting to join society: $e');
       return false;
     }
   }
@@ -353,7 +353,7 @@ class SocietyProvider extends ChangeNotifier {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) return false;
 
-      print('SocietyProvider: Creating new society "$name"');
+      debugPrint('SocietyProvider: Creating new society "$name"');
 
       final newSocietyId =
           await Supabase.instance.client.rpc('create_society', params: {
@@ -363,7 +363,7 @@ class SocietyProvider extends ChangeNotifier {
         'creator_user_id': userId
       });
 
-      print('SocietyProvider: New society created with ID $newSocietyId');
+      debugPrint('SocietyProvider: New society created with ID $newSocietyId');
 
       if (newSocietyId != null) {
         await loadUserSocieties();
@@ -371,7 +371,7 @@ class SocietyProvider extends ChangeNotifier {
       }
       return false;
     } catch (e) {
-      print('Error creating society: $e');
+      debugPrint('Error creating society: $e');
       return false;
     }
   }
@@ -404,7 +404,7 @@ class SocietyProvider extends ChangeNotifier {
       }
       return false;
     } catch (e) {
-      print('Error creating hour requirement: $e');
+      debugPrint('Error creating hour requirement: $e');
       return false;
     }
   }
@@ -446,7 +446,7 @@ class SocietyProvider extends ChangeNotifier {
       }
       return true;
     } catch (e) {
-      print('Error updating hour requirement: $e');
+      debugPrint('Error updating hour requirement: $e');
       return false;
     }
   }

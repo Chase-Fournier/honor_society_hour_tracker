@@ -73,7 +73,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
 
       if (mounted) setState(() => _isLoading = false);
     } catch (e) {
-      print('Error fetching data: $e');
+      debugPrint('Error fetching data: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -96,7 +96,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
             response.map((json) => MeetingNote.fromJson(json)).toList();
       });
     } catch (e) {
-      print('Error fetching meeting notes: $e');
+      debugPrint('Error fetching meeting notes: $e');
     }
   }
 
@@ -688,7 +688,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
     final society =
         Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     final customUrl = society?.errorFormUrl;
-    print(customUrl);
+    debugPrint(customUrl);
     if (customUrl == null) {
       return SizedBox();
     }
@@ -1273,7 +1273,7 @@ Future<void> _fetchPendingSubmissions() async {
           .toList();
     });
   } catch (e) {
-    print('Error fetching pending submissions: $e');
+    debugPrint('Error fetching pending submissions: $e');
   }
 }
 

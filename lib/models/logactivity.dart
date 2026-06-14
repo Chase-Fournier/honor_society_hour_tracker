@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 
 final supabase = Supabase.instance.client;
@@ -39,6 +40,6 @@ Future<void> logactivity(
       'society_id': societyId,
     });
   } catch (e) {
-    print('Error logging activity: $e');
+    debugPrint('Error logging activity: $e');
   }
 }

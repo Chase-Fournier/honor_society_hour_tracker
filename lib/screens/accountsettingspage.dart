@@ -73,7 +73,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
       email = profileResponse['email'] ?? '';
     } catch (profileError) {
-      print('Error fetching email from profiles table: $profileError');
+      debugPrint('Error fetching email from profiles table: $profileError');
       // Fallback to auth email if profiles table fails
       email = user.email ?? '';
     }
@@ -111,7 +111,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
         graduationYear = profileResponse['graduation_year']?.toString() ?? '';
       } catch (profileError) {
-        print('Error fetching from profiles table: $profileError');
+        debugPrint('Error fetching from profiles table: $profileError');
 
         // Fallback to auth metadata if profiles table fails
         final userMetadata = user.userMetadata;
@@ -152,7 +152,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
           'graduation_year': gradYear,
         }).eq('user_id', user.id);
       } catch (profileError) {
-        print('Error updating profiles table: $profileError');
+        debugPrint('Error updating profiles table: $profileError');
         // Continue to update auth metadata even if profiles table update fails
       }
 
@@ -167,7 +167,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
           ),
         );
       } catch (authError) {
-        print('Error updating auth metadata: $authError');
+        debugPrint('Error updating auth metadata: $authError');
         // Continue since profiles table is prioritized
       }
 

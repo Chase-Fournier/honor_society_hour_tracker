@@ -51,7 +51,7 @@ class _LeadershipPageState extends State<LeadershipPage> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error fetching leadership roles: $e');
+      debugPrint('Error fetching leadership roles: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading leadership: $e')),

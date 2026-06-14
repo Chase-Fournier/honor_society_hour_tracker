@@ -98,7 +98,7 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error fetching custom events: $e');
+      debugPrint('Error fetching custom events: $e');
       setState(() => _isLoading = false);
     }
   }

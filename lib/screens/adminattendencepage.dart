@@ -50,7 +50,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
         _fetchCollections(),
       ]);
     } catch (e) {
-      print('Error fetching data: $e');
+      debugPrint('Error fetching data: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading data: $e')),
@@ -1289,7 +1289,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
         });
       }
     } catch (e) {
-      print('Error fetching events: $e');
+      debugPrint('Error fetching events: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -1322,7 +1322,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
             .toList();
       });
     } catch (e) {
-      print('Error fetching collections: $e');
+      debugPrint('Error fetching collections: $e');
     }
   }
 
