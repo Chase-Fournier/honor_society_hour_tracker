@@ -17,6 +17,7 @@ import '../providers/hapticsprovider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_html/flutter_html.dart';
+import '../common/app_design.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -785,15 +786,30 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
 
         if (notes.isEmpty) {
           return Card(
-            elevation: 2,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: AppDesign.borderLarge,
+              side: BorderSide(
+                color: Theme.of(context)
+                    .colorScheme
+                    .outlineVariant
+                    .withValues(alpha: 0.6),
+                width: 1,
+              ),
+            ),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: Theme.of(context)
+                .colorScheme
+                .secondaryContainer
+                .withValues(alpha: 0.4),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Center(
                 child: Column(
                   children: [
-                    const Icon(Icons.note_add, size: 48, color: Colors.grey),
+                    Icon(Icons.note_add,
+                        size: 48,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
                     const SizedBox(height: 8),
                     Text(
                       'No meeting notes',
@@ -818,9 +834,22 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
         }
 
         return Card(
-          elevation: 2,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: AppDesign.borderLarge,
+            side: BorderSide(
+              color: Theme.of(context)
+                  .colorScheme
+                  .outlineVariant
+                  .withValues(alpha: 0.6),
+              width: 1,
+            ),
+          ),
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          color: Theme.of(context)
+              .colorScheme
+              .secondaryContainer
+              .withValues(alpha: 0.4),
           child: ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
