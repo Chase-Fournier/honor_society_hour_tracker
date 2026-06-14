@@ -117,8 +117,10 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
             _selectedEventType = type;
           });
         },
-        backgroundColor:
-            Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+        backgroundColor: Theme.of(context)
+            .colorScheme
+            .surfaceContainerHighest
+            .withValues(alpha: 0.5),
         selectedColor: Theme.of(context).colorScheme.primaryContainer,
         checkmarkColor: Theme.of(context).colorScheme.primary,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -253,7 +255,9 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                               Icon(
                                 Icons.event_busy,
                                 size: 64,
-                                color: Colors.grey,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
                               ),
                               const SizedBox(height: 16),
                               Text(
@@ -346,8 +350,8 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                   decoration: BoxDecoration(
                     color: Theme.of(context)
                         .colorScheme
-                        .surfaceVariant
-                        .withOpacity(0.5),
+                        .surfaceContainerHighest
+                        .withValues(alpha: 0.5),
                     borderRadius: AppDesign.borderMedium,
                     border: Border.all(
                       color: Theme.of(context).colorScheme.outlineVariant,
@@ -373,7 +377,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                                 ? Theme.of(context)
                                     .colorScheme
                                     .onSurfaceVariant
-                                    .withOpacity(0.7)
+                                    .withValues(alpha: 0.7)
                                 : Theme.of(context)
                                     .colorScheme
                                     .onSurfaceVariant,
@@ -426,8 +430,8 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                   decoration: BoxDecoration(
                     color: Theme.of(context)
                         .colorScheme
-                        .surfaceVariant
-                        .withOpacity(0.5),
+                        .surfaceContainerHighest
+                        .withValues(alpha: 0.5),
                     borderRadius: AppDesign.borderMedium,
                     border: Border.all(
                       color: Theme.of(context).colorScheme.outlineVariant,
@@ -453,7 +457,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                                 ? Theme.of(context)
                                     .colorScheme
                                     .onSurfaceVariant
-                                    .withOpacity(0.7)
+                                    .withValues(alpha: 0.7)
                                 : Theme.of(context)
                                     .colorScheme
                                     .onSurfaceVariant,
@@ -556,7 +560,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
         borderRadius: AppDesign.borderLarge,
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+            color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -599,7 +603,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                         color: Theme.of(context)
                             .colorScheme
                             .onPrimaryContainer
-                            .withOpacity(0.7),
+                            .withValues(alpha: 0.7),
                       ),
                     ),
                   ],
@@ -901,7 +905,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+            color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -921,7 +925,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                   children: [
                     // Event icon with type color
                     CircleAvatar(
-                      backgroundColor: typeColor.withOpacity(0.15),
+                      backgroundColor: typeColor.withValues(alpha: 0.15),
                       radius: 20,
                       child: Icon(
                         getIconForType(event.type, context),
@@ -973,7 +977,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 6, vertical: 1),
                                 decoration: BoxDecoration(
-                                  color: typeColor.withOpacity(0.1),
+                                  color: typeColor.withValues(alpha: 0.1),
                                   borderRadius: AppDesign.borderSmall,
                                 ),
                                 child: Text(
@@ -1062,14 +1066,14 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
                       decoration: BoxDecoration(
                         color: Theme.of(context)
                             .colorScheme
-                            .surfaceVariant
-                            .withOpacity(0.2),
+                            .surfaceContainerHighest
+                            .withValues(alpha: 0.2),
                         borderRadius: AppDesign.borderSmall,
                         border: Border.all(
                           color: Theme.of(context)
                               .colorScheme
                               .outline
-                              .withOpacity(0.1),
+                              .withValues(alpha: 0.1),
                           width: 0.5,
                         ),
                       ),
@@ -1187,7 +1191,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
       return Theme.of(context).colorScheme.secondary;
     if (lowerType.contains('meeting'))
       return Theme.of(context).colorScheme.tertiary;
-    if (lowerType.contains('leader')) return Colors.amber;
+    if (lowerType.contains('leader')) return Theme.of(context).colorScheme.tertiary;
     return Theme.of(context).colorScheme.primary;
   }
 
@@ -1460,7 +1464,7 @@ class _TodaysEventsSectionState extends State<TodaysEventsSection> {
         borderRadius: AppDesign.borderMedium,
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).colorScheme.shadow.withOpacity(0.05),
+            color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05),
             blurRadius: 4,
             offset: const Offset(0, 1),
           ),
@@ -1478,7 +1482,7 @@ class _TodaysEventsSectionState extends State<TodaysEventsSection> {
               // Event icon with type color
               CircleAvatar(
                 backgroundColor: _getColorForEventType(event.type, context)
-                    .withOpacity(0.15),
+                    .withValues(alpha: 0.15),
                 child: Icon(
                   getIconForType(event.type, context),
                   color: _getColorForEventType(event.type, context),
@@ -1510,13 +1514,15 @@ class _TodaysEventsSectionState extends State<TodaysEventsSection> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Colors.green,
+                              color: Theme.of(context).colorScheme.tertiary,
                               borderRadius: AppDesign.borderMedium,
                             ),
-                            child: const Text(
+                            child: Text(
                               'NOW',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onTertiary,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12,
                               ),
@@ -1532,7 +1538,7 @@ class _TodaysEventsSectionState extends State<TodaysEventsSection> {
                           horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: _getColorForEventType(event.type, context)
-                            .withOpacity(0.1),
+                            .withValues(alpha: 0.1),
                         borderRadius: AppDesign.borderMedium,
                       ),
                       child: Text(
@@ -1599,7 +1605,7 @@ class _TodaysEventsSectionState extends State<TodaysEventsSection> {
                             ? presentAttendees / totalAttendees
                             : 0,
                         backgroundColor:
-                            Theme.of(context).colorScheme.surfaceVariant,
+                            Theme.of(context).colorScheme.surfaceContainerHighest,
                         valueColor: AlwaysStoppedAnimation<Color>(
                           Theme.of(context).colorScheme.primary,
                         ),

@@ -136,7 +136,7 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
             content: Text(
               'Added ${hours.toStringAsFixed(1)} hours for ${selectedUserIds.length} users',
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: Theme.of(context).colorScheme.tertiary,
           ),
         );
       }
@@ -149,7 +149,7 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error saving bulk events: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -451,7 +451,9 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                           Icon(
                             Icons.search_off,
                             size: 64,
-                            color: Colors.grey[400],
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
                           ),
                           const SizedBox(height: 16),
                           Text(
@@ -460,7 +462,9 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                                 .textTheme
                                 .titleMedium
                                 ?.copyWith(
-                                  color: Colors.grey[600],
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
                                 ),
                           ),
                         ],

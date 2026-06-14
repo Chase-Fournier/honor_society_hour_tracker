@@ -106,13 +106,13 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       appBar: AppBar(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+        backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
         title: Text(
           'Leaderboard',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 24.0,
-            color: Theme.of(context).colorScheme.onPrimaryContainer,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         centerTitle: true,
@@ -238,9 +238,11 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         if (_rankings.length > 1)
-          _buildPodiumItem(_rankings[1], 2, Colors.grey[400]!),
+          _buildPodiumItem(
+              _rankings[1], 2, Theme.of(context).colorScheme.onSurfaceVariant),
         if (_rankings.isNotEmpty)
-          _buildPodiumItem(_rankings[0], 1, Colors.amber),
+          _buildPodiumItem(
+              _rankings[0], 1, Theme.of(context).colorScheme.tertiary),
         if (_rankings.length > 2)
           _buildPodiumItem(_rankings[2], 3, Colors.brown[300]!),
       ],

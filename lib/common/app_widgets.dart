@@ -125,6 +125,42 @@ class AppTextField extends StatelessWidget {
   }
 }
 
+/// Canonical content card — the Attendance-page look (flat, hairline border,
+/// soft shadow). Use for list items (events, members, summaries).
+class AppContentCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry margin;
+  final Clip clipBehavior;
+  const AppContentCard({
+    Key? key,
+    required this.child,
+    this.margin = const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    this.clipBehavior = Clip.antiAlias,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      margin: margin,
+      clipBehavior: clipBehavior,
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: AppDesign.borderLarge,
+        border: Border.all(color: scheme.outlineVariant, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.shadow.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
 /// Section header with consistent styling
 class AppSectionHeader extends StatelessWidget {
   final String title;

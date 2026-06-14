@@ -195,7 +195,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Theme.of(context).colorScheme.surface,
+        backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
         title: Text(
           'Completed Hours',
           style: TextStyle(

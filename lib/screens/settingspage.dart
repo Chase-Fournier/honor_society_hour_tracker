@@ -405,10 +405,22 @@ class _SettingsPageState extends State<SettingsPage> {
   // User Profile Card Widget
   Widget _buildUserProfileCard() {
     return Card(
-      elevation: 1,
+      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: AppDesign.borderLarge,
+        side: BorderSide(
+          color: Theme.of(context)
+              .colorScheme
+              .outlineVariant
+              .withValues(alpha: 0.6),
+          width: 1,
+        ),
       ),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: Theme.of(context)
+          .colorScheme
+          .secondaryContainer
+          .withValues(alpha: 0.4),
       child: Padding(
         padding: AppDesign.paddingLarge,
         child: Row(
@@ -532,12 +544,24 @@ class _SettingsPageState extends State<SettingsPage> {
           defaultTargetPlatform == TargetPlatform.iOS);
 
   // Appearance Settings Card
-    Widget _buildAppearanceCard() {
+  Widget _buildAppearanceCard() {
     return Card(
-      elevation: 1,
+      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: AppDesign.borderLarge,
+        side: BorderSide(
+          color: Theme.of(context)
+              .colorScheme
+              .outlineVariant
+              .withValues(alpha: 0.6),
+          width: 1,
+        ),
       ),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: Theme.of(context)
+          .colorScheme
+          .secondaryContainer
+          .withValues(alpha: 0.4),
       child: Padding(
         padding: AppDesign.paddingLarge,
         child: Column(
@@ -617,10 +641,22 @@ class _SettingsPageState extends State<SettingsPage> {
   // Games Section
   Widget _buildGamesSection() {
     return Card(
-      elevation: 2,
+      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: AppDesign.borderLarge,
+        side: BorderSide(
+          color: Theme.of(context)
+              .colorScheme
+              .outlineVariant
+              .withValues(alpha: 0.6),
+          width: 1,
+        ),
       ),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: Theme.of(context)
+          .colorScheme
+          .secondaryContainer
+          .withValues(alpha: 0.4),
       child: Padding(
         padding: AppDesign.paddingLarge,
         child: Column(
@@ -645,7 +681,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 _buildGameCard(
                   'Snake',
                   Icons.videogame_asset,
-                  Colors.green,
+                  Theme.of(context).colorScheme.tertiary,
                   () {
                     final hapticsProvider =
                         Provider.of<HapticsProvider>(context, listen: false);
@@ -658,13 +694,16 @@ class _SettingsPageState extends State<SettingsPage> {
                   },
                 ),
                 // Add more game cards in the future
-                _buildGameCard('Coming Soon', Icons.airplanemode_active,
-                    Colors.amber, () {},
+                _buildGameCard(
+                    'Coming Soon',
+                    Icons.airplanemode_active,
+                    Theme.of(context).colorScheme.secondary,
+                    () {},
                     enabled: false),
                 _buildGameCard(
                   'Coming Soon',
                   Icons.pending,
-                  Colors.purple,
+                  Theme.of(context).colorScheme.secondary,
                   () {},
                   enabled: false,
                 ),

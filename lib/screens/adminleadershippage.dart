@@ -365,9 +365,17 @@ class _AdminLeadershipPageState extends State<AdminLeadershipPage> {
 
         return Scaffold(
           appBar: AppBar(
-            title: Text('${society.name} - Leadership'),
+            title: Text(
+              '${society.name} - Leadership',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 24.0,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
             elevation: 0,
-            backgroundColor: Theme.of(context).colorScheme.surface,
+            backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
+            centerTitle: true,
           ),
           body: _isLoading
               ? const Center(child: CircularProgressIndicator())

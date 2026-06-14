@@ -156,7 +156,7 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
             SnackBar(
               content: const Text(
                   'You already have a pending request for this society'),
-              backgroundColor: Colors.orange,
+              backgroundColor: Theme.of(context).colorScheme.tertiary,
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -235,7 +235,7 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Request resubmitted for ${society.name}'),
-            backgroundColor: Colors.green,
+            backgroundColor: Theme.of(context).colorScheme.tertiary,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -266,7 +266,7 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
         ),
         icon: Icon(
           Icons.check_circle_outline,
-          color: Colors.green,
+          color: Theme.of(context).colorScheme.tertiary,
           size: 48,
         ),
         title: const Text('Request Sent'),
@@ -734,19 +734,19 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
     if (status != null) {
       switch (status) {
         case 'pending':
-          statusColor = Colors.amber.shade800;
+          statusColor = Theme.of(context).colorScheme.tertiary;
           statusIcon = Icons.hourglass_top;
           statusText = 'PENDING';
           statusSubtext = 'Request submitted ${_formatDate(requestDate)}';
           break;
         case 'rejected':
-          statusColor = Colors.red.shade400;
+          statusColor = Theme.of(context).colorScheme.error;
           statusIcon = Icons.cancel;
           statusText = 'REJECTED';
           statusSubtext = 'You can resubmit your request';
           break;
         case 'revoked':
-          statusColor = Colors.orange.shade400;
+          statusColor = Theme.of(context).colorScheme.error;
           statusIcon = Icons.remove_circle;
           statusText = 'MEMBERSHIP REVOKED';
           statusSubtext = 'You can request to rejoin';
@@ -873,10 +873,14 @@ class _SocietyJoinRequestPageState extends State<SocietyJoinRequestPage> {
             child: hasPendingRequest
                 ? OutlinedButton.icon(
                     onPressed: null,
-                    icon: Icon(Icons.hourglass_top, color: Colors.grey[600]),
+                    icon: Icon(Icons.hourglass_top,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
                     label: Text(
                       'Request Pending',
-                      style: TextStyle(color: Colors.grey[600]),
+                      style: TextStyle(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant),
                     ),
                   )
                 : canResubmit

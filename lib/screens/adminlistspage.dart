@@ -58,7 +58,10 @@ class ColoringRule {
             .secondaryContainer
             .withOpacity(0.3);
       case 'warning':
-        return Colors.orange.withOpacity(0.3);
+        return Theme.of(context)
+            .colorScheme
+            .tertiaryContainer
+            .withValues(alpha: 0.3);
       default:
         return Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3);
     }
@@ -805,6 +808,18 @@ class _AdminListPageState extends State<AdminListPage> {
                                               selected ? type : null;
                                         });
                                       },
+                                      backgroundColor: Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHighest
+                                          .withValues(alpha: 0.5),
+                                      selectedColor: Theme.of(context)
+                                          .colorScheme
+                                          .primaryContainer,
+                                      checkmarkColor: Theme.of(context)
+                                          .colorScheme
+                                          .primary,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 2),
                                     );
                                   }).toList(),
                                 ),
@@ -1114,7 +1129,9 @@ class _AdminListPageState extends State<AdminListPage> {
                                     Icon(
                                       Icons.person_search,
                                       size: 64,
-                                      color: Colors.grey[400],
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
                                     ),
                                     const SizedBox(height: 16),
                                     Text(
@@ -1125,7 +1142,9 @@ class _AdminListPageState extends State<AdminListPage> {
                                           .textTheme
                                           .titleMedium
                                           ?.copyWith(
-                                            color: Colors.grey[600],
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant,
                                           ),
                                     ),
                                   ],
@@ -3119,7 +3138,7 @@ class _AdminListPageState extends State<AdminListPage> {
         child: Text(
           'No hours recorded',
           style: TextStyle(
-            color: Colors.grey[600],
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       );
@@ -3158,14 +3177,15 @@ class _AdminListPageState extends State<AdminListPage> {
       return Theme.of(context).colorScheme.tertiary;
 
     // Build color palette based on requirement index
+    final scheme = Theme.of(context).colorScheme;
     final List<Color> palette = [
-      Theme.of(context).colorScheme.primary,
-      Theme.of(context).colorScheme.secondary,
-      Colors.teal,
-      Colors.purple,
-      Colors.orange,
-      Colors.pink,
-      Colors.cyan,
+      scheme.primary,
+      scheme.secondary,
+      scheme.tertiary,
+      scheme.primaryContainer,
+      scheme.secondaryContainer,
+      scheme.tertiaryContainer,
+      scheme.onSurfaceVariant,
     ];
 
     // Find index of requirement
@@ -3181,6 +3201,7 @@ class _AdminListPageState extends State<AdminListPage> {
 
   // Existing method for order chip
   Widget _buildOrderChip(SortOrder order, String label, StateSetter setState) {
+    final scheme = Theme.of(context).colorScheme;
     return FilterChip(
       selected: _sortOrder == order,
       label: Text(label),
@@ -3189,6 +3210,11 @@ class _AdminListPageState extends State<AdminListPage> {
           this.setState(() => _sortOrder = order);
         }
       },
+      backgroundColor:
+          scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      selectedColor: scheme.primaryContainer,
+      checkmarkColor: scheme.primary,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
     );
   }
 
@@ -3231,6 +3257,17 @@ class _AdminListPageState extends State<AdminListPage> {
                                 _selectedHourType = selected ? type : null);
                             this.setState(() {}); // Update main screen
                           },
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest
+                              .withValues(alpha: 0.5),
+                          selectedColor: Theme.of(context)
+                              .colorScheme
+                              .primaryContainer,
+                          checkmarkColor:
+                              Theme.of(context).colorScheme.primary,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
                         );
                       }).toList(),
                     ),

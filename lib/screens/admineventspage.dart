@@ -90,8 +90,10 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
             _selectedEventType = type;
           });
         },
-        backgroundColor:
-            Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+        backgroundColor: Theme.of(context)
+            .colorScheme
+            .surfaceContainerHighest
+            .withValues(alpha: 0.5),
         selectedColor: Theme.of(context).colorScheme.primaryContainer,
         checkmarkColor: Theme.of(context).colorScheme.primary,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -273,10 +275,12 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      const Icon(
+                                      Icon(
                                         Icons.event_busy,
                                         size: 64,
-                                        color: Colors.grey,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
                                       ),
                                       const SizedBox(height: 16),
                                       Text(
