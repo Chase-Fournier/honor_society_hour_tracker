@@ -187,7 +187,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    ListTile(
+                    ListTile(    
                       leading: Icon(Icons.add,
                           color: Theme.of(context).colorScheme.primary),
                       title: const Text('Add Event'),

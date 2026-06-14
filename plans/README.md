@@ -28,7 +28,9 @@ when done.
 | 006 | Swap-request inbox on home screen | P2 | M | — (before 008) | DONE (advisor execute + review; branch `advisor/006-008-home`, commit `4864629`; merged into GeneralSocietyAPP @ `c869ccb`, not pushed) |
 | 007 | Schedule local event reminders on signup | P2 | M | 003 (before 008) | DONE (advisor execute + review; branch `advisor/006-008-home`, commit `f39c926`; merged into GeneralSocietyAPP @ `c869ccb`, not pushed) |
 | 008 | Decompose god-files — extract home progress bars (slice 1) | P3 | M | 001,002,003,006,007 | DONE (advisor execute + review; branch `advisor/006-008-home`, commit `0883208`; merged into GeneralSocietyAPP @ `c869ccb`, not pushed) |
-| 009 | UI consistency — align all screens to the Attendance design | P2 | L | — (coordinate with 008 on home) | TODO |
+| 009 | UI consistency — align all screens to the Attendance design | P2 | L | — (coordinate with 008 on home) | DONE (advisor execute + review; branch `advisor/009-ui-consistency`, 6 commits `f025955`..`23fd6f5`; merged into GeneralSocietyAPP @ `ffab6c4`, not pushed; **visual theme-walk still pending operator**) |
+
+| 010 | Profile (Account Settings) page — unify cards to R4 grouping card + standard width | P2 | S–M | 009 | DONE (advisor execute + review; branch `advisor/010-r4`, commit `f58ce21`; merged into GeneralSocietyAPP @ `56921cb`, not pushed; visual check pending operator) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED (one-line rationale)
 
@@ -86,6 +88,58 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED 
   - **Still requires manual device testing** — no automated suite. See each plan's
     **Test plan**: swap inbox accept/decline, reminder fire/cancel, progress bars render
     identically, and a slotless event now appears in the admin Events list.
+
+- **2026-06-13 — 009 executed and reviewed (advisor `execute`, foreground); NOT merged.**
+  Drift pre-checked against HEAD `15aea82` (001–008 merged): all batch anchors intact
+  (005–008 didn't disturb 009's chip/card/appbar/color targets), no plan reconciliation
+  needed. One foreground executor (sonnet) ran all six batches, one commit per batch on
+  branch `advisor/009-ui-consistency`: `f025955` (A: `AppContentCard`), `0fb2a8e`
+  (B: FilterChip), `beb5265` (C: flatten cards), `af65195` (D: app bars), `14691bb`
+  (E: Colors.*→ColorScheme), `23fd6f5` (F: de-deprecate reference page).
+  - Reviewer verification: scope clean (18 in-scope files, no `snake`/`loginpage`/
+    `societyselectionpage`); `flutter analyze` → **0 errors, 777 issues vs 802 baseline**
+    (deprecations down); `_buildAnimatedFilterChip` gone; `AppContentCard` present.
+  - **22 `Colors.*` remain, all accounted for:** 8 in `societyselectionpage` (pre-login,
+    out of scope), 4 in `societyadmindashboard._buildActivityItem` (free function with no
+    `BuildContext` — STOP-condition #1, would need a signature change), 2 behavioral seed
+    colors in `appearancepage`, ~8 intentional traffic-light status greens.
+  - **Visual decisions for the operator to confirm in the theme-walk:** (1) leaderboard
+    app bar aligned to `bannerTheme` (its `primaryContainer` accent removed); (2)
+    leaderboard medal colors mapped to theme roles (no longer distinct gold/silver/bronze).
+  - **Merged into `GeneralSocietyAPP` @ `ffab6c4` per operator request (`--no-ff`, no
+    push).** Post-merge: working tree clean, `flutter analyze` → 0 errors, 777 issues.
+    The visual theme-walk (light/dark + 2 named themes) is **still outstanding** — this
+    is a pure-appearance change and the analyze gate can't catch contrast/aesthetic
+    regressions; verify the two flagged leaderboard decisions there. Follow-up candidate:
+    thread a `BuildContext` into `_buildActivityItem` so its status colors theme too.
+
+- **2026-06-14 — 010 executed, reviewed, and merged (advisor `execute`, foreground) @ `56921cb`.**
+  Follow-up to 009 for the one screen its card *bodies* missed. Requester chose the R4
+  grouping-card look (border + secondary tint) for all three Account-Settings sections.
+  - **Worktree-base gotcha (recorded for future runs):** the first 010 executor's worktree
+    came up based on `15aea82` — one commit BEHIND the 009 merge `ffab6c4` — so its branch
+    (`advisor/010-profile-card-consistency` @ `4110fef`) lacked `AppContentCard` and would
+    have reverted 009 if merged. A cherry-pick onto `ffab6c4` conflicted (009 and 010 both
+    add a class to `app_widgets.dart`), so it was re-dispatched with an explicit base
+    (`git checkout -b advisor/010-r4 ffab6c4`) + a hard base-check gate. **Lesson: always
+    tell executors to branch from the known-good SHA, not the worktree's starting HEAD.**
+  - **Good branch: `advisor/010-r4`, commit `f58ce21`, parent `ffab6c4`.** Adds canonical
+    `AppGroupingCard` (R4) to `app_widgets.dart`; converts `_buildProfileSection` /
+    `_buildEmailSection` / `_buildPasswordSection` to it; widens mobile inset
+    `spacingL`→`spacingM` (24→16); removes stray no-op spacers. Reviewer verified: parent is
+    the 009 merge (009 preserved — `AppContentCard` + `AppSurfaceCard` intact), scope = 2
+    files, `flutter analyze` → 0 errors.
+  - **Non-blocking residuals:** (a) the Password section's inner content kept its old deeper
+    indentation (cosmetic; `dart format` fixes it); (b) ~3 line-wrapped
+    `surfaceVariant.withOpacity` calls remain in nested sub-elements (email box, password-rules
+    hint) — not card wrappers, out of this plan's scope; sweep in a later de-deprecation pass.
+  - **Merged into `GeneralSocietyAPP` @ `56921cb` per operator request (`--no-ff`, no push).**
+    Post-merge: 009 preserved, `flutter analyze` → 0 errors. The two stale detour branches
+    (`advisor/010-profile-card-consistency`, `advisor/010-profile-cards-r4`) and their worktree
+    were deleted.
+  - **Unrelated pre-existing change:** `lib/screens/admineventspage.dart` has an uncommitted
+    modification in the operator's working tree that predates this session's work and is not part
+    of any plan — left untouched; the merge did not stage or commit it.
 
 ## Dependency notes
 
