@@ -805,6 +805,18 @@ class _AdminListPageState extends State<AdminListPage> {
                                               selected ? type : null;
                                         });
                                       },
+                                      backgroundColor: Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHighest
+                                          .withValues(alpha: 0.5),
+                                      selectedColor: Theme.of(context)
+                                          .colorScheme
+                                          .primaryContainer,
+                                      checkmarkColor: Theme.of(context)
+                                          .colorScheme
+                                          .primary,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 2),
                                     );
                                   }).toList(),
                                 ),
@@ -3181,6 +3193,7 @@ class _AdminListPageState extends State<AdminListPage> {
 
   // Existing method for order chip
   Widget _buildOrderChip(SortOrder order, String label, StateSetter setState) {
+    final scheme = Theme.of(context).colorScheme;
     return FilterChip(
       selected: _sortOrder == order,
       label: Text(label),
@@ -3189,6 +3202,11 @@ class _AdminListPageState extends State<AdminListPage> {
           this.setState(() => _sortOrder = order);
         }
       },
+      backgroundColor:
+          scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      selectedColor: scheme.primaryContainer,
+      checkmarkColor: scheme.primary,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
     );
   }
 
@@ -3231,6 +3249,17 @@ class _AdminListPageState extends State<AdminListPage> {
                                 _selectedHourType = selected ? type : null);
                             this.setState(() {}); // Update main screen
                           },
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest
+                              .withValues(alpha: 0.5),
+                          selectedColor: Theme.of(context)
+                              .colorScheme
+                              .primaryContainer,
+                          checkmarkColor:
+                              Theme.of(context).colorScheme.primary,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
                         );
                       }).toList(),
                     ),

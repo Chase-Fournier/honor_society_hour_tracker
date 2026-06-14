@@ -295,13 +295,20 @@ class _HomePageState extends State<HomePage> {
   List<Widget> _buildEventTypeChips(ThemeData theme) {
     return _availableEventTypes.map((type) {
       final bool isSelected = _selectedEventType == type;
-      return _buildAnimatedFilterChip(
-        theme: theme,
-        label: type,
-        isSelected: isSelected,
-        onSelected: () {
+      return FilterChip(
+        label: Text(type),
+        selected: isSelected,
+        onSelected: (_) {
+          final hapticsProvider =
+              Provider.of<HapticsProvider>(context, listen: false);
+          hapticsProvider.light();
           if (mounted) setState(() => _selectedEventType = type);
         },
+        backgroundColor:
+            theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        selectedColor: theme.colorScheme.primaryContainer,
+        checkmarkColor: theme.colorScheme.primary,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       );
     }).toList();
   }
@@ -345,65 +352,6 @@ class _HomePageState extends State<HomePage> {
     return events;
   }
 
-  Widget _buildAnimatedFilterChip({
-    required ThemeData theme,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onSelected,
-  }) {
-    // Define shapes - no explicit borders needed on the shapes themselves now
-    final ShapeBorder unselectedShape = StadiumBorder(); // Pill shape
-    final ShapeBorder selectedShape = RoundedRectangleBorder(
-      borderRadius:
-          AppDesign.borderMedium, // e.g., BorderRadius.circular(12.0) or 16.0
-    );
-
-    // Define colors
-    final Color unselectedBackgroundColor =
-        theme.colorScheme.surfaceVariant.withOpacity(0.7);
-    final Color selectedBackgroundColor = theme.colorScheme.primaryContainer;
-    final Color unselectedLabelColor = theme.colorScheme.onSurfaceVariant;
-    final Color selectedLabelColor = theme.colorScheme.onPrimaryContainer;
-    final Color iconColor =
-        isSelected ? selectedLabelColor : unselectedLabelColor;
-
-    return GestureDetector(
-      onTap: () {
-        final hapticsProvider =
-            Provider.of<HapticsProvider>(context, listen: false);
-        hapticsProvider.light();
-        onSelected();
-      },
-      child: AnimatedContainer(
-        duration: AppDesign.animationShort,
-        curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(
-            horizontal: AppDesign.spacingL - 4,
-            vertical: AppDesign.spacingS + 2),
-        decoration: ShapeDecoration(
-          color:
-              isSelected ? selectedBackgroundColor : unselectedBackgroundColor,
-          shape: isSelected ? selectedShape : unselectedShape,
-          // No shadows by default for a flatter, cleaner look, but you can add them:
-          // shadows: isSelected ? [
-          //   BoxShadow(
-          //     color: theme.colorScheme.shadow.withOpacity(0.1),
-          //     blurRadius: 4,
-          //     offset: const Offset(0, 2),
-          //   )
-          // ] : null,
-        ),
-        child: Text(
-          label,
-          style: theme.textTheme.labelLarge?.copyWith(
-            color: isSelected ? selectedLabelColor : unselectedLabelColor,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -491,12 +439,28 @@ class _HomePageState extends State<HomePage> {
                         spacing: 6,
                         children: [
                           ..._buildEventTypeChips(Theme.of(context)),
-                          _buildAnimatedFilterChip(
-                            theme: Theme.of(context),
-                            label: 'Signed Up',
-                            isSelected: _showSignedUpOnly,
-                            onSelected: () => setState(
-                                () => _showSignedUpOnly = !_showSignedUpOnly),
+                          FilterChip(
+                            label: const Text('Signed Up'),
+                            selected: _showSignedUpOnly,
+                            onSelected: (_) {
+                              final hapticsProvider =
+                                  Provider.of<HapticsProvider>(context,
+                                      listen: false);
+                              hapticsProvider.light();
+                              setState(
+                                  () => _showSignedUpOnly = !_showSignedUpOnly);
+                            },
+                            backgroundColor: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest
+                                .withValues(alpha: 0.5),
+                            selectedColor: Theme.of(context)
+                                .colorScheme
+                                .primaryContainer,
+                            checkmarkColor:
+                                Theme.of(context).colorScheme.primary,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
                           ),
                         ],
                       ),
