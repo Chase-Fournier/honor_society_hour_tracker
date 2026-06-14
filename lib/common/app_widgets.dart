@@ -161,6 +161,38 @@ class AppContentCard extends StatelessWidget {
   }
 }
 
+/// Grouping/section card — the Attendance-page R4 look (flat, hairline border,
+/// soft secondary tint). Single source of truth for grouped/section content.
+class AppGroupingCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry margin;
+  final EdgeInsetsGeometry padding;
+  const AppGroupingCard({
+    Key? key,
+    required this.child,
+    this.margin = const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    this.padding = AppDesign.paddingLarge,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      elevation: 0,
+      margin: margin,
+      color: scheme.secondaryContainer.withValues(alpha: 0.4),
+      shape: RoundedRectangleBorder(
+        borderRadius: AppDesign.borderLarge,
+        side: BorderSide(
+          color: scheme.outlineVariant.withValues(alpha: 0.6),
+          width: 1,
+        ),
+      ),
+      child: Padding(padding: padding, child: child),
+    );
+  }
+}
+
 /// Section header with consistent styling
 class AppSectionHeader extends StatelessWidget {
   final String title;
