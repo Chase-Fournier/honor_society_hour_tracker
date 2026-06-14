@@ -266,8 +266,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                       ? const Center(child: CircularProgressIndicator())
                       : RefreshIndicator(
                           onRefresh: () async {
-                            await _fetchEvents();
-                            await _fetchCollections();
+                            await _fetchDataOptimized();
                           },
                           child: _filteredEvents.isEmpty && _collections.isEmpty
                               ? Center(
@@ -1375,7 +1374,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
               has_delay,
               delay_hours,
               society_id,
-              "Time slots"!inner(
+              "Time slots"(
                 id,
                 start_time,
                 end_time,
@@ -1447,123 +1446,6 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
       }
     } catch (e) {
       debugPrint('Error in optimized fetch: $e');
-    }
-  }
-
-  Future<void> _fetchEvents() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      // Get current society
-      final society =
-          Provider.of<SocietyProvider>(context, listen: false).currentSociety;
-      if (society == null) {
-        setState(() {
-          _events = [];
-          _isLoading = false;
-        });
-        return;
-      }
-
-      // 1. Fetch events for this society
-      final eventsResponse = await supabase
-          .from('Events')
-          .select()
-          .eq('society_id', society.id)
-          .order('date');
-
-      // Create events with empty time slots first
-      List<Event> events =
-          eventsResponse.map<Event>((json) => Event.fromJson(json)).toList();
-
-      // 2. Fetch time slots for all events in a single query
-      final eventIds = events.map((e) => e.id).toList();
-      if (eventIds.isEmpty) {
-        setState(() {
-          _events = [];
-          _isLoading = false;
-        });
-        return;
-      }
-
-      final timeSlotsResponse = await supabase
-          .from('Time slots')
-          .select()
-          .inFilter('event_id', eventIds);
-
-      // Create a map of event_id -> List<TimeSlot>
-      Map<int, List<TimeSlot>> timeSlotsByEvent = {};
-      for (var json in timeSlotsResponse) {
-        final timeSlot = TimeSlot.fromJson(json);
-        final eventId = timeSlot.eventId;
-
-        if (!timeSlotsByEvent.containsKey(eventId)) {
-          timeSlotsByEvent[eventId] = [];
-        }
-        timeSlotsByEvent[eventId]!.add(timeSlot);
-      }
-
-      // 3. Fetch attendees for all time slots
-      final timeSlotIds =
-          timeSlotsResponse.map<int>((json) => json['id']).toList();
-
-      if (timeSlotIds.isNotEmpty) {
-        final attendeesResponse = await supabase
-            .from('Attendees')
-            .select('*, profiles:user_id(name)')
-            .inFilter('timeslot_id', timeSlotIds);
-
-        // Create a map of timeslot_id -> List<Attendee>
-        Map<int, List<Attendee>> attendeesByTimeSlot = {};
-        for (var json in attendeesResponse) {
-          final attendee = Attendee(
-            id: json['id'],
-            timeSlotId: json['timeslot_id'],
-            userId: json['user_id'],
-            name: json['profiles']['name'],
-            isPresent: json['is_present'] ?? false,
-            formsCompleted: json['forms_completed'] ?? false,
-          );
-
-          final timeSlotId = attendee.timeSlotId;
-          if (!attendeesByTimeSlot.containsKey(timeSlotId)) {
-            attendeesByTimeSlot[timeSlotId] = [];
-          }
-          attendeesByTimeSlot[timeSlotId]!.add(attendee);
-        }
-
-        // Now assign attendees to time slots
-        for (var timeSlotList in timeSlotsByEvent.values) {
-          for (var timeSlot in timeSlotList) {
-            if (attendeesByTimeSlot.containsKey(timeSlot.id)) {
-              timeSlot.attendees = attendeesByTimeSlot[timeSlot.id]!;
-            }
-          }
-        }
-      }
-
-      // Finally, assign time slots to events
-      for (var event in events) {
-        if (timeSlotsByEvent.containsKey(event.id)) {
-          event.timeSlots = timeSlotsByEvent[event.id]!;
-        }
-      }
-
-      // Update state with the fully assembled events
-      setState(() {
-        _events = events;
-        _isLoading = false;
-      });
-    } catch (e) {
-      debugPrint('Error fetching events: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading events: $e')),
-        );
-        setState(() => _isLoading = false);
-      }
     }
   }
 
@@ -1646,7 +1528,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
       );
 
       // Refresh events to update their display
-      _fetchEvents();
+      _fetchDataOptimized();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error deleting collection: $e')),
@@ -2313,7 +2195,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
       }
 
       // Refresh the events list
-      await _fetchEvents();
+      await _fetchDataOptimized();
 
       // Show a success message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2603,7 +2485,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
       }
 
       // Refresh the events list
-      await _fetchEvents();
+      await _fetchDataOptimized();
 
       // Show a success message
       ScaffoldMessenger.of(context).showSnackBar(
