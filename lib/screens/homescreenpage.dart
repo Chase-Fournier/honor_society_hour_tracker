@@ -56,6 +56,9 @@ class _HomePageState extends State<HomePage> {
   List<ContinuousEvent> _continuousEvents = [];
   // event id -> most recent submission for the current user (for status pill)
   Map<int, ContinuousEventSubmission> _myLatestSubmissionByEvent = {};
+  // Raw pending swap-request rows targeted at the current user (with nested
+  // Events / profiles / "Time slots"). Rendered as the home-screen inbox.
+  List<Map<String, dynamic>> _pendingSwapRequests = [];
   final DateFormat formatter = DateFormat('jm');
 
   @override
@@ -431,6 +434,13 @@ class _HomePageState extends State<HomePage> {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
+                    if (_pendingSwapRequests.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      _buildSwapRequestsHeader(),
+                      const SizedBox(height: 8),
+                      ..._pendingSwapRequests.map(_buildSwapRequestCard),
+                      const SizedBox(height: 16),
+                    ],
                     // Progress bars for each requirement type
                     ..._buildProgressBars(),
 
@@ -578,6 +588,99 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       debugPrint('Error fetching continuous events: $e');
     }
+  }
+
+  Widget _buildSwapRequestsHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Row(
+        children: [
+          Icon(Icons.swap_horiz,
+              color: Theme.of(context).colorScheme.primary, size: 22),
+          const SizedBox(width: 8),
+          Text(
+            'Swap Requests',
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSwapRequestCard(Map<String, dynamic> row) {
+    final scheme = Theme.of(context).colorScheme;
+    final swapRequest = SwapRequest.fromJson(row);
+    final eventData = row['Events'] as Map<String, dynamic>?;
+    final profileData = row['profiles'] as Map<String, dynamic>?;
+    final requesterName = profileData?['name'] ?? 'A member';
+    final eventName = eventData?['name'] ?? 'an event';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: AppDesign.borderLarge,
+        border: Border.all(color: scheme.outlineVariant, width: 1),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$requesterName wants to swap',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$eventName • ${formatter.format(swapRequest.startTime)} - ${formatter.format(swapRequest.endTime)}',
+              style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton(
+                  onPressed: () async {
+                    Provider.of<HapticsProvider>(context, listen: false)
+                        .selection();
+                    _declineSwapRequest(swapRequest);
+                    await _checkPendingSwapRequests();
+                  },
+                  child: const Text('Decline'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: eventData == null
+                      ? null
+                      : () async {
+                          Provider.of<HapticsProvider>(context, listen: false)
+                              .selection();
+                          final already = await _isAlreadySignedUp(swapRequest);
+                          if (already) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'You already hold this slot.')),
+                              );
+                            }
+                            return;
+                          }
+                          _acceptSwapRequest(swapRequest, eventData);
+                          await _checkPendingSwapRequests();
+                        },
+                  child: const Text('Accept'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildOngoingHeader() {
@@ -2588,92 +2691,10 @@ class _HomePageState extends State<HomePage> {
         .eq('status', 'pending')
         .eq("target_id", currentUserId);
 
-    await handleSwapRequests(swapRequests);
-  }
-
-  /// Processes incoming swap requests.
-  /// Shows notifications and handles user responses.
-  ///
-  /// Parameters:
-  /// - swapRequests: List<Map<String, dynamic>> - Pending swap requests
-  ///
-  /// Returns:
-  /// - Future<void>
-  Future<void> handleSwapRequests(
-      List<Map<String, dynamic>> swapRequests) async {
-    for (final request in swapRequests) {
-      try {
-        final swapRequest = SwapRequest.fromJson(request);
-
-        Map<String, dynamic>? eventData;
-        if (request['Events'] == null) {
-          final eventResponse = await Supabase.instance.client
-              .from('Events')
-              .select()
-              .eq('id', swapRequest.eventId)
-              .single();
-          eventData = eventResponse as Map<String, dynamic>?;
-        } else {
-          eventData = request['Events'] as Map<String, dynamic>?;
-        }
-
-        final profileData = request['profiles'] as Map<String, dynamic>?;
-
-        if (eventData != null && profileData != null) {
-          await _showSwapRequestNotification(
-              swapRequest, eventData, profileData, _events);
-        } else {
-          debugPrint('Invalid swap request data: $request');
-        }
-      } catch (e) {
-        debugPrint('Error processing swap request: $e');
-      }
-    }
-  }
-
-  Future<void> _showSwapRequestNotification(
-    SwapRequest swapRequest,
-    Map<String, dynamic> eventData,
-    Map<String, dynamic> profileData,
-    List<Event> listofevents,
-  ) async {
-    final isAlreadySignedUp = await _isAlreadySignedUp(swapRequest);
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Swap Request'),
-          content: Text(
-              '${profileData['name']} wants to swap for ${eventData['name']} (Time Slot: ${formatter.format(swapRequest.startTime)} - ${formatter.format(swapRequest.endTime)})'),
-          actions: [
-            TextButton(
-              child: const Text('Decline'),
-              onPressed: () {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                _declineSwapRequest(swapRequest);
-                Navigator.of(context).pop();
-              },
-            ),
-            Visibility(
-              visible: !isAlreadySignedUp,
-              child: ElevatedButton(
-                child: const Text('Accept'),
-                onPressed: () {
-                  final hapticsProvider =
-                      Provider.of<HapticsProvider>(context, listen: false);
-                  hapticsProvider.selection();
-                  _acceptSwapRequest(swapRequest, eventData);
-                  Navigator.of(context).pop();
-                },
-              ),
-            ),
-          ],
-        );
-      },
-    );
+    if (!mounted) return;
+    setState(() {
+      _pendingSwapRequests = List<Map<String, dynamic>>.from(swapRequests);
+    });
   }
 
   Future<bool> _isAlreadySignedUp(SwapRequest swapRequest) async {
