@@ -1149,9 +1149,8 @@ void _showDesktopEditDialog(MeetingNote note) {
                 Navigator.pop(context);
                 await _deleteNote(note.id);
               },
-              icon: Icon(
+              icon: const Icon(
                 Icons.delete_outline,
-                color: Theme.of(context).colorScheme.error,
               ),
               tooltip: 'Delete note',
             ),
@@ -1255,21 +1254,13 @@ void _showNoteDetailsDialog(MeetingNote note) {
                     ],
                   ),
                 ),
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: 'delete',
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.delete_outline,
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Delete',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
+                      Icon(Icons.delete_outline),
+                      SizedBox(width: 8),
+                      Text('Delete'),
                     ],
                   ),
                 ),
@@ -1336,7 +1327,7 @@ void _showNoteDetailsDialog(MeetingNote note) {
   return Card(
     elevation: 0,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(28),
+      borderRadius: AppDesign.borderLarge,
       side: BorderSide(
         color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
         width: 1,
@@ -1538,7 +1529,7 @@ Widget _buildEnhancedMeetingNotes() {
       return Card(
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: AppDesign.borderLarge,
           side: BorderSide(
             color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
             width: 1,
@@ -1688,7 +1679,7 @@ Widget _buildNoteItem(MeetingNote note) {
 Widget _buildNotesLoadingState() {
   return Card(
     elevation: 0,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+    shape: RoundedRectangleBorder(borderRadius: AppDesign.borderLarge),
     child: Shimmer.fromColors(
       baseColor: Theme.of(context).colorScheme.surfaceVariant,
       highlightColor: Theme.of(context).colorScheme.surface,
@@ -1714,7 +1705,7 @@ Widget _buildNotesLoadingState() {
 Widget _buildEmptyActivityState() {
   return Card(
     elevation: 0,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+    shape: RoundedRectangleBorder(borderRadius: AppDesign.borderLarge),
     child: Container(
       padding: const EdgeInsets.all(48),
       child: Column(
@@ -2015,9 +2006,8 @@ class _MobileRichTextEditorState extends State<_MobileRichTextEditor> {
                   if (widget.noteToEdit != null && widget.onDelete != null)
                     IconButton(
                       onPressed: widget.onDelete,
-                      icon: Icon(
+                      icon: const Icon(
                         Icons.delete_outline,
-                        color: Theme.of(context).colorScheme.error,
                       ),
                       tooltip: 'Delete note',
                     ),

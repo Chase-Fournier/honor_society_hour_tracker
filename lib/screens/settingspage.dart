@@ -14,7 +14,6 @@ import '../models/hourrequirement.dart';
 import '../models/honorsociety.dart';
 import '../providers/themeprovider.dart' as themeprovider;
 import 'societyselectionpage.dart';
-import '../common/app_widgets.dart';
 import '../providers/societyprovider.dart';
 import '../providers/hapticsprovider.dart';
 
@@ -312,6 +311,26 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  // Neutral grouping card matching the dashboard's card styling: the default
+  // card surface (slightly gray) with a hairline outline and no secondary tint.
+  Widget _buildProfileCard({
+    required Widget child,
+    EdgeInsetsGeometry padding = AppDesign.paddingLarge,
+  }) {
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppDesign.borderLarge,
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
+          width: 1,
+        ),
+      ),
+      child: Padding(padding: padding, child: child),
+    );
+  }
+
   // Society Card Widget
   Widget _buildSocietyCard() {
     final societyProvider =
@@ -321,8 +340,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (currentSociety == null)
       return const SizedBox.shrink(); // Handle null case
 
-    return AppCard(
-      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+    return _buildProfileCard(
       padding: AppDesign.paddingMedium,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -404,26 +422,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // User Profile Card Widget
   Widget _buildUserProfileCard() {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: AppDesign.borderLarge,
-        side: BorderSide(
-          color: Theme.of(context)
-              .colorScheme
-              .outlineVariant
-              .withValues(alpha: 0.6),
-          width: 1,
-        ),
-      ),
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: Theme.of(context)
-          .colorScheme
-          .secondaryContainer
-          .withValues(alpha: 0.4),
-      child: Padding(
-        padding: AppDesign.paddingLarge,
-        child: Row(
+    return _buildProfileCard(
+      child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Expanded(
@@ -485,14 +485,13 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ],
         ),
-      ),
     );
   }
 
   // Account Settings Card
   Widget _buildAccountSettingsCard() {
-    return AppCard(
-      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+    return _buildProfileCard(
+      padding: AppDesign.paddingMedium,
       child: Column(
         children: [
           ListTile(
@@ -545,26 +544,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // Appearance Settings Card
   Widget _buildAppearanceCard() {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: AppDesign.borderLarge,
-        side: BorderSide(
-          color: Theme.of(context)
-              .colorScheme
-              .outlineVariant
-              .withValues(alpha: 0.6),
-          width: 1,
-        ),
-      ),
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: Theme.of(context)
-          .colorScheme
-          .secondaryContainer
-          .withValues(alpha: 0.4),
-      child: Padding(
-        padding: AppDesign.paddingLarge,
-        child: Column(
+    return _buildProfileCard(
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
@@ -628,7 +609,6 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ],
         ),
-      ),
     );
   }
 
@@ -640,26 +620,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // Games Section
   Widget _buildGamesSection() {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: AppDesign.borderLarge,
-        side: BorderSide(
-          color: Theme.of(context)
-              .colorScheme
-              .outlineVariant
-              .withValues(alpha: 0.6),
-          width: 1,
-        ),
-      ),
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: Theme.of(context)
-          .colorScheme
-          .secondaryContainer
-          .withValues(alpha: 0.4),
-      child: Padding(
-        padding: AppDesign.paddingLarge,
-        child: Column(
+    return _buildProfileCard(
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
@@ -711,7 +673,6 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ],
         ),
-      ),
     );
   }
 

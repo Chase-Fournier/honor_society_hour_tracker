@@ -575,134 +575,9 @@ class _AdminListPageState extends State<AdminListPage> {
     final isWideScreen = screenWidth > 900;
 
     return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
-        title: Text(
-          'Members',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 24.0,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          // Multi-select mode toggle
-          if (isWideScreen)
-            IconButton(
-              icon: Icon(
-                _isMultiSelectMode
-                    ? Icons.check_box
-                    : Icons.check_box_outline_blank,
-                color: _isMultiSelectMode
-                    ? Theme.of(context).colorScheme.primary
-                    : null,
-              ),
-              tooltip: _isMultiSelectMode
-                  ? 'Exit Multi-select'
-                  : 'Enter Multi-select',
-              onPressed: () {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                setState(() {
-                  _isMultiSelectMode = !_isMultiSelectMode;
-                  if (!_isMultiSelectMode) {
-                    _selectedUserIds.clear();
-                  }
-                });
-              },
-            ),
-
-          // Show selected users action button if in multi-select mode
-          if (_isMultiSelectMode && _selectedUserIds.isNotEmpty)
-            PopupMenuButton<String>(
-              icon: Icon(Icons.more_vert),
-              tooltip: 'Actions for selected members',
-              onSelected: (value) {
-                if (value == 'copy_names') {
-                  _copySelectedUserInfo(false);
-                } else if (value == 'copy_emails') {
-                  _copySelectedUserInfo(true);
-                } else if (value == 'export_selected') {
-                  _exportSelectedUsers();
-                }
-              },
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'copy_names',
-                  child: Text('Copy Names (${_selectedUserIds.length})'),
-                ),
-                PopupMenuItem(
-                  value: 'copy_emails',
-                  child: Text('Copy Emails (${_selectedUserIds.length})'),
-                ),
-                PopupMenuItem(
-                  value: 'export_selected',
-                  child: Text('Export Selected (${_selectedUserIds.length})'),
-                ),
-              ],
-            ),
-
-          // Show bulk edit button on all screen sizes
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () {
-              final hapticsProvider =
-                  Provider.of<HapticsProvider>(context, listen: false);
-              hapticsProvider.selection();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const BulkEditEventsPage()),
-              );
-            },
-          ),
-          // Delete service hours entered after a chosen date
-          IconButton(
-            icon: Icon(
-              Icons.delete_sweep,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            tooltip: 'Delete hours by entry date',
-            onPressed: () {
-              final hapticsProvider =
-                  Provider.of<HapticsProvider>(context, listen: false);
-              hapticsProvider.selection();
-              _deleteHoursAfterDate();
-            },
-          ),
-          // Show export button on all screen sizes
-          IconButton(
-            icon: _isExporting
-                ? SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  )
-                : Icon(
-                    Icons.file_download,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-            onPressed: _isExporting
-                ? null
-                : () {
-                    final hapticsProvider =
-                        Provider.of<HapticsProvider>(context, listen: false);
-                    hapticsProvider.selection();
-                    setState(() => _isExporting = true);
-                    exportToExcel(context, filteredUsers).then((_) {
-                      setState(() => _isExporting = false);
-                    });
-                  },
-            tooltip: 'Export to Excel',
-          ),
-        ],
-      ),
+      appBar: _isMultiSelectMode
+          ? _buildSelectionAppBar(filteredUsers)
+          : _buildBrowseAppBar(filteredUsers),
       body: _isLoading
           ? Center(
               child: CircularProgressIndicator(),
@@ -895,28 +770,6 @@ class _AdminListPageState extends State<AdminListPage> {
                           ),
                         ),
 
-                        // Fixed button at bottom of sidebar (outside of scroll view)
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                final hapticsProvider =
-                                    Provider.of<HapticsProvider>(context,
-                                        listen: false);
-                                hapticsProvider.selection();
-                                _openBulkCustomEventForm(context);
-                              },
-                              icon: const Icon(Icons.add),
-                              label: const Text('Bulk Hours'),
-                              style: ElevatedButton.styleFrom(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -931,41 +784,26 @@ class _AdminListPageState extends State<AdminListPage> {
                           padding: AppDesign.paddingMedium,
                           child: Column(
                             children: [
-                              // Search field
-                              TextField(
-                                onChanged: (value) {
-                                  setState(() {
-                                    _searchQuery = value;
-                                  });
-                                },
-                                decoration: InputDecoration(
-                                  labelText: 'Search',
-                                  prefixIcon: const Icon(Icons.search),
-                                  border: OutlineInputBorder(
-                                    borderRadius: AppDesign.borderMedium,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 16.0),
-
-                              // Bulk add button
+                              // Search field with filter button beside it
                               Row(
                                 children: [
                                   Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed: () {
-                                        final hapticsProvider =
-                                            Provider.of<HapticsProvider>(
-                                                context,
-                                                listen: false);
-                                        hapticsProvider.selection();
-                                        _openBulkCustomEventForm(context);
+                                    child: TextField(
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _searchQuery = value;
+                                        });
                                       },
-                                      icon: const Icon(Icons.add),
-                                      label: const Text('Bulk Add'),
+                                      decoration: InputDecoration(
+                                        labelText: 'Search',
+                                        prefixIcon: const Icon(Icons.search),
+                                        border: OutlineInputBorder(
+                                          borderRadius: AppDesign.borderMedium,
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                  const SizedBox(width: 16),
+                                  const SizedBox(width: 12),
                                   // Filter button that shows bottom sheet
                                   OutlinedButton.icon(
                                     onPressed: () {
@@ -973,7 +811,6 @@ class _AdminListPageState extends State<AdminListPage> {
                                           Provider.of<HapticsProvider>(context,
                                               listen: false);
                                       hapticsProvider.selection();
-                                      
                                       _showFilterOptions(context);
                                     },
                                     icon: const Icon(Icons.filter_list),
@@ -1164,6 +1001,197 @@ class _AdminListPageState extends State<AdminListPage> {
                 ),
               ],
             ),
+    );
+  }
+
+  // ---- Members app bar ----
+  // Default ("browse") bar: enter selection mode + a grouped tools menu.
+  PreferredSizeWidget _buildBrowseAppBar(List<UserProfile> filteredUsers) {
+    final haptics = Provider.of<HapticsProvider>(context, listen: false);
+    final scheme = Theme.of(context).colorScheme;
+    return AppBar(
+      elevation: 0,
+      backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
+      title: Text(
+        'Members',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 24.0,
+          color: scheme.onSurface,
+        ),
+      ),
+      centerTitle: true,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.checklist),
+          tooltip: 'Select members',
+          onPressed: () {
+            haptics.selection();
+            setState(() => _isMultiSelectMode = true);
+          },
+        ),
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert),
+          tooltip: 'Tools',
+          onSelected: (value) => _onToolSelected(value, filteredUsers),
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: 'export_excel',
+              child: const Row(children: [
+                Icon(Icons.file_download),
+                SizedBox(width: 12),
+                Text('Export to Excel'),
+              ]),
+            ),
+            PopupMenuItem(
+              value: 'edit_events',
+              child: const Row(children: [
+                Icon(Icons.event_note),
+                SizedBox(width: 12),
+                Text('Edit logged events'),
+              ]),
+            ),
+            const PopupMenuDivider(),
+            PopupMenuItem(
+              value: 'delete_by_date',
+              child: Row(children: [
+                Icon(Icons.delete_sweep, color: scheme.error),
+                const SizedBox(width: 12),
+                Text('Delete hours by entry date',
+                    style: TextStyle(color: scheme.error)),
+              ]),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _onToolSelected(String value, List<UserProfile> filteredUsers) {
+    Provider.of<HapticsProvider>(context, listen: false).selection();
+    switch (value) {
+      case 'export_excel':
+        if (_isExporting) return;
+        setState(() => _isExporting = true);
+        exportToExcel(context, filteredUsers).then((_) {
+          if (mounted) setState(() => _isExporting = false);
+        });
+        break;
+      case 'edit_events':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const BulkEditEventsPage()),
+        );
+        break;
+      case 'delete_by_date':
+        _deleteHoursAfterDate();
+        break;
+    }
+  }
+
+  // Contextual bar shown while selecting members; hosts the bulk actions.
+  PreferredSizeWidget _buildSelectionAppBar(List<UserProfile> filteredUsers) {
+    final haptics = Provider.of<HapticsProvider>(context, listen: false);
+    final scheme = Theme.of(context).colorScheme;
+    final hasSelection = _selectedUserIds.isNotEmpty;
+    final allSelected = filteredUsers.isNotEmpty &&
+        filteredUsers.every((u) => _selectedUserIds.contains(u.id));
+    return AppBar(
+      elevation: 0,
+      backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        tooltip: 'Cancel',
+        onPressed: () {
+          haptics.selection();
+          setState(() {
+            _isMultiSelectMode = false;
+            _selectedUserIds.clear();
+          });
+        },
+      ),
+      title: Text(
+        hasSelection ? '${_selectedUserIds.length} selected' : 'Select members',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 20.0,
+          color: scheme.onSurface,
+        ),
+      ),
+      actions: [
+        IconButton(
+          icon: Icon(allSelected ? Icons.deselect : Icons.select_all),
+          tooltip: allSelected ? 'Clear selection' : 'Select all',
+          onPressed: () {
+            haptics.selection();
+            setState(() {
+              if (allSelected) {
+                _selectedUserIds.clear();
+              } else {
+                _selectedUserIds = filteredUsers.map((u) => u.id).toSet();
+              }
+            });
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.add),
+          tooltip: 'Add hours to selected',
+          onPressed: hasSelection
+              ? () {
+                  haptics.selection();
+                  final selected = _users
+                      .where((u) => _selectedUserIds.contains(u.id))
+                      .toList();
+                  _openBulkCustomEventForm(context, users: selected);
+                }
+              : null,
+        ),
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert),
+          tooltip: 'Actions for selected',
+          enabled: hasSelection,
+          onSelected: (value) {
+            haptics.selection();
+            switch (value) {
+              case 'copy_names':
+                _copySelectedUserInfo(false);
+                break;
+              case 'copy_emails':
+                _copySelectedUserInfo(true);
+                break;
+              case 'export_selected':
+                _exportSelectedUsers();
+                break;
+            }
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: 'copy_names',
+              child: const Row(children: [
+                Icon(Icons.badge_outlined),
+                SizedBox(width: 12),
+                Text('Copy names'),
+              ]),
+            ),
+            PopupMenuItem(
+              value: 'copy_emails',
+              child: const Row(children: [
+                Icon(Icons.alternate_email),
+                SizedBox(width: 12),
+                Text('Copy emails'),
+              ]),
+            ),
+            PopupMenuItem(
+              value: 'export_selected',
+              child: const Row(children: [
+                Icon(Icons.file_download),
+                SizedBox(width: 12),
+                Text('Export selected'),
+              ]),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -2215,10 +2243,7 @@ class _AdminListPageState extends State<AdminListPage> {
                                 tooltip: 'Edit This Hour',
                               ),
                               IconButton(
-                                icon: Icon(
-                                  Icons.delete,
-                                  color: Theme.of(context).colorScheme.error,
-                                ),
+                                icon: const Icon(Icons.delete_outline),
                                 onPressed: () {
                                   final hapticsProvider =
                                       Provider.of<HapticsProvider>(context,
@@ -2404,7 +2429,9 @@ class _AdminListPageState extends State<AdminListPage> {
           ),
         ],
       ),
-      child: Theme(
+      child: _isMultiSelectMode
+          ? _buildSelectableUserCardBody(user, hoursText.toString())
+          : Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
           shape: RoundedRectangleBorder(
@@ -2573,11 +2600,7 @@ class _AdminListPageState extends State<AdminListPage> {
                       ),
                       const SizedBox(width: 8),
                       IconButton(
-                        icon: Icon(
-                          Icons.delete,
-                          size: 20,
-                          color: Theme.of(context).colorScheme.error,
-                        ),
+                        icon: const Icon(Icons.delete_outline, size: 20),
                         tooltip: 'Delete Hour',
                         onPressed: () {
                           final hapticsProvider = Provider.of<HapticsProvider>(
@@ -2594,6 +2617,64 @@ class _AdminListPageState extends State<AdminListPage> {
                 ),
               );
             }).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Simplified member card used while selecting: no dues/grad year, no
+  // expansion — the whole row toggles selection and the trailing control is a
+  // selection checkbox.
+  Widget _buildSelectableUserCardBody(UserProfile user, String hoursText) {
+    final scheme = Theme.of(context).colorScheme;
+    final isSelected = _selectedUserIds.contains(user.id);
+
+    void toggle() {
+      Provider.of<HapticsProvider>(context, listen: false).selection();
+      setState(() {
+        if (isSelected) {
+          _selectedUserIds.remove(user.id);
+        } else {
+          _selectedUserIds.add(user.id);
+        }
+      });
+    }
+
+    return InkWell(
+      borderRadius: AppDesign.borderLarge,
+      onTap: toggle,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    user.name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18.0,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    hoursText,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Checkbox(
+              value: isSelected,
+              onChanged: (_) => toggle(),
+            ),
           ],
         ),
       ),
@@ -3724,11 +3805,12 @@ class _AdminListPageState extends State<AdminListPage> {
     }
   }
 
-  void _openBulkCustomEventForm(BuildContext context) async {
+  void _openBulkCustomEventForm(BuildContext context,
+      {List<UserProfile>? users}) async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => BulkCustomEventFormPage(users: _users),
+        builder: (context) => BulkCustomEventFormPage(users: users ?? _users),
       ),
     );
 

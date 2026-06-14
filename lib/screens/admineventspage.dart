@@ -28,7 +28,9 @@ class AdminEventsPage extends StatefulWidget {
   _AdminEventsPageState createState() => _AdminEventsPageState();
 }
 
-class _AdminEventsPageState extends State<AdminEventsPage> {
+class _AdminEventsPageState extends State<AdminEventsPage>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
   List<Event> _events = [];
   List<Collection> _collections = [];
   Event? _draggedEvent;
@@ -45,8 +47,26 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(_handleTabChange);
     _fetchDataOptimized();
     _fetchContinuousEvents();
+  }
+
+  @override
+  void dispose() {
+    _tabController.removeListener(_handleTabChange);
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  // Keep _listMode (which drives the FAB) in sync with the active tab.
+  void _handleTabChange() {
+    final mode = _tabController.index == 0 ? 'Events' : 'Ongoing';
+    if (mode != _listMode) {
+      Provider.of<HapticsProvider>(context, listen: false).selection();
+      setState(() => _listMode = mode);
+    }
   }
 
   // Get available requirement types from current society
@@ -121,27 +141,19 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
           ),
         ),
         centerTitle: true,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(56),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'Events', label: Text('Events')),
-                ButtonSegment(value: 'Ongoing', label: Text('Ongoing')),
-              ],
-              selected: {_listMode},
-              onSelectionChanged: (sel) {
-                Provider.of<HapticsProvider>(context, listen: false).selection();
-                setState(() => _listMode = sel.first);
-              },
-            ),
-          ),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Events'),
+            Tab(text: 'Ongoing'),
+          ],
         ),
       ),
-      body: _listMode == 'Ongoing'
-          ? _buildContinuousEventsBody(isWideScreen)
-          : Row(
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // Events tab
+          Row(
         children: [
           // Optional side panel for wide screens
           if (isWideScreen)
@@ -331,6 +343,10 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
               ],
             ),
           ),
+        ],
+          ),
+          // Ongoing tab
+          _buildContinuousEventsBody(isWideScreen),
         ],
       ),
       // Only show FAB on mobile
@@ -671,7 +687,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                       visualDensity: VisualDensity.compact,
                     ),
                     IconButton(
-                      icon: const Icon(Icons.delete, size: 20),
+                      icon: const Icon(Icons.delete_outline, size: 20),
                       onPressed: () {
                         final hapticsProvider = Provider.of<HapticsProvider>(
                             context,
@@ -888,7 +904,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    icon: Icon(Icons.delete_outline, color: colorScheme.error),
+                    icon: const Icon(Icons.delete_outline),
                     onPressed: () {
                       final hapticsProvider =
                           Provider.of<HapticsProvider>(context, listen: false);
@@ -1229,7 +1245,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                             subtitle:
                                 Text('Capacity: ${timeSlot.numberOfPeople}'),
                             trailing: IconButton(
-                              icon: const Icon(Icons.delete),
+                              icon: const Icon(Icons.delete_outline),
                               onPressed: () {
                                 final hapticsProvider =
                                     Provider.of<HapticsProvider>(context,
@@ -1563,7 +1579,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                     '${event.date.month}/${event.date.day}/${event.date.year}',
                   ),
                   trailing: IconButton(
-                    icon: const Icon(Icons.delete),
+                    icon: const Icon(Icons.delete_outline),
                     onPressed: () {
                       final hapticsProvider =
                           Provider.of<HapticsProvider>(context, listen: false);
@@ -2003,7 +2019,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                               subtitle:
                                   Text('Capacity: ${timeSlot.numberOfPeople}'),
                               trailing: IconButton(
-                                icon: const Icon(Icons.delete),
+                                icon: const Icon(Icons.delete_outline),
                                 onPressed: () {
                                   final hapticsProvider =
                                       Provider.of<HapticsProvider>(context,
@@ -2963,7 +2979,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                 ),
                 IconButton(
                   tooltip: 'Delete permanently',
-                  icon: Icon(Icons.delete_outline, color: scheme.error),
+                  icon: const Icon(Icons.delete_outline),
                   onPressed: () => _confirmDeleteContinuous(ce),
                 ),
               ],
@@ -3339,7 +3355,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                                         IconButton(
                                           visualDensity: VisualDensity.compact,
                                           tooltip: 'Delete',
-                                          icon: const Icon(Icons.delete,
+                                          icon: const Icon(Icons.delete_outline,
                                               size: 20),
                                           onPressed: () => setSt(() {
                                             steps.removeAt(i);

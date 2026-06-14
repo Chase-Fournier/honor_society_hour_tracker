@@ -401,7 +401,7 @@ class _BulkEditEventsPageState extends State<BulkEditEventsPage> {
               tooltip: 'Edit Selected',
             ),
             IconButton(
-              icon: const Icon(Icons.delete),
+              icon: const Icon(Icons.delete_outline),
               onPressed: () {
                 final hapticsProvider =
                     Provider.of<HapticsProvider>(context, listen: false);

@@ -26,9 +26,15 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
   double hours = 0;
   String type = 'Meeting';
   List<String> selectedUserIds = [];
-  String searchQuery = '';
   bool _isLoading = false;
   final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    // Recipients are chosen on the Members page before this form opens.
+    selectedUserIds = widget.users.map((user) => user.id).toList();
+  }
 
   // Get available requirement types from society
   List<String> get _availableTypes {
@@ -52,14 +58,6 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
 
     debugPrint(types.toString());
     return types;
-  }
-
-  List<UserProfile> get filteredUsers {
-    return widget.users.where((user) {
-      final lowercaseName = user.name.toLowerCase();
-      final lowercaseQuery = searchQuery.toLowerCase();
-      return lowercaseQuery.isEmpty || lowercaseName.contains(lowercaseQuery);
-    }).toList();
   }
 
   void _validateAndSave() {
@@ -161,10 +159,12 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
   @override
   Widget build(BuildContext context) {
     final types = _availableTypes;
+    final recipients =
+        widget.users.where((u) => selectedUserIds.contains(u.id)).toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Bulk Custom Event'),
+        title: const Text('Add Hours'),
         elevation: 0,
       ),
       body: Form(
@@ -341,185 +341,75 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
               ),
             ),
 
-            // Selection Header with Stats
+            // Recipients (chosen on the Members page)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Row(
                 children: [
-                  Expanded(
-                    child: TextFormField(
-                      decoration: const InputDecoration(
-                        labelText: 'Search Members',
-                        prefixIcon: Icon(Icons.search),
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (value) {
-                        setState(() {
-                          searchQuery = value;
-                        });
-                      },
-                    ),
+                  Icon(
+                    Icons.people,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(width: 8),
-                  // Selection stats chip
-                  Chip(
-                    label: Text(
-                      '${selectedUserIds.length} selected',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    backgroundColor:
-                        Theme.of(context).colorScheme.primaryContainer,
-                    avatar: Icon(
-                      Icons.people,
-                      size: 18,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  Text(
+                    'Adding hours to ${recipients.length} '
+                    '${recipients.length == 1 ? 'member' : 'members'}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                   ),
                 ],
               ),
             ),
 
-            // Select All Row
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Row(
-                children: [
-                  Checkbox(
-                    value: selectedUserIds.length == filteredUsers.length &&
-                        filteredUsers.isNotEmpty,
-                    onChanged: (bool? value) {
-                      setState(() {
-                        if (value ?? false) {
-                          selectedUserIds =
-                              filteredUsers.map((user) => user.id).toList();
-                        } else {
-                          selectedUserIds.clear();
-                        }
-                      });
-                    },
-                  ),
-                  const Text('Select All'),
-                  const Spacer(),
-                  // Action buttons to select or clear all based on search results
-                  if (searchQuery.isNotEmpty) ...[
-                    TextButton.icon(
-                      icon: const Icon(Icons.check_circle_outline),
-                      label: const Text('Select Filtered'),
-                      onPressed: () {
-                        final hapticsProvider = Provider.of<HapticsProvider>(
-                            context,
-                            listen: false);
-                        hapticsProvider.selection();
-                        setState(() {
-                          for (final user in filteredUsers) {
-                            if (!selectedUserIds.contains(user.id)) {
-                              selectedUserIds.add(user.id);
-                            }
-                          }
-                        });
-                      },
-                    ),
-                    TextButton.icon(
-                      icon: const Icon(Icons.cancel_outlined),
-                      label: const Text('Clear Filtered'),
-                      onPressed: () {
-                        final hapticsProvider = Provider.of<HapticsProvider>(
-                            context,
-                            listen: false);
-                        hapticsProvider.selection();
-                        setState(() {
-                          selectedUserIds.removeWhere((id) =>
-                              filteredUsers.any((user) => user.id == id));
-                        });
-                      },
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            // Users List
+            // Recipient list (read-only; remove to drop someone)
             Expanded(
-              child: filteredUsers.isEmpty
+              child: recipients.isEmpty
                   ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.search_off,
-                            size: 64,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No users match your search',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
+                      child: Text(
+                        'No members selected',
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
                                   color: Theme.of(context)
                                       .colorScheme
                                       .onSurfaceVariant,
                                 ),
-                          ),
-                        ],
                       ),
                     )
                   : Scrollbar(
                       child: ListView.builder(
                         padding: AppDesign.paddingSmall,
-                        itemCount: filteredUsers.length,
+                        itemCount: recipients.length,
                         itemBuilder: (context, index) {
-                          final user = filteredUsers[index];
-                          final isSelected = selectedUserIds.contains(user.id);
+                          final user = recipients[index];
 
                           return Card(
                             elevation: 0,
                             margin: const EdgeInsets.symmetric(
                                 vertical: 4, horizontal: 8),
-                            color: isSelected
-                                ? Theme.of(context)
-                                    .colorScheme
-                                    .primaryContainer
-                                    .withOpacity(0.7)
-                                : Theme.of(context).colorScheme.surface,
-                            child: CheckboxListTile(
-                              title: Text(
-                                user.name,
-                                style: TextStyle(
-                                  fontWeight:
-                                      isSelected ? FontWeight.bold : null,
-                                ),
-                              ),
-                              value: isSelected,
-                              onChanged: (value) {
-                                setState(() {
-                                  if (value ?? false) {
-                                    selectedUserIds.add(user.id);
-                                  } else {
-                                    selectedUserIds.remove(user.id);
-                                  }
-                                });
-                              },
+                            color: Theme.of(context).colorScheme.surface,
+                            child: ListTile(
                               dense: true,
-                              secondary: Padding(
-                                padding: const EdgeInsets.all(4.0),
-                                child: CircleAvatar(
-                                  child: Text(user.name.isNotEmpty
-                                      ? user.name[0].toUpperCase()
-                                      : '?'),
-                                  backgroundColor: isSelected
-                                      ? Theme.of(context).colorScheme.primary
-                                      : null,
-                                  foregroundColor: isSelected
-                                      ? Theme.of(context).colorScheme.onPrimary
-                                      : null,
-                                ),
+                              leading: CircleAvatar(
+                                child: Text(user.name.isNotEmpty
+                                    ? user.name[0].toUpperCase()
+                                    : '?'),
+                              ),
+                              title: Text(user.name),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.close, size: 20),
+                                tooltip: 'Remove',
+                                onPressed: () {
+                                  final hapticsProvider =
+                                      Provider.of<HapticsProvider>(context,
+                                          listen: false);
+                                  hapticsProvider.selection();
+                                  setState(() {
+                                    selectedUserIds.remove(user.id);
+                                  });
+                                },
                               ),
                             ),
                           );
