@@ -301,7 +301,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             child: SingleChildScrollView(
               padding: EdgeInsets.symmetric(
                 horizontal:
-                    isWideScreen ? AppDesign.spacingL : AppDesign.spacingL,
+                    isWideScreen ? AppDesign.spacingL : AppDesign.spacingM,
                 vertical: AppDesign.spacingL,
               ),
               child: Column(
@@ -360,11 +360,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                     // Mobile layout (full width, sequential)
                     Column(
                       children: [
-                        const SizedBox(width: AppDesign.spacingL),
                         _buildProfileSection(),
-                        const SizedBox(width: AppDesign.spacingL),
                         _buildEmailSection(),
-                        const SizedBox(height: AppDesign.spacingL),
                         _buildPasswordSection(),
                       ],
                     ),
@@ -383,7 +380,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
         List.generate(7, (i) => (currentYear - 2 + i).toString());
     final storedYear = _graduationYearController.text;
     final dropdownValue = graduationYears.contains(storedYear) ? storedYear : null;
-    return AppSurfaceCard(
+    return AppGroupingCard(
+      margin: const EdgeInsets.symmetric(vertical: 8),
       child: Form(
         key: _profileFormKey,
         child: Column(
@@ -492,7 +490,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   }
 
   Widget _buildEmailSection() {
-    return AppSurfaceCard(
+    return AppGroupingCard(
+      margin: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -616,17 +615,11 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   }
 
   Widget _buildPasswordSection() {
-    return Card(
-      elevation: 0,
-      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return AppGroupingCard(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
             // Section Header
             Row(
               children: [
@@ -813,7 +806,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             ),
           ],
         ),
-      ),
     );
   }
 
