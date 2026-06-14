@@ -25,6 +25,9 @@ import '../common/iconutils.dart';
 import '../common/normalizetype.dart';
 import 'package:provider/provider.dart';
 import '../providers/hapticsprovider.dart';
+import '../services/notification_service.dart';
+import '../providers/notificationsprovider.dart';
+import '../common/progress_bars.dart';
 import 'continuouseventdetailpage.dart';
 
 final supabase = Supabase.instance.client;
@@ -56,6 +59,9 @@ class _HomePageState extends State<HomePage> {
   List<ContinuousEvent> _continuousEvents = [];
   // event id -> most recent submission for the current user (for status pill)
   Map<int, ContinuousEventSubmission> _myLatestSubmissionByEvent = {};
+  // Raw pending swap-request rows targeted at the current user (with nested
+  // Events / profiles / "Time slots"). Rendered as the home-screen inbox.
+  List<Map<String, dynamic>> _pendingSwapRequests = [];
   final DateFormat formatter = DateFormat('jm');
 
   @override
@@ -431,6 +437,13 @@ class _HomePageState extends State<HomePage> {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
+                    if (_pendingSwapRequests.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      _buildSwapRequestsHeader(),
+                      const SizedBox(height: 8),
+                      ..._pendingSwapRequests.map(_buildSwapRequestCard),
+                      const SizedBox(height: 16),
+                    ],
                     // Progress bars for each requirement type
                     ..._buildProgressBars(),
 
@@ -578,6 +591,99 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       debugPrint('Error fetching continuous events: $e');
     }
+  }
+
+  Widget _buildSwapRequestsHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Row(
+        children: [
+          Icon(Icons.swap_horiz,
+              color: Theme.of(context).colorScheme.primary, size: 22),
+          const SizedBox(width: 8),
+          Text(
+            'Swap Requests',
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSwapRequestCard(Map<String, dynamic> row) {
+    final scheme = Theme.of(context).colorScheme;
+    final swapRequest = SwapRequest.fromJson(row);
+    final eventData = row['Events'] as Map<String, dynamic>?;
+    final profileData = row['profiles'] as Map<String, dynamic>?;
+    final requesterName = profileData?['name'] ?? 'A member';
+    final eventName = eventData?['name'] ?? 'an event';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: AppDesign.borderLarge,
+        border: Border.all(color: scheme.outlineVariant, width: 1),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$requesterName wants to swap',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$eventName • ${formatter.format(swapRequest.startTime)} - ${formatter.format(swapRequest.endTime)}',
+              style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton(
+                  onPressed: () async {
+                    Provider.of<HapticsProvider>(context, listen: false)
+                        .selection();
+                    _declineSwapRequest(swapRequest);
+                    await _checkPendingSwapRequests();
+                  },
+                  child: const Text('Decline'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: eventData == null
+                      ? null
+                      : () async {
+                          Provider.of<HapticsProvider>(context, listen: false)
+                              .selection();
+                          final already = await _isAlreadySignedUp(swapRequest);
+                          if (already) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'You already hold this slot.')),
+                              );
+                            }
+                            return;
+                          }
+                          _acceptSwapRequest(swapRequest, eventData);
+                          await _checkPendingSwapRequests();
+                        },
+                  child: const Text('Accept'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildOngoingHeader() {
@@ -883,349 +989,19 @@ class _HomePageState extends State<HomePage> {
       final completedHours = _completedHoursMap[type] ?? 0.0;
       final potentialHours = _potentialHoursMap[type] ?? 0.0;
 
-      progressBars.add(_buildDoubleProgressBar(
+      progressBars.add(buildDoubleProgressBar(
           context, type, completedHours, potentialHours, hoursNeeded.floor()));
     });
 
     // Then add the special meeting requirement
     final meetingHours = _completedHoursMap['Meeting'] ?? 0.0;
-    progressBars.add(
-        _buildMeetingProgressBar(context, meetingHours, _meetingRequirement));
-
-    return progressBars;
-  }
-
-  /// Creates a double progress bar showing completed and potential hours.
-  Widget _buildDoubleProgressBar(BuildContext context, String title,
-      double completedHours, double potentialHours, int hoursNeeded) {
-    final isComplete = completedHours >= hoursNeeded;
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: AppDesign.borderMedium),
-      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Padding(
-        padding: AppDesign.paddingSmall,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Title with icon
-                Row(
-                  children: [
-                    Icon(
-                      getIconForType(title, context),
-                      size: 18,
-                      color: isComplete
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '$title',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-
-                // Hours text more compact
-                Text(
-                  '${completedHours.toStringAsFixed(1)} / $hoursNeeded',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: isComplete
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 8),
-
-            // Progress bars with animation
-            Stack(
-              children: [
-                // Background track
-                Container(
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    borderRadius: AppDesign.borderSmall,
-                  ),
-                ),
-
-                // Potential hours progress
-                TweenAnimationBuilder<double>(
-                  duration: const Duration(milliseconds: 750),
-                  curve: Curves.easeInOut,
-                  tween: Tween<double>(
-                    begin: 0,
-                    end: (potentialHours / hoursNeeded).clamp(0.0, 1.0),
-                  ),
-                  builder: (context, potentialValue, _) {
-                    return FractionallySizedBox(
-                      widthFactor: potentialValue,
-                      child: Container(
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withOpacity(0.3),
-                          borderRadius: AppDesign.borderSmall,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-                // Completed hours progress
-                TweenAnimationBuilder<double>(
-                  duration: const Duration(milliseconds: 1000),
-                  curve: Curves.easeOutQuart,
-                  tween: Tween<double>(
-                    begin: 0,
-                    end: (completedHours / hoursNeeded).clamp(0.0, 1.0),
-                  ),
-                  builder: (context, completedValue, _) {
-                    return FractionallySizedBox(
-                      widthFactor: completedValue,
-                      child: Container(
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: isComplete
-                              ? Theme.of(context).colorScheme.primary
-                              : Theme.of(context)
-                                  .colorScheme
-                                  .primary
-                                  .withOpacity(0.8),
-                          borderRadius: AppDesign.borderSmall,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-
-            // Only show this info if there's additional potential hours
-            if (potentialHours > completedHours)
-              Padding(
-                padding: AppDesign.paddingSmall,
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.upcoming,
-                      size: 12,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurfaceVariant
-                          .withOpacity(0.7),
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      'Potential: ${potentialHours.toStringAsFixed(1)}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurfaceVariant
-                            .withOpacity(0.7),
-                      ),
-                    ),
-                    if (isComplete)
-                      Expanded(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Icon(
-                              Icons.check_circle_outline,
-                              size: 12,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              'Complete',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Creates a progress bar specifically for meeting attendance with Material You styling
-  Widget _buildMeetingProgressBar(
-      BuildContext context, double completedHours, int hoursNeeded) {
-    final meetingsAttended = completedHours.floor();
     final meetingsLeft =
         _events.where((event) => event.type == 'Meeting').length;
-    final isComplete = meetingsAttended >= hoursNeeded;
+    progressBars.add(buildMeetingProgressBar(
+        context, meetingHours, _meetingRequirement,
+        meetingsLeft: meetingsLeft));
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: AppDesign.borderMedium),
-      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Padding(
-        padding: AppDesign.paddingSmall,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Title with icon
-                Row(
-                  children: [
-                    Icon(
-                      Icons.groups_rounded,
-                      size: 18,
-                      color: isComplete
-                          ? Theme.of(context).colorScheme.tertiary
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Meetings',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-
-                // Meetings text
-                Text(
-                  '$meetingsAttended / $hoursNeeded',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: isComplete
-                        ? Theme.of(context).colorScheme.tertiary
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 8),
-
-            // Progress bar with animation
-            TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 1000),
-              curve: Curves.easeOutQuart,
-              tween: Tween<double>(
-                begin: 0,
-                end: (meetingsAttended / hoursNeeded).clamp(0.0, 1.0),
-              ),
-              builder: (context, value, _) {
-                return Stack(
-                  children: [
-                    // Background track
-                    Container(
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        borderRadius: AppDesign.borderSmall,
-                      ),
-                    ),
-
-                    // Progress
-                    FractionallySizedBox(
-                      widthFactor: value,
-                      child: Container(
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: isComplete
-                              ? Theme.of(context).colorScheme.tertiary
-                              : Theme.of(context)
-                                  .colorScheme
-                                  .tertiary
-                                  .withOpacity(0.8),
-                          borderRadius: AppDesign.borderSmall,
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-
-            if (meetingsLeft > 0)
-              Padding(
-                padding: AppDesign.paddingSmall,
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.event_available,
-                      size: 12,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurfaceVariant
-                          .withOpacity(0.7),
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      'Upcoming: $meetingsLeft',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurfaceVariant
-                            .withOpacity(0.7),
-                      ),
-                    ),
-                    if (isComplete)
-                      Expanded(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Icon(
-                              Icons.check_circle_outline,
-                              size: 12,
-                              color: Theme.of(context).colorScheme.tertiary,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              'Complete',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context).colorScheme.tertiary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
+    return progressBars;
   }
 
   /// Finds the earliest event date in a collection.
@@ -2420,6 +2196,11 @@ class _HomePageState extends State<HomePage> {
           societyId: society?.id,
         );
 
+        // Cancel any scheduled reminder for this slot.
+        if (timeSlot.id != null) {
+          await NotificationService.instance.cancel(timeSlot.id!);
+        }
+
         _fetchEvents();
       }
     } catch (e) {
@@ -2444,6 +2225,18 @@ class _HomePageState extends State<HomePage> {
     final userId = user?.id;
     final hapticsProvider =
         Provider.of<HapticsProvider>(context, listen: false);
+    // Read notification prefs and compute reminder values before any await so
+    // context is not used across async gaps.
+    final notifPrefs =
+        Provider.of<NotificationsProvider>(context, listen: false);
+    final reminderSlotBody =
+        'Starts at ${timeSlot.time.format(context)}. Tap for details.';
+    final reminderStart = timeSlot.id != null
+        ? DateTime(event.date.year, event.date.month, event.date.day,
+            timeSlot.time.hour, timeSlot.time.minute)
+        : null;
+    final remindAt = reminderStart
+        ?.subtract(Duration(minutes: notifPrefs.reminderMinutesBefore));
 
     try {
       if (userId != null) {
@@ -2515,6 +2308,18 @@ class _HomePageState extends State<HomePage> {
             societyId: society?.id,
           );
           hapticsProvider.success();
+          // Schedule a local reminder if the user enabled event reminders.
+          if (notifPrefs.enabled &&
+              notifPrefs.eventReminders &&
+              timeSlot.id != null &&
+              remindAt != null) {
+            await NotificationService.instance.scheduleEventReminder(
+              id: timeSlot.id!,
+              title: 'Upcoming: ${event.name}',
+              body: reminderSlotBody,
+              scheduledFor: remindAt,
+            );
+          }
           _fetchEvents();
         } else if (status == 'full') {
           hapticsProvider.error();
@@ -2588,92 +2393,10 @@ class _HomePageState extends State<HomePage> {
         .eq('status', 'pending')
         .eq("target_id", currentUserId);
 
-    await handleSwapRequests(swapRequests);
-  }
-
-  /// Processes incoming swap requests.
-  /// Shows notifications and handles user responses.
-  ///
-  /// Parameters:
-  /// - swapRequests: List<Map<String, dynamic>> - Pending swap requests
-  ///
-  /// Returns:
-  /// - Future<void>
-  Future<void> handleSwapRequests(
-      List<Map<String, dynamic>> swapRequests) async {
-    for (final request in swapRequests) {
-      try {
-        final swapRequest = SwapRequest.fromJson(request);
-
-        Map<String, dynamic>? eventData;
-        if (request['Events'] == null) {
-          final eventResponse = await Supabase.instance.client
-              .from('Events')
-              .select()
-              .eq('id', swapRequest.eventId)
-              .single();
-          eventData = eventResponse as Map<String, dynamic>?;
-        } else {
-          eventData = request['Events'] as Map<String, dynamic>?;
-        }
-
-        final profileData = request['profiles'] as Map<String, dynamic>?;
-
-        if (eventData != null && profileData != null) {
-          await _showSwapRequestNotification(
-              swapRequest, eventData, profileData, _events);
-        } else {
-          debugPrint('Invalid swap request data: $request');
-        }
-      } catch (e) {
-        debugPrint('Error processing swap request: $e');
-      }
-    }
-  }
-
-  Future<void> _showSwapRequestNotification(
-    SwapRequest swapRequest,
-    Map<String, dynamic> eventData,
-    Map<String, dynamic> profileData,
-    List<Event> listofevents,
-  ) async {
-    final isAlreadySignedUp = await _isAlreadySignedUp(swapRequest);
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Swap Request'),
-          content: Text(
-              '${profileData['name']} wants to swap for ${eventData['name']} (Time Slot: ${formatter.format(swapRequest.startTime)} - ${formatter.format(swapRequest.endTime)})'),
-          actions: [
-            TextButton(
-              child: const Text('Decline'),
-              onPressed: () {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                _declineSwapRequest(swapRequest);
-                Navigator.of(context).pop();
-              },
-            ),
-            Visibility(
-              visible: !isAlreadySignedUp,
-              child: ElevatedButton(
-                child: const Text('Accept'),
-                onPressed: () {
-                  final hapticsProvider =
-                      Provider.of<HapticsProvider>(context, listen: false);
-                  hapticsProvider.selection();
-                  _acceptSwapRequest(swapRequest, eventData);
-                  Navigator.of(context).pop();
-                },
-              ),
-            ),
-          ],
-        );
-      },
-    );
+    if (!mounted) return;
+    setState(() {
+      _pendingSwapRequests = List<Map<String, dynamic>>.from(swapRequests);
+    });
   }
 
   Future<bool> _isAlreadySignedUp(SwapRequest swapRequest) async {
