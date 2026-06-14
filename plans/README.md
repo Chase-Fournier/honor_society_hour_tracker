@@ -24,10 +24,10 @@ when done.
 | 002 | Pass `societyId` on signup activity log | P1 | S | — | DONE |
 | 003 | Make time-slot signup atomic (no oversell) | P1 | M | — | DONE (merged into GeneralSocietyAPP; migration still needs operator `supabase db push`) |
 | 004 | Replace `print()` with `debugPrint()` | P2 | M | 001,002,003 | DONE (merged into GeneralSocietyAPP) |
-| 005 | Consolidate admin event-fetch into one path | P2 | M | — (before 008) | TODO |
-| 006 | Swap-request inbox on home screen | P2 | M | — (before 008) | TODO |
-| 007 | Schedule local event reminders on signup | P2 | M | 003 (before 008) | TODO |
-| 008 | Decompose god-files — extract home progress bars (slice 1) | P3 | M | 001,002,003,006,007 | TODO |
+| 005 | Consolidate admin event-fetch into one path | P2 | M | — (before 008) | DONE (advisor execute + review; branch `advisor/005-consolidate-admin-event-fetch`, commit `5a78798`; merged into GeneralSocietyAPP @ `c869ccb`, not pushed) |
+| 006 | Swap-request inbox on home screen | P2 | M | — (before 008) | DONE (advisor execute + review; branch `advisor/006-008-home`, commit `4864629`; merged into GeneralSocietyAPP @ `c869ccb`, not pushed) |
+| 007 | Schedule local event reminders on signup | P2 | M | 003 (before 008) | DONE (advisor execute + review; branch `advisor/006-008-home`, commit `f39c926`; merged into GeneralSocietyAPP @ `c869ccb`, not pushed) |
+| 008 | Decompose god-files — extract home progress bars (slice 1) | P3 | M | 001,002,003,006,007 | DONE (advisor execute + review; branch `advisor/006-008-home`, commit `0883208`; merged into GeneralSocietyAPP @ `c869ccb`, not pushed) |
 | 009 | UI consistency — align all screens to the Attendance design | P2 | L | — (coordinate with 008 on home) | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED (one-line rationale)
@@ -53,6 +53,39 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED 
     - merge of `advisor/004-print-to-debugprint` — git auto-merged the overlapping `homescreenpage.dart`/`completedhourspage.dart`, no conflicts.
   - Post-merge verification on `GeneralSocietyAPP`: `flutter analyze` → 0 errors, 0 `avoid_print`, 802 pre-existing info/warning issues; 002's `societyId` and 003's `signup_for_timeslot` RPC confirmed intact in the merged `homescreenpage.dart`.
   - **Operator action STILL outstanding (003):** the merge brought in the client RPC call **and** `supabase/migrations/20260613000001_signup_for_timeslot.sql`, but the migration is not applied. Run `supabase db push` before this branch reaches users, or time-slot signup throws "function not found". Nothing here has been pushed to `origin`.
+
+- **2026-06-13 — 005, 006, 007, 008 executed and reviewed (advisor `execute`); NOT merged.**
+  Drift was pre-checked by the reviewer against current HEAD (`e33be27`, with 001–004
+  merged): all plan anchors resolved at shifted line numbers, no plan reconciliation
+  needed. Executors (sonnet) ran in isolated worktrees. **Note:** background executors
+  could not get Bash permission approval (git/flutter denied); re-dispatched in
+  **foreground** so the operator approved prompts interactively — that worked.
+  - **005** → branch `advisor/005-consolidate-admin-event-fetch`, commit `5a78798`
+    (one file: `admineventspage.dart`). Reviewer re-ran done criteria: `!inner`→left
+    join applied, all `_fetchEvents` callers repointed to `_fetchDataOptimized` and the
+    method deleted (−123 lines), `_fetchDataOptimized` confirmed to still fetch
+    Collections (so dropping `_fetchCollections()` from refresh is safe), `flutter
+    analyze` → 106 pre-existing infos, 0 new errors.
+  - **006 + 007 + 008** → branch `advisor/006-008-home`, three stacked commits
+    (`4864629`, `f39c926`, `0883208`). Stacked on ONE branch (not three) because all
+    three edit `homescreenpage.dart`; 008 also creates `lib/common/progress_bars.dart`.
+    Reviewer verified per commit: 006 deletes both swap-dialog helpers and reuses the
+    existing accept/decline handlers; 007's reminder wiring uses pre-`await` context
+    reads (documented deviation, sound — matches the plan's STOP-condition #4 guidance)
+    and anchors on the `_signUpForTimeSlot` `hapticsProvider.success()` (NOT the
+    `_acceptSwapRequest` one); 008 is a faithful pure move (−329 lines, `meetingsLeft`
+    injected). **Analyze gate verified by baseline diff:** main-tree baseline = 84
+    issues incl. 6 warnings; worktree = 83 issues with the SAME 6 (pre-existing)
+    warnings → 0 new errors/warnings.
+  - **Merged into `GeneralSocietyAPP` per operator request (no push).** Branch
+    `advisor/005-...` was already fast-forwarded into the line (its commit `5a78798`
+    sits directly in history); `advisor/006-008-home` came in via `--no-ff` merge
+    commit `c869ccb`. Post-merge verification: working tree clean (only this README
+    dirty), `flutter analyze` on all three merged files → **0 errors** (189 pre-existing
+    info/warning lints). Nothing pushed to `origin`.
+  - **Still requires manual device testing** — no automated suite. See each plan's
+    **Test plan**: swap inbox accept/decline, reminder fire/cancel, progress bars render
+    identically, and a slotless event now appears in the admin Events list.
 
 ## Dependency notes
 
