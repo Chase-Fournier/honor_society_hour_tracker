@@ -25,6 +25,8 @@ import '../common/iconutils.dart';
 import '../common/normalizetype.dart';
 import 'package:provider/provider.dart';
 import '../providers/hapticsprovider.dart';
+import '../services/notification_service.dart';
+import '../providers/notificationsprovider.dart';
 import 'continuouseventdetailpage.dart';
 
 final supabase = Supabase.instance.client;
@@ -2523,6 +2525,11 @@ class _HomePageState extends State<HomePage> {
           societyId: society?.id,
         );
 
+        // Cancel any scheduled reminder for this slot.
+        if (timeSlot.id != null) {
+          await NotificationService.instance.cancel(timeSlot.id!);
+        }
+
         _fetchEvents();
       }
     } catch (e) {
@@ -2547,6 +2554,18 @@ class _HomePageState extends State<HomePage> {
     final userId = user?.id;
     final hapticsProvider =
         Provider.of<HapticsProvider>(context, listen: false);
+    // Read notification prefs and compute reminder values before any await so
+    // context is not used across async gaps.
+    final notifPrefs =
+        Provider.of<NotificationsProvider>(context, listen: false);
+    final reminderSlotBody =
+        'Starts at ${timeSlot.time.format(context)}. Tap for details.';
+    final reminderStart = timeSlot.id != null
+        ? DateTime(event.date.year, event.date.month, event.date.day,
+            timeSlot.time.hour, timeSlot.time.minute)
+        : null;
+    final remindAt = reminderStart
+        ?.subtract(Duration(minutes: notifPrefs.reminderMinutesBefore));
 
     try {
       if (userId != null) {
@@ -2618,6 +2637,18 @@ class _HomePageState extends State<HomePage> {
             societyId: society?.id,
           );
           hapticsProvider.success();
+          // Schedule a local reminder if the user enabled event reminders.
+          if (notifPrefs.enabled &&
+              notifPrefs.eventReminders &&
+              timeSlot.id != null &&
+              remindAt != null) {
+            await NotificationService.instance.scheduleEventReminder(
+              id: timeSlot.id!,
+              title: 'Upcoming: ${event.name}',
+              body: reminderSlotBody,
+              scheduledFor: remindAt,
+            );
+          }
           _fetchEvents();
         } else if (status == 'full') {
           hapticsProvider.error();
