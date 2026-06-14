@@ -327,20 +327,21 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
     Color iconColor;
     String actionText;
 
+    final scheme = Theme.of(context).colorScheme;
     switch (log.actionType) {
       case 'signup':
         iconData = Icons.person_add;
-        iconColor = Colors.green;
+        iconColor = scheme.tertiary;
         actionText = 'signed up for';
         break;
       case 'unsignup':
         iconData = Icons.person_remove;
-        iconColor = Colors.red;
+        iconColor = scheme.error;
         actionText = 'removed from';
         break;
       case 'swap':
         iconData = Icons.swap_horiz;
-        iconColor = Colors.orange;
+        iconColor = scheme.tertiary;
         actionText = 'swapped for';
         break;
       case 'attendance_marked':
@@ -355,33 +356,33 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
         break;
       case 'manual_addition':
         iconData = Icons.add_box;
-        iconColor = Colors.purple;
+        iconColor = scheme.secondary;
         actionText = 'marked for manual event:';
         break;
       case 'manual_deletion':
         iconData = Icons.disabled_by_default;
-        iconColor = Colors.red;
+        iconColor = scheme.error;
         actionText = 'removed from manual event:';
         break;
       case 'continuous_submission_approved':
         iconData = Icons.verified;
-        iconColor = Colors.green;
+        iconColor = scheme.tertiary;
         actionText = 'submitted ongoing hours for';
         break;
       case 'continuous_submission_rejected':
         iconData = Icons.cancel;
-        iconColor = Colors.red;
+        iconColor = scheme.error;
         actionText = 'submission rejected for';
         break;
       case 'continuous_submission_undone':
         iconData = Icons.undo;
-        iconColor = Colors.orange;
+        iconColor = scheme.tertiary;
         actionText = 'review undone for';
         break;
 
       default:
         iconData = Icons.info;
-        iconColor = Colors.grey;
+        iconColor = scheme.onSurfaceVariant;
         actionText = 'modified';
     }
 

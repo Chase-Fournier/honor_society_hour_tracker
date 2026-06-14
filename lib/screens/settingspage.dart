@@ -681,7 +681,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 _buildGameCard(
                   'Snake',
                   Icons.videogame_asset,
-                  Colors.green,
+                  Theme.of(context).colorScheme.tertiary,
                   () {
                     final hapticsProvider =
                         Provider.of<HapticsProvider>(context, listen: false);
@@ -694,13 +694,16 @@ class _SettingsPageState extends State<SettingsPage> {
                   },
                 ),
                 // Add more game cards in the future
-                _buildGameCard('Coming Soon', Icons.airplanemode_active,
-                    Colors.amber, () {},
+                _buildGameCard(
+                    'Coming Soon',
+                    Icons.airplanemode_active,
+                    Theme.of(context).colorScheme.secondary,
+                    () {},
                     enabled: false),
                 _buildGameCard(
                   'Coming Soon',
                   Icons.pending,
-                  Colors.purple,
+                  Theme.of(context).colorScheme.secondary,
                   () {},
                   enabled: false,
                 ),

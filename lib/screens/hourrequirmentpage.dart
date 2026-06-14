@@ -355,8 +355,11 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.playlist_add,
-                              size: 64, color: Colors.grey),
+                          Icon(Icons.playlist_add,
+                              size: 64,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant),
                           const SizedBox(height: 16),
                           Text(
                             'No requirements defined',
@@ -369,7 +372,9 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                                 .textTheme
                                 .bodyMedium
                                 ?.copyWith(
-                                  color: Colors.grey,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
                                 ),
                           ),
                         ],
@@ -386,16 +391,23 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                               leading: CircleAvatar(
                                 backgroundColor: requirement.isActive
                                     ? Theme.of(context).colorScheme.primary
-                                    : Colors.grey,
-                                foregroundColor: Colors.white,
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                foregroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .surface,
                                 child: const Icon(Icons.access_time),
                               ),
                               title: Text(
                                 requirement.type,
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color:
-                                      requirement.isActive ? null : Colors.grey,
+                                  color: requirement.isActive
+                                      ? null
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
                                 ),
                               ),
                               subtitle: Column(
@@ -411,7 +423,9 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                                           ? Theme.of(context)
                                               .colorScheme
                                               .primary
-                                          : Colors.grey,
+                                          : Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
                                     ),
                                   ),
                                 ],

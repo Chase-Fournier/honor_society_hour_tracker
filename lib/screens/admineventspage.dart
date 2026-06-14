@@ -275,10 +275,12 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      const Icon(
+                                      Icon(
                                         Icons.event_busy,
                                         size: 64,
-                                        color: Colors.grey,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
                                       ),
                                       const SizedBox(height: 16),
                                       Text(

@@ -58,7 +58,10 @@ class ColoringRule {
             .secondaryContainer
             .withOpacity(0.3);
       case 'warning':
-        return Colors.orange.withOpacity(0.3);
+        return Theme.of(context)
+            .colorScheme
+            .tertiaryContainer
+            .withValues(alpha: 0.3);
       default:
         return Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3);
     }
@@ -1126,7 +1129,9 @@ class _AdminListPageState extends State<AdminListPage> {
                                     Icon(
                                       Icons.person_search,
                                       size: 64,
-                                      color: Colors.grey[400],
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
                                     ),
                                     const SizedBox(height: 16),
                                     Text(
@@ -1137,7 +1142,9 @@ class _AdminListPageState extends State<AdminListPage> {
                                           .textTheme
                                           .titleMedium
                                           ?.copyWith(
-                                            color: Colors.grey[600],
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant,
                                           ),
                                     ),
                                   ],
@@ -3131,7 +3138,7 @@ class _AdminListPageState extends State<AdminListPage> {
         child: Text(
           'No hours recorded',
           style: TextStyle(
-            color: Colors.grey[600],
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       );
@@ -3170,14 +3177,15 @@ class _AdminListPageState extends State<AdminListPage> {
       return Theme.of(context).colorScheme.tertiary;
 
     // Build color palette based on requirement index
+    final scheme = Theme.of(context).colorScheme;
     final List<Color> palette = [
-      Theme.of(context).colorScheme.primary,
-      Theme.of(context).colorScheme.secondary,
-      Colors.teal,
-      Colors.purple,
-      Colors.orange,
-      Colors.pink,
-      Colors.cyan,
+      scheme.primary,
+      scheme.secondary,
+      scheme.tertiary,
+      scheme.primaryContainer,
+      scheme.secondaryContainer,
+      scheme.tertiaryContainer,
+      scheme.onSurfaceVariant,
     ];
 
     // Find index of requirement

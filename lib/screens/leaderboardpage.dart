@@ -238,9 +238,11 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         if (_rankings.length > 1)
-          _buildPodiumItem(_rankings[1], 2, Colors.grey[400]!),
+          _buildPodiumItem(
+              _rankings[1], 2, Theme.of(context).colorScheme.onSurfaceVariant),
         if (_rankings.isNotEmpty)
-          _buildPodiumItem(_rankings[0], 1, Colors.amber),
+          _buildPodiumItem(
+              _rankings[0], 1, Theme.of(context).colorScheme.tertiary),
         if (_rankings.length > 2)
           _buildPodiumItem(_rankings[2], 3, Colors.brown[300]!),
       ],

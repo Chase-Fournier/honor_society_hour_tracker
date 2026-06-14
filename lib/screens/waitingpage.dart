@@ -11,10 +11,10 @@ class WaitingPage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.email,
               size: 80.0,
-              color: Colors.blue,
+              color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(height: 24.0),
             const Text(

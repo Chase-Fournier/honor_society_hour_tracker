@@ -668,7 +668,7 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
                   child: Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: Colors.red,
+                      color: Theme.of(context).colorScheme.error,
                       shape: BoxShape.circle,
                     ),
                     width: 16,

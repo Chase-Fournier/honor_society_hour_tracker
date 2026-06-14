@@ -193,7 +193,9 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
         SnackBar(
           content:
               Text('Request ${approve ? 'approved' : 'rejected'} successfully'),
-          backgroundColor: approve ? Colors.green : Colors.orange,
+          backgroundColor: approve
+              ? Theme.of(context).colorScheme.tertiary
+              : Theme.of(context).colorScheme.error,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -262,7 +264,7 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
         SnackBar(
           content:
               Text('${request.userName} has been removed from the society'),
-          backgroundColor: Colors.orange,
+          backgroundColor: Theme.of(context).colorScheme.tertiary,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -551,24 +553,25 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
     IconData statusIcon;
     String statusText;
 
+    final scheme = Theme.of(context).colorScheme;
     switch (request.status) {
       case 'approved':
-        statusColor = Colors.green;
+        statusColor = scheme.tertiary;
         statusIcon = Icons.check_circle;
         statusText = 'APPROVED';
         break;
       case 'rejected':
-        statusColor = Colors.red;
+        statusColor = scheme.error;
         statusIcon = Icons.cancel;
         statusText = 'REJECTED';
         break;
       case 'revoked':
-        statusColor = Colors.orange;
+        statusColor = scheme.error;
         statusIcon = Icons.remove_circle;
         statusText = 'REMOVED';
         break;
       default:
-        statusColor = Colors.amber;
+        statusColor = scheme.tertiary;
         statusIcon = Icons.hourglass_top;
         statusText = 'PENDING';
     }
