@@ -2,6 +2,21 @@
 
 The Wheeler NHS Hour Tracking App is a comprehensive Flutter application designed to streamline the process of tracking and managing volunteer hours for National Honor Society (NHS) members. It offers a robust set of features for both NHS members and administrators to efficiently log, monitor, and organize service activities.
 
+## 👋 Welcome
+
+Thanks for stopping by! Whether you're an NHS member curious about the app, an administrator setting it up for your chapter, or a developer who wants to contribute — you're in the right place.
+
+This is an open-source, multi-tenant app: a single user can belong to multiple honor societies and switch between them. It's built with **Flutter** on the front end and **Supabase** (Postgres + auth + row-level security) on the back end, with no separate API layer.
+
+New here? A quick map of where to go:
+
+* **Just want to try it?** Head to [🚀 Getting Started](#-getting-started).
+* **Setting it up for a society?** See [⚙️ Configuration](#️-configuration).
+* **Want to contribute?** Read the [Contributing Guide](CONTRIBUTING.md) — it covers local setup, our conventions, and how to open a great pull request.
+* **Curious how it's built?** Browse [🏗️ Project Structure](#️-project-structure-lib-folder) and the in-depth notes in [`CLAUDE.md`](CLAUDE.md).
+
+Questions are always welcome — open an [issue](https://github.com/Chase-Fournier/wheeler_nhs/issues) and we'll help out.
+
 ## ✨ Features
 
 The app is packed with features to enhance the NHS experience:
@@ -44,9 +59,8 @@ Follow these instructions to get a copy of the project up and running on your lo
 
 1.  **Clone the repository:**
     ```sh
-    git clone [https://github.com/GeneralSocietyAPP/wheeler_nhs.git](https://github.com/GeneralSocietyAPP/wheeler_nhs.git)
+    git clone https://github.com/Chase-Fournier/wheeler_nhs.git
     ```
-    (Assuming this is the correct repository based on the provided branch information. Update if necessary.)
 
 2.  **Navigate to the project directory:**
     ```sh
@@ -112,22 +126,25 @@ This project utilizes the following key dependencies (see `pubspec.yaml` for a f
 
 ## 🤝 Contributing
 
-Contributions are welcome! If you encounter any issues or have suggestions for improvements, please open an issue on the [GitHub repository issues page](https://github.com/GeneralSocietyAPP/wheeler_nhs/issues).
+Contributions are welcome — bug reports, feature ideas, docs, and code all help. The fastest way to get started is the **[Contributing Guide](CONTRIBUTING.md)**, which walks through local setup, our coding conventions, and the pull-request workflow.
 
-If you'd like to contribute code:
-1.  Fork the repository.
-2.  Create a new branch for your feature or bug fix (`git checkout -b feature/your-feature-name`).
-3.  Make your changes and commit them with descriptive messages.
-4.  Push your changes to your forked repository (`git push origin feature/your-feature-name`).
-5.  Open a pull request to the `GeneralSocietyAPP/wheeler_nhs` repository.
+The short version:
+
+1.  Fork the repository and clone your fork.
+2.  Create a branch for your change (`git checkout -b feature/your-feature-name`).
+3.  Make your changes, then run `flutter analyze` and `flutter test`.
+4.  Commit with a descriptive message and push to your fork.
+5.  Open a pull request against `Chase-Fournier/wheeler_nhs` describing what and why.
+
+Found a bug or have a suggestion? Open an [issue](https://github.com/Chase-Fournier/wheeler_nhs/issues).
 
 ## 📜 License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details (assuming you have a LICENSE file, if not, you should add one. The old README mentioned MIT).
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## 📞 Contact
 
-For any questions or feedback regarding the Wheeler NHS Hour Tracking App, please open an issue on the [GitHub repository issues page](https://github.com/GeneralSocietyAPP/wheeler_nhs/issues).
+For any questions or feedback regarding the Wheeler NHS Hour Tracking App, please open an issue on the [GitHub repository issues page](https://github.com/Chase-Fournier/wheeler_nhs/issues).
 
 ---
 
