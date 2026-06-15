@@ -1,2 +1,0 @@
-C:/Users/fourn/wheeler nhs/wheeler_nhs/android/app/.cxx/RelWithDebInfo/4d6l4r6q/armeabi-v7a/CMakeFiles/edit_cache.dir
-C:/Users/fourn/wheeler nhs/wheeler_nhs/android/app/.cxx/RelWithDebInfo/4d6l4r6q/armeabi-v7a/CMakeFiles/rebuild_cache.dir

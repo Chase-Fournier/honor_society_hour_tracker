@@ -43,3 +43,12 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Android native build artifacts (CMake/NDK)
+**/android/app/.cxx/
+
+# Supabase CLI local state (project ref, pooler URL, etc.)
+supabase/.temp/
+
+# Claude Code local agent state
+.claude/worktrees/
