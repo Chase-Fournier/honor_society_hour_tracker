@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../common/app_design.dart';
 import '../common/app_widgets.dart';
 import 'package:provider/provider.dart';
@@ -365,10 +366,104 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                         _buildPasswordSection(),
                       ],
                     ),
+
+                  // About / report-issue footer
+                  _buildFooter(),
                 ],
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Opens an external [url] in the device browser, with haptic feedback.
+  Future<void> _launchUrl(String url) async {
+    context.read<HapticsProvider>().selection();
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open link')),
+      );
+    }
+  }
+
+  /// A small footer with an "about the app" blurb and links to report an
+  /// issue or read more on GitHub.
+  Widget _buildFooter() {
+    final colorScheme = Theme.of(context).colorScheme;
+    const repoUrl = 'https://github.com/Chase-Fournier/wheeler_nhs';
+    const issuesUrl = '$repoUrl/issues';
+    const readmeUrl = '$repoUrl#readme';
+
+    return Padding(
+      padding: const EdgeInsets.only(
+        top: AppDesign.spacingXL,
+        bottom: AppDesign.spacingL,
+      ),
+      child: Column(
+        children: [
+          Text(
+            'Wheeler NHS Tracker is a free, open-source app for tracking '
+            'National Honor Society volunteer hours.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: AppDesign.spacingM),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: AppDesign.spacingL,
+            runSpacing: AppDesign.spacingS,
+            children: [
+              _buildFooterLink(
+                icon: Icons.bug_report_outlined,
+                label: 'Report an issue',
+                onTap: () => _launchUrl(issuesUrl),
+              ),
+              _buildFooterLink(
+                icon: Icons.info_outline,
+                label: 'About the app',
+                onTap: () => _launchUrl(readmeUrl),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// A single tappable footer link with a leading [icon] and [label].
+  Widget _buildFooterLink({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppDesign.radiusSmall),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppDesign.spacingS,
+          vertical: AppDesign.spacingXS,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: colorScheme.primary),
+            const SizedBox(width: AppDesign.spacingXS),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.primary,
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+          ],
         ),
       ),
     );
