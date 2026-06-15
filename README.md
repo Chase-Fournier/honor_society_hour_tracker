@@ -1,10 +1,10 @@
-# NHS Hour Tracking App (Wheeler NHS Tracker)
+# Honor Society Hour Tracking App
 
-The Wheeler NHS Hour Tracking App is a comprehensive Flutter application designed to streamline the process of tracking and managing volunteer hours for National Honor Society (NHS) members. It offers a robust set of features for both NHS members and administrators to efficiently log, monitor, and organize service activities.
+The Honor Society Hour Tracking App is a comprehensive Flutter application designed to streamline the process of tracking and managing volunteer hours for National Honor Society (NHS) members and other Honor Societies. It offers a robust set of features for both members and administrators to efficiently log, monitor, and organize service activities.
 
 ## 👋 Welcome
 
-Thanks for stopping by! Whether you're an NHS member curious about the app, an administrator setting it up for your chapter, or a developer who wants to contribute — you're in the right place.
+Thanks for stopping by! Whether you're an member curious about the app, an administrator setting it up for your chapter/Society, or a developer who wants to contribute — you're in the right place.
 
 This is an open-source, multi-tenant app: a single user can belong to multiple honor societies and switch between them. It's built with **Flutter** on the front end and **Supabase** (Postgres + auth + row-level security) on the back end, with no separate API layer.
 
@@ -144,7 +144,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## 📞 Contact
 
-For any questions or feedback regarding the Wheeler NHS Hour Tracking App, please open an issue on the [GitHub repository issues page](https://github.com/Chase-Fournier/wheeler_nhs/issues).
+For any questions or feedback please open an issue on the [GitHub repository issues page](https://github.com/Chase-Fournier/wheeler_nhs/issues).
 
 ---
 
