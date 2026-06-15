@@ -406,8 +406,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       child: Column(
         children: [
           Text(
-            'Wheeler NHS Tracker is a free, open-source app for tracking '
-            'National Honor Society volunteer hours.',
+            'Honor Society Tracker is a free, open-source app for tracking '
+            'volunteer hours.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
