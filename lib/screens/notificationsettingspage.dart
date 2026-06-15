@@ -8,10 +8,21 @@ import '../providers/notificationsprovider.dart';
 import '../providers/societyprovider.dart';
 import '../services/notification_service.dart';
 
-class NotificationSettingsPage extends StatelessWidget {
+class NotificationSettingsPage extends StatefulWidget {
   const NotificationSettingsPage({super.key});
 
+  @override
+  State<NotificationSettingsPage> createState() =>
+      _NotificationSettingsPageState();
+}
+
+class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
   static const _reminderChoices = <int>[15, 30, 60, 120, 1440];
+
+  // Toggling the master switch on iOS can block for several seconds while
+  // we wait for the APNS token (see FirebaseMessagingService._waitForApnsToken),
+  // so we show a spinner and disable the switch while the request is in flight.
+  bool _togglingEnabled = false;
 
   String _reminderLabel(int minutes) {
     if (minutes < 60) return '$minutes minutes before';
@@ -44,19 +55,35 @@ class NotificationSettingsPage extends StatelessWidget {
               title: const Text('Enable Notifications'),
               subtitle: const Text(
                   'Allow Wheeler NHS to send reminders and updates.'),
+              secondary: _togglingEnabled
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : null,
               value: notifications.enabled,
-              onChanged: (value) async {
-                haptics.selection();
-                final ok = await notifications.setEnabled(value);
-                if (!ok && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                          'Notification permission denied. Enable it in system settings.'),
-                    ),
-                  );
-                }
-              },
+              onChanged: _togglingEnabled
+                  ? null
+                  : (value) async {
+                      haptics.selection();
+                      setState(() => _togglingEnabled = true);
+                      try {
+                        final ok = await notifications.setEnabled(value);
+                        if (!ok && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Notification permission denied. Enable it in system settings.'),
+                            ),
+                          );
+                        }
+                      } finally {
+                        if (mounted) {
+                          setState(() => _togglingEnabled = false);
+                        }
+                      }
+                    },
             ),
           ),
           const SizedBox(height: 16),
