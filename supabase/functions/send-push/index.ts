@@ -112,13 +112,37 @@ async function getAccessToken(): Promise<string> {
   return cachedAccessToken.token;
 }
 
-async function fetchTokensForUsers(userIds: string[]): Promise<string[]> {
+// Maps a notification's `data.type` to the per-device opt-out column on
+// device_tokens. Types without a matching column (e.g. continuous_submission,
+// which is gated by a per-membership preference instead) are not filtered.
+function categoryPrefColumn(
+  data?: Record<string, unknown>,
+): string | null {
+  switch (data?.type) {
+    case "meeting_notes":
+      return "notify_meeting_notes";
+    case "hours":
+      return "notify_hour_updates";
+    case "swap":
+      return "notify_swap_requests";
+    default:
+      return null;
+  }
+}
+
+async function fetchTokensForUsers(
+  userIds: string[],
+  prefColumn: string | null,
+): Promise<string[]> {
   if (userIds.length === 0) return [];
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-  const { data, error } = await supabase
+  let query = supabase
     .from("device_tokens")
     .select("fcm_token")
     .in("user_id", userIds);
+  // Skip devices that opted out of this category.
+  if (prefColumn) query = query.eq(prefColumn, true);
+  const { data, error } = await query;
   if (error) {
     console.error("Failed to fetch device tokens:", error.message);
     return [];
@@ -195,7 +219,12 @@ serve(async (req) => {
 
     let tokens: string[] = payload.tokens ?? [];
     if (payload.user_ids && payload.user_ids.length > 0) {
-      const more = await fetchTokensForUsers(payload.user_ids);
+      // Honour each device's per-category opt-out (resolved from data.type).
+      // Explicit `tokens` are ad-hoc sends and are not filtered.
+      const more = await fetchTokensForUsers(
+        payload.user_ids,
+        categoryPrefColumn(payload.data),
+      );
       tokens = [...new Set([...tokens, ...more])];
     }
 

@@ -210,4 +210,6 @@ await NotificationService.instance.cancel(timeslot.id);
 | Firebase project + `google-services.json` / `GoogleService-Info.plist` | **You** — Step 3. |
 | `send-push` Edge Function | Scaffolded — run `supabase functions deploy send-push`. |
 | Triggers for meeting notes / hours / swaps | Scaffolded in migrations — applied via `supabase db push`. |
-| Schedule reminder on event sign-up | **You** — Step 5; one-line call in your signup handler. |
+| Schedule reminder on event sign-up | Done — wired into the signup/unsignup handlers in `homescreenpage.dart`. |
+| Per-category opt-out respected server-side | Done — `device_tokens` carries `notify_meeting_notes` / `notify_hour_updates` / `notify_swap_requests`; `send-push` filters on them by `data.type`. **Redeploy:** run `supabase db push` (new migration) and `supabase functions deploy send-push`. |
+| Tapping a notification routes to the right tab | Done — `NotificationService.tappedNotification` is consumed by `MainScreen` (covers local taps, FCM background/terminated taps, and cold starts). |

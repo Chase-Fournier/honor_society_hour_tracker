@@ -51,6 +51,7 @@ class NotificationsProvider extends ChangeNotifier {
         return false;
       }
       await NotificationService.instance.registerForPush();
+      await _syncCategoryPrefs();
     } else {
       await NotificationService.instance.unregisterDevice();
       await NotificationService.instance.cancelAll();
@@ -73,6 +74,7 @@ class NotificationsProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kMeetingNotes, value);
     notifyListeners();
+    await _syncCategoryPrefs();
   }
 
   Future<void> setHourUpdates(bool value) async {
@@ -80,6 +82,7 @@ class NotificationsProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kHourUpdates, value);
     notifyListeners();
+    await _syncCategoryPrefs();
   }
 
   Future<void> setSwapRequests(bool value) async {
@@ -87,6 +90,18 @@ class NotificationsProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kSwapRequests, value);
     notifyListeners();
+    await _syncCategoryPrefs();
+  }
+
+  /// Mirrors the per-category toggles to this device's `device_tokens` row so
+  /// the server skips pushing categories the user turned off. Safe to call
+  /// when disabled — it no-ops if there is no registered token.
+  Future<void> _syncCategoryPrefs() async {
+    await NotificationService.instance.syncCategoryPrefs(
+      meetingNotes: _meetingNotes,
+      hourUpdates: _hourUpdates,
+      swapRequests: _swapRequests,
+    );
   }
 
   Future<void> setReminderMinutesBefore(int minutes) async {
