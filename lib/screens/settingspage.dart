@@ -11,6 +11,7 @@ import 'societyadminpage.dart';
 import 'accountsettingspage.dart';
 import 'appearancepage.dart';
 import 'notificationsettingspage.dart';
+import 'manageadminssheet.dart';
 import '../common/app_design.dart';
 import '../models/hourrequirement.dart';
 import '../models/honorsociety.dart';
@@ -241,6 +242,12 @@ class _SettingsPageState extends State<SettingsPage> {
 
                     // Account settings card
                     _buildAccountSettingsCard(),
+
+                    // Admin tools card (admins only)
+                    if (context.watch<SocietyProvider>().isAdmin) ...[
+                      const SizedBox(height: 24),
+                      _buildAdminToolsCard(),
+                    ],
                   ],
                 ),
               ),
@@ -292,6 +299,12 @@ class _SettingsPageState extends State<SettingsPage> {
 
           // Account settings card
           _buildAccountSettingsCard(),
+
+          // Admin tools card (admins only)
+          if (context.watch<SocietyProvider>().isAdmin) ...[
+            const SizedBox(height: 24),
+            _buildAdminToolsCard(),
+          ],
 
           const SizedBox(height: 24),
 
@@ -559,6 +572,74 @@ class _SettingsPageState extends State<SettingsPage> {
       !kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.android ||
           defaultTargetPlatform == TargetPlatform.iOS);
+
+  // Admin tools card — only rendered for admins (see layout builders). Holds
+  // the "Manage Admins" sheet trigger and the "View as member" preview toggle.
+  // Gated on SocietyProvider.isAdmin (the database truth) rather than the
+  // effective view, so it stays reachable while previewing the member view.
+  Widget _buildAdminToolsCard() {
+    final societyProvider = context.watch<SocietyProvider>();
+    final viewingAsMember = societyProvider.viewAsMember;
+
+    return _buildProfileCard(
+      padding: AppDesign.paddingMedium,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(
+              left: AppDesign.spacingXS,
+              bottom: AppDesign.spacingS,
+            ),
+            child: Text(
+              'Admin',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ),
+          ListTile(
+            leading: Icon(
+              Icons.admin_panel_settings,
+              color: Theme.of(context).colorScheme.primary,
+              size: 28,
+            ),
+            title: const Text('Manage Admins'),
+            subtitle: const Text('Promote members or remove admin access'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _openManageAdmins,
+          ),
+          const Divider(height: 1),
+          SwitchListTile(
+            secondary: Icon(
+              Icons.visibility_outlined,
+              color: Theme.of(context).colorScheme.primary,
+              size: 28,
+            ),
+            title: const Text('View as member'),
+            subtitle: const Text('Preview this society the way members see it'),
+            value: viewingAsMember,
+            onChanged: (value) {
+              Provider.of<HapticsProvider>(context, listen: false).selection();
+              context.read<SocietyProvider>().setViewAsMember(value);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openManageAdmins() {
+    Provider.of<HapticsProvider>(context, listen: false).selection();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => const ManageAdminsSheet(),
+    );
+  }
 
   // Appearance Settings Card
   Widget _buildAppearanceCard() {

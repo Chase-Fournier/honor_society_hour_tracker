@@ -21,6 +21,10 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   PageController _pageController = PageController();
 
+  /// Tracks the last rendered shell type so we can reset navigation when an
+  /// admin flips between the admin and member views.
+  bool? _lastIsAdmin;
+
   @override
   void initState() {
     super.initState();
@@ -46,7 +50,7 @@ class _MainScreenState extends State<MainScreen> {
           );
         }
 
-        final isAdmin = societyProvider.isAdmin;
+        final isAdmin = societyProvider.showAdminView;
         final bool isWideScreen = MediaQuery.of(context).size.width >= 600;
 
         final List<Widget> pages = [
@@ -108,6 +112,19 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ],
         ];
+
+        // When an admin flips between the admin and member shells the tab
+        // count changes, so reset navigation to the Settings/Profile tab (the
+        // last tab in both shells, where the view switcher lives) and rebuild
+        // the PageController to avoid an out-of-range page.
+        if (_lastIsAdmin != null && _lastIsAdmin != isAdmin) {
+          _currentIndex = pages.length - 1;
+          final oldController = _pageController;
+          _pageController = PageController(initialPage: _currentIndex);
+          WidgetsBinding.instance
+              .addPostFrameCallback((_) => oldController.dispose());
+        }
+        _lastIsAdmin = isAdmin;
 
        if (isWideScreen) {
           return Scaffold(
