@@ -5,6 +5,9 @@ import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import 'package:intl/intl.dart';
 import '../providers/societyprovider.dart';
 import '../common/app_design.dart';
+import '../common/app_widgets.dart';
+import '../common/app_form.dart';
+import '../common/nhsformatutils.dart';
 import '../models/completeduserhour.dart';
 import '../models/userprofile.dart';
 import '../bulkediteventspage.dart';
@@ -2824,36 +2827,37 @@ class _AdminListPageState extends State<AdminListPage> {
 
   void _showEditHourDialog(
       BuildContext context, UserProfile user, CompletedUserHour hour) {
-    showDialog(
+    final formKey = GlobalKey<_EditHourDialogContentState>();
+
+    showAppForm<void>(
       context: context,
-      builder: (BuildContext dialogContext) {
-        // Use a Builder to get a context that is under the Dialog's context
-        return Builder(builder: (builderContext) {
-          return AlertDialog(
-            title: Text('Edit Service Hour for ${user.name}'),
-            content: _EditHourDialogContent(
-              hour: hour,
-              availableTypes: _availableHourTypes, // Pass available types
-              onSave: () {
-                Navigator.of(builderContext).pop(); // Close dialog first
-                _fetchUsers(); // Then refresh data
-              },
-            ),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('Cancel'),
-                onPressed: () {
-                  final hapticsProvider =
-                      Provider.of<HapticsProvider>(context, listen: false);
-                  hapticsProvider.selection();
-                  Navigator.of(builderContext).pop();
-                },
-              ),
-              // The save button is now inside the dialog content
-            ],
-          );
-        });
-      },
+      title: 'Edit hours — ${user.name}',
+      icon: Icons.edit,
+      body: (ctx) => _EditHourDialogContent(
+        key: formKey,
+        hour: hour,
+        availableTypes: _availableHourTypes,
+      ),
+      footer: (ctx) => [
+        OutlinedButton(
+          onPressed: () {
+            Provider.of<HapticsProvider>(context, listen: false).selection();
+            Navigator.of(ctx).pop();
+          },
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () async {
+            Provider.of<HapticsProvider>(context, listen: false).selection();
+            final saved = await formKey.currentState?.save() ?? false;
+            if (saved && ctx.mounted) {
+              Navigator.of(ctx).pop();
+              _fetchUsers();
+            }
+          },
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 
@@ -3506,118 +3510,110 @@ class _AdminListPageState extends State<AdminListPage> {
       type = availableTypes.isNotEmpty ? availableTypes.first : 'Service';
     }
 
-    showDialog(
+    final formKey = GlobalKey<FormState>();
+    final nameC = TextEditingController(text: eventName);
+    final hoursC =
+        TextEditingController(text: hours == 0 ? '0' : hours.toString());
+    TimeOfDay? time = selectedTime;
+    String selectedType = type;
+
+    showAppForm<void>(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(builder: (context, setState) {
-          return AlertDialog(
-            title: const Text('Add Custom Event'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
+      title: 'Add Custom Event',
+      icon: Icons.more_time,
+      body: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Form(
+          key: formKey,
+          child: AppFormSection(
+            title: 'Event details',
+            icon: Icons.event_note,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                TextFormField(
-                  initialValue: eventName,
-                  decoration: const InputDecoration(labelText: 'Event Name'),
-                  onChanged: (value) {
-                    eventName = value;
-                  },
+                AppTextField(
+                  label: 'Event name',
+                  controller: nameC,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Please enter an event name'
+                      : null,
                 ),
-                Padding(
-                    padding: AppDesign.paddingLarge,
-                    child: ElevatedButton(
-                      child: Center(
-                        child: Text(selectedTime != null
-                            ? selectedTime.format(context)
-                            : 'Select Time'),
-                      ),
-                      onPressed: () async {
-                        final hapticsProvider = Provider.of<HapticsProvider>(
-                            context,
-                            listen: false);
-                        hapticsProvider.selection();
-                        final TimeOfDay? pickedTime = await showTimePicker(
-                          context: context,
-                          initialTime: selectedTime ?? TimeOfDay.now(),
-                        );
-                        if (pickedTime != null) {
-                          // Rebuild the dialog with the selected time and preserved form data
-                          Navigator.of(context).pop();
-                          _openCustomEventForm(context, userId,
-                              eventName: eventName,
-                              selectedTime: pickedTime,
-                              hours: hours,
-                              type: type);
-                        }
-                      },
-                    )),
-                TextFormField(
-                  initialValue: hours.toString(),
-                  decoration: const InputDecoration(labelText: 'Hours'),
+                const SizedBox(height: AppDesign.spacingM),
+                AppTextField(
+                  label: 'Hours',
+                  controller: hoursC,
                   keyboardType: const TextInputType.numberWithOptions(
                       signed: true, decimal: true),
-                  onChanged: (value) {
-                    hours = double.tryParse(value) ?? 0.0;
-                  },
-                ),
-                DropdownButtonFormField<String>(
-                  value: type,
-                  onChanged: (value) {
-                    setState(() {
-                      type = value;
-                    });
-                  },
-                  borderRadius: AppDesign.borderXLarge,
-                  dropdownColor: Theme.of(context).colorScheme.primaryContainer,
-                  items: availableTypes
-                      .map((type) => DropdownMenuItem(
-                            value: type,
-                            child: Text(type),
-                          ))
-                      .toList(),
-                  decoration: const InputDecoration(
-                    labelText: 'Event Type',
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please select an event type';
-                    }
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Required';
+                    if (double.tryParse(v) == null) return 'Invalid';
                     return null;
                   },
                 ),
+                const SizedBox(height: AppDesign.spacingM),
+                AppPickerField(
+                  label: 'Time',
+                  hint: 'Select',
+                  value: time != null
+                      ? NhsFormatUtils.formatTimeOfDay(time!, ctx)
+                      : null,
+                  icon: Icons.schedule,
+                  onTap: () async {
+                    final picked = await showTimePicker(
+                      context: ctx,
+                      initialTime: time ?? TimeOfDay.now(),
+                    );
+                    if (picked != null) {
+                      setSheetState(() => time = picked);
+                    }
+                  },
+                ),
+                const SizedBox(height: AppDesign.spacingM),
+                AppDropdownField<String>(
+                  label: 'Event type',
+                  value: selectedType,
+                  onChanged: (value) =>
+                      setSheetState(() => selectedType = value ?? selectedType),
+                  items: availableTypes
+                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                      .toList(),
+                  validator: (value) => (value == null || value.isEmpty)
+                      ? 'Please select an event type'
+                      : null,
+                ),
               ],
             ),
-            actions: [
-              TextButton(
-                child: const Text('Cancel'),
-                onPressed: () {
-                  final hapticsProvider =
-                      Provider.of<HapticsProvider>(context, listen: false);
-                  hapticsProvider.selection();
-                  Navigator.of(context).pop();
-                },
-              ),
-              ElevatedButton(
-                child: const Text('Save'),
-                onPressed: () {
-                  final hapticsProvider =
-                      Provider.of<HapticsProvider>(context, listen: false);
-                  hapticsProvider.selection();
-                  if (selectedTime != null && type != null) {
-                    String timeSlot =
-                        '${selectedTime.hour}:${selectedTime.minute}';
-                    _saveCustomEvent(
-                        userId,
-                        eventName,
-                        timeSlot,
-                        hours.toDouble(),
-                        type ?? "Meeting"); // Use selected type
-                    Navigator.of(context).pop();
-                  }
-                },
-              ),
-            ],
-          );
-        });
+          ),
+        ),
+      ),
+      footer: (ctx) => [
+        OutlinedButton(
+          onPressed: () {
+            Provider.of<HapticsProvider>(context, listen: false).selection();
+            Navigator.of(ctx).pop();
+          },
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            Provider.of<HapticsProvider>(context, listen: false).selection();
+            if (!(formKey.currentState?.validate() ?? false)) return;
+            if (time == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Please select a time')),
+              );
+              return;
+            }
+            final timeSlot = '${time!.hour}:${time!.minute}';
+            _saveCustomEvent(userId, nameC.text.trim(), timeSlot,
+                double.tryParse(hoursC.text) ?? 0.0, selectedType);
+            Navigator.of(ctx).pop();
+          },
+          child: const Text('Save'),
+        ),
+      ],
+      onDispose: () {
+        nameC.dispose();
+        hoursC.dispose();
       },
     );
   }
@@ -3824,14 +3820,12 @@ class _AdminListPageState extends State<AdminListPage> {
 class _EditHourDialogContent extends StatefulWidget {
   final CompletedUserHour hour;
   final List<String> availableTypes;
-  final VoidCallback onSave;
 
   const _EditHourDialogContent({
-    Key? key,
+    super.key,
     required this.hour,
     required this.availableTypes,
-    required this.onSave,
-  }) : super(key: key);
+  });
 
   @override
   _EditHourDialogContentState createState() => _EditHourDialogContentState();
@@ -3868,11 +3862,13 @@ class _EditHourDialogContentState extends State<_EditHourDialogContent> {
     super.dispose();
   }
 
-  Future<void> _saveHourChanges() async {
+  /// Validates and persists the hour change. Returns true on success so the
+  /// presenting sheet can dismiss and refresh.
+  Future<bool> save() async {
     if (!_formKey.currentState!.validate()) {
-      return; // Don't proceed if form is invalid
+      return false; // Don't proceed if form is invalid
     }
-    if (_isSaving) return; // Prevent double submission
+    if (_isSaving) return false; // Prevent double submission
 
     setState(() => _isSaving = true);
 
@@ -3893,8 +3889,8 @@ class _EditHourDialogContentState extends State<_EditHourDialogContent> {
             content: Text('Hour updated successfully!'),
           ),
         );
-        widget.onSave(); // Call the callback to close dialog and refresh list
       }
+      return true;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -3903,6 +3899,7 @@ class _EditHourDialogContentState extends State<_EditHourDialogContent> {
           ),
         );
       }
+      return false;
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -3927,110 +3924,71 @@ class _EditHourDialogContentState extends State<_EditHourDialogContent> {
 
     return Form(
       key: _formKey,
-      child: SingleChildScrollView(
-        // Make content scrollable if needed
-        child: Column(
-          mainAxisSize: MainAxisSize.min, // Important for dialog content
-          children: <Widget>[
-            TextFormField(
-              controller: _eventNameController,
-              decoration: const InputDecoration(
-                labelText: 'Event Name',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.event),
-              ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter an event name';
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          AppTextField(
+            label: 'Event name',
+            controller: _eventNameController,
+            prefixIcon: Icons.event,
+            validator: (value) =>
+                (value == null || value.trim().isEmpty)
+                    ? 'Please enter an event name'
+                    : null,
+          ),
+          const SizedBox(height: AppDesign.spacingM),
+          AppTextField(
+            label: 'Hours',
+            controller: _hoursController,
+            prefixIcon: Icons.timer,
+            keyboardType:
+                const TextInputType.numberWithOptions(signed: true, decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(
+                  RegExp(r'^-?\d*\.?\d{0,2}')),
+            ],
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Please enter hours';
+              }
+              final hours = double.tryParse(value.trim());
+              if (hours == null || hours == 0) {
+                return 'Please enter a non-zero number of hours';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: AppDesign.spacingM),
+          if (dropdownTypes.isNotEmpty)
+            AppDropdownField<String>(
+              label: 'Type',
+              prefixIcon: Icons.category,
+              value: _selectedType,
+              items: dropdownTypes.map((String type) {
+                return DropdownMenuItem<String>(
+                  value: type,
+                  child: Text(type),
+                );
+              }).toList(),
+              onChanged: (String? newValue) {
+                if (newValue != null) {
+                  setState(() {
+                    _selectedType = newValue;
+                  });
                 }
-                return null;
               },
+              validator: (value) => (value == null || value.isEmpty)
+                  ? 'Please select an event type'
+                  : null,
+            )
+          else
+            AppTextField(
+              label: 'Type',
+              controller: TextEditingController(text: _selectedType),
+              prefixIcon: Icons.category,
             ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _hoursController,
-              decoration: const InputDecoration(
-                labelText: 'Hours',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.timer),
-              ),
-              keyboardType: const TextInputType.numberWithOptions(
-                  signed: true, decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(
-                    RegExp(r'^-?\d*\.?\d{0,2}')), // Allow optional minus, numbers, and decimal
-              ],
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter hours';
-                }
-                final hours = double.tryParse(value.trim());
-                if (hours == null || hours == 0) {
-                  return 'Please enter a non-zero number of hours';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            if (dropdownTypes
-                .isNotEmpty) // Only show dropdown if there are types
-              DropdownButtonFormField<String>(
-                value: _selectedType,
-                items: dropdownTypes.map((String type) {
-                  return DropdownMenuItem<String>(
-                    value: type,
-                    child: Text(type),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _selectedType = newValue;
-                    });
-                  }
-                },
-                decoration: const InputDecoration(
-                  labelText: 'Type',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.category),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please select an event type';
-                  }
-                  return null;
-                },
-              )
-            else // Show a disabled field or message if no types available
-              TextFormField(
-                initialValue: _selectedType, // Show current type
-                enabled: false, // Disable editing
-                decoration: const InputDecoration(
-                  labelText: 'Type',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.category),
-                ),
-              ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _isSaving ? null : _saveHourChanges,
-              style: ElevatedButton.styleFrom(
-                minimumSize:
-                    const Size(double.infinity, 48), // Make button larger
-              ),
-              child: _isSaving
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Text('Save Changes'),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }

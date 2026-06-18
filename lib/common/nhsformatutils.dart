@@ -7,6 +7,11 @@ class NhsFormatUtils {
     return '${formatTimeOfDay(timeSlot.time, context)} - ${formatTimeOfDay(timeSlot.endTime, context)}';
   }
 
+  /// Human-readable date, e.g. "Jun 18, 2026".
+  static String formatDate(DateTime date) {
+    return DateFormat.yMMMd().format(date);
+  }
+
   static String formatTimeOfDay(TimeOfDay time, BuildContext context) {
     final now = DateTime.now();
     final dateTime =

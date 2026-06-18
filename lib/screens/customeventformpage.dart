@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../providers/societyprovider.dart';
 import '../common/app_design.dart';
+import '../common/app_widgets.dart';
+import '../common/app_form.dart';
+import '../common/nhsformatutils.dart';
 import '../models/userprofile.dart';
 import '../models/logactivity.dart';
 import '../providers/hapticsprovider.dart';
@@ -28,12 +31,19 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
   List<String> selectedUserIds = [];
   bool _isLoading = false;
   final _formKey = GlobalKey<FormState>();
+  final _hoursController = TextEditingController(text: '0');
 
   @override
   void initState() {
     super.initState();
     // Recipients are chosen on the Members page before this form opens.
     selectedUserIds = widget.users.map((user) => user.id).toList();
+  }
+
+  @override
+  void dispose() {
+    _hoursController.dispose();
+    super.dispose();
   }
 
   // Get available requirement types from society
@@ -171,170 +181,73 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
         key: _formKey,
         child: Column(
           children: [
-            // Event Details Card
-            Card(
-              elevation: 0,
-              margin: AppDesign.paddingMedium,
-              shape: RoundedRectangleBorder(
-                borderRadius: AppDesign.borderLarge,
-              ),
-              child: Padding(
-                padding: AppDesign.paddingMedium,
+            // Event Details
+            Padding(
+              padding: AppDesign.paddingMedium,
+              child: AppFormSection(
+                title: 'Event details',
+                icon: Icons.event_note,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.event_note,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Event Details',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                      ],
+                    AppTextField(
+                      label: 'Event name',
+                      onChanged: (value) => eventName = value,
+                      validator: (value) => (value == null || value.isEmpty)
+                          ? 'Please enter an event name'
+                          : null,
                     ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: TextFormField(
-                            decoration: const InputDecoration(
-                              labelText: 'Event Name',
-                              border: OutlineInputBorder(),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter an event name';
-                              }
-                              return null;
-                            },
-                            onChanged: (value) {
-                              setState(() {
-                                eventName = value;
-                              });
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 1,
-                          child: TextFormField(
-                            initialValue: '0',
-                            decoration: const InputDecoration(
-                              labelText: 'Hours',
-                              border: OutlineInputBorder(),
-                            ),
-                            keyboardType: const TextInputType.numberWithOptions(
-                                signed: true, decimal: true),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Required';
-                              }
-                              final h = double.tryParse(value);
-                              if (h == null) return 'Invalid';
-                              return null;
-                            },
-                            onChanged: (value) {
-                              setState(() {
-                                hours = double.tryParse(value) ?? 0.0;
-                              });
-                            },
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: AppDesign.spacingM),
+                    AppTextField(
+                      label: 'Hours',
+                      controller: _hoursController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          signed: true, decimal: true),
+                      onChanged: (value) => setState(
+                          () => hours = double.tryParse(value) ?? 0.0),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Required';
+                        }
+                        if (double.tryParse(value) == null) {
+                          return 'Invalid';
+                        }
+                        return null;
+                      },
                     ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        // Event Type Dropdown
-                        Expanded(
-                          flex: 3,
-                          child: DropdownButtonFormField<String>(
-                            value: type,
-                            onChanged: (value) {
-                              setState(() {
-                                type = value ?? types[1];
-                              });
-                            },
-                            items: types
-                                .map((type) => DropdownMenuItem(
-                                      value: type,
-                                      child: Text(type),
-                                    ))
-                                .toList(),
-                            decoration: const InputDecoration(
-                              labelText: 'Event Type',
-                              border: OutlineInputBorder(),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please select an event type';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        // Time Selector
-                        Expanded(
-                          flex: 2,
-                          child: TextFormField(
-                            readOnly: true,
-                            controller: TextEditingController(
-                              text: selectedTime != null
-                                  ? selectedTime!.format(context)
-                                  : '',
-                            ),
-                            decoration: InputDecoration(
-                              labelText: 'Time',
-                              hintText: 'Select',
-                              border: const OutlineInputBorder(),
-                              suffixIcon: selectedTime != null
-                                  ? IconButton(
-                                      icon: const Icon(Icons.clear, size: 18),
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(
-                                          minWidth: 32, minHeight: 32),
-                                      onPressed: () {
-                                        final hapticsProvider =
-                                            Provider.of<HapticsProvider>(
-                                                context,
-                                                listen: false);
-                                        hapticsProvider.selection();
-                                        setState(() {
-                                          selectedTime = null;
-                                        });
-                                      },
-                                    )
-                                  : null,
-                            ),
-                            onTap: () async {
-                              final hapticsProvider =
-                                  Provider.of<HapticsProvider>(context,
-                                      listen: false);
-                              hapticsProvider.selection();
-                              final TimeOfDay? pickedTime =
-                                  await showTimePicker(
-                                context: context,
-                                initialTime: selectedTime ?? TimeOfDay.now(),
-                              );
-                              if (pickedTime != null) {
-                                setState(() {
-                                  selectedTime = pickedTime;
-                                });
-                              }
-                            },
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: AppDesign.spacingM),
+                    AppDropdownField<String>(
+                      label: 'Event type',
+                      value: type,
+                      onChanged: (value) =>
+                          setState(() => type = value ?? types[1]),
+                      items: types
+                          .map((t) => DropdownMenuItem(
+                                value: t,
+                                child: Text(t),
+                              ))
+                          .toList(),
+                      validator: (value) => (value == null || value.isEmpty)
+                          ? 'Please select an event type'
+                          : null,
+                    ),
+                    const SizedBox(height: AppDesign.spacingM),
+                    AppPickerField(
+                      label: 'Time',
+                      hint: 'Select',
+                      value: selectedTime != null
+                          ? NhsFormatUtils.formatTimeOfDay(selectedTime!, context)
+                          : null,
+                      icon: Icons.schedule,
+                      onTap: () async {
+                        final TimeOfDay? pickedTime = await showTimePicker(
+                          context: context,
+                          initialTime: selectedTime ?? TimeOfDay.now(),
+                        );
+                        if (pickedTime != null) {
+                          setState(() => selectedTime = pickedTime);
+                        }
+                      },
                     ),
                   ],
                 ),
