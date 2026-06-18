@@ -1427,8 +1427,16 @@ class _MeetingNotesSheetState extends State<_MeetingNotesSheet> {
               config: QuillEditorConfig(
                 onLaunchUrl: (url) async {
                   final uri = Uri.tryParse(url);
-                  if (uri != null) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  if (uri == null) return;
+                  try {
+                    await launchUrl(uri,
+                        mode: LaunchMode.externalApplication);
+                  } catch (_) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Could not open link')),
+                      );
+                    }
                   }
                 },
               ),

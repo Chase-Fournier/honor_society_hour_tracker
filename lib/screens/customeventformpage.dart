@@ -137,23 +137,22 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
         );
       }
 
-      // Show success message
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Added ${hours.toStringAsFixed(1)} hours for ${selectedUserIds.length} users',
-            ),
-            backgroundColor: Theme.of(context).colorScheme.tertiary,
+      // Show success message and close the form.
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Added ${hours.toStringAsFixed(1)} hours for ${selectedUserIds.length} users',
           ),
-        );
-      }
+          backgroundColor: Theme.of(context).colorScheme.tertiary,
+        ),
+      );
 
       // Return success
       Navigator.of(context).pop(true);
     } catch (e) {
       // Show error message
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error saving bulk events: $e'),
@@ -162,7 +161,7 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
         );
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

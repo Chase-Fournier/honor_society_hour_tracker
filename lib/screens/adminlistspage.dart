@@ -3960,34 +3960,29 @@ class _EditHourDialogContentState extends State<_EditHourDialogContent> {
             },
           ),
           const SizedBox(height: AppDesign.spacingM),
-          if (dropdownTypes.isNotEmpty)
-            AppDropdownField<String>(
-              label: 'Type',
-              prefixIcon: Icons.category,
-              value: _selectedType,
-              items: dropdownTypes.map((String type) {
-                return DropdownMenuItem<String>(
-                  value: type,
-                  child: Text(type),
-                );
-              }).toList(),
-              onChanged: (String? newValue) {
-                if (newValue != null) {
-                  setState(() {
-                    _selectedType = newValue;
-                  });
-                }
-              },
-              validator: (value) => (value == null || value.isEmpty)
-                  ? 'Please select an event type'
-                  : null,
-            )
-          else
-            AppTextField(
-              label: 'Type',
-              controller: TextEditingController(text: _selectedType),
-              prefixIcon: Icons.category,
-            ),
+          // dropdownTypes is normalized above to always be non-empty and to
+          // contain _selectedType, so a dropdown is always safe here.
+          AppDropdownField<String>(
+            label: 'Type',
+            prefixIcon: Icons.category,
+            value: _selectedType,
+            items: dropdownTypes.map((String type) {
+              return DropdownMenuItem<String>(
+                value: type,
+                child: Text(type),
+              );
+            }).toList(),
+            onChanged: (String? newValue) {
+              if (newValue != null) {
+                setState(() {
+                  _selectedType = newValue;
+                });
+              }
+            },
+            validator: (value) => (value == null || value.isEmpty)
+                ? 'Please select an event type'
+                : null,
+          ),
         ],
       ),
     );

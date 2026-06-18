@@ -2936,6 +2936,15 @@ class _EventFormBodyState extends State<_EventFormBody> {
     _societyId = widget.defaultSocietyId;
     _timeSlots = List<TimeSlot>.from(e?.timeSlots ?? const []);
     _societiesFuture = widget.fetchSocieties();
+    // Once societies load, make sure _societyId points at one of them so the
+    // selector's displayed value and the value actually submitted stay in sync
+    // (the selector otherwise falls back to the first society visually only).
+    _societiesFuture.then((societies) {
+      if (!mounted) return;
+      if (societies.isNotEmpty && !societies.any((s) => s.id == _societyId)) {
+        setState(() => _societyId = societies.first.id);
+      }
+    });
   }
 
   Future<List<HourRequirement>> _typesFor(int societyId) {
@@ -3197,9 +3206,13 @@ class _EventFormBodyState extends State<_EventFormBody> {
   }
 
   Widget _buildCollectionDropdown() {
+    // Fall back to 'No collection' if the event points at a collection that is
+    // no longer in the list, otherwise the dropdown asserts on a missing value.
+    final hasCollection =
+        widget.collections.any((c) => c.id == _collectionId);
     return AppDropdownField<int?>(
       label: 'Collection',
-      value: _collectionId,
+      value: hasCollection ? _collectionId : null,
       items: [
         const DropdownMenuItem(value: null, child: Text('No collection')),
         ...widget.collections.map(
