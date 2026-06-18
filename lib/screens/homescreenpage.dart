@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:add_2_calendar/add_2_calendar.dart' as add2cal;
@@ -2282,6 +2283,8 @@ class _HomePageState extends State<HomePage> {
               title: 'Upcoming: ${event.name}',
               body: reminderSlotBody,
               scheduledFor: remindAt,
+              // Routing data for when the reminder is tapped.
+              payload: jsonEncode({'type': 'event', 'event_id': event.id}),
             );
           }
           _fetchEvents();

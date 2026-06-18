@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/societyprovider.dart';
+import '../services/notification_service.dart';
 import 'societyadmindashboard.dart';
 import 'adminattendencepage.dart';
 import 'completedhourspage.dart';
@@ -25,12 +26,55 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _pageController = PageController();
+    // Route to the relevant tab when a notification is tapped (including a
+    // tap that cold-started the app, whose payload is already waiting).
+    NotificationService.instance.tappedNotification
+        .addListener(_handleNotificationTap);
+    _handleNotificationTap();
   }
 
   @override
   void dispose() {
+    NotificationService.instance.tappedNotification
+        .removeListener(_handleNotificationTap);
     _pageController.dispose();
     super.dispose();
+  }
+
+  void _handleNotificationTap() {
+    final data = NotificationService.instance.tappedNotification.value;
+    if (data == null) return;
+    // Consume it so it isn't re-handled on the next rebuild/listener fire.
+    NotificationService.instance.tappedNotification.value = null;
+
+    final isAdmin = context.read<SocietyProvider>().isAdmin;
+    final target = _tabForPayload(data['type']?.toString(), isAdmin);
+    if (target == null) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_pageController.hasClients) return;
+      setState(() => _currentIndex = target);
+      _pageController.jumpToPage(target);
+    });
+  }
+
+  /// Maps a notification `type` to a top-level tab index for the current role.
+  /// Returns null when there's no sensible destination (stay put).
+  int? _tabForPayload(String? type, bool isAdmin) {
+    switch (type) {
+      case 'event':
+        return isAdmin ? 1 : 0; // Events / Home
+      case 'meeting_notes':
+        return 0; // Dashboard / Home
+      case 'hours':
+        return isAdmin ? 2 : 1; // Attendance / Details
+      case 'swap':
+        return isAdmin ? 2 : 0; // Attendance / Home
+      case 'continuous_submission':
+        return isAdmin ? 0 : 1; // Dashboard / Details
+      default:
+        return null;
+    }
   }
 
   @override

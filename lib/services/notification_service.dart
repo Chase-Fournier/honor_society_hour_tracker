@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
@@ -11,6 +12,13 @@ import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 import 'firebase_messaging_service.dart';
+
+/// Handles taps that arrive while the app is terminated/in a background
+/// isolate. It can't touch app state or navigate; routing happens once the app
+/// is brought to the foreground (see `getNotificationAppLaunchDetails` in
+/// `init` and the FCM open handlers).
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse response) {}
 
 class NotificationService {
   NotificationService._();
@@ -25,6 +33,34 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   bool _initialized = false;
+
+  /// Emits the `data` payload of a notification the user tapped so the UI can
+  /// route to the relevant screen. Holds the most recent tap until a listener
+  /// consumes it (sets it back to `null`); this also covers cold starts where
+  /// the tap is recorded before any listener is attached.
+  final ValueNotifier<Map<String, dynamic>?> tappedNotification =
+      ValueNotifier<Map<String, dynamic>?>(null);
+
+  /// Records a tapped notification's payload for the UI to consume.
+  void handleTapData(Map<String, dynamic>? data) {
+    if (data == null || data.isEmpty) return;
+    tappedNotification.value = data;
+  }
+
+  Map<String, dynamic>? _decodePayload(String? payload) {
+    if (payload == null || payload.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is Map<String, dynamic>) return decoded;
+    } catch (_) {
+      // Non-JSON payloads (legacy/ad-hoc) carry no routing data.
+    }
+    return null;
+  }
+
+  void _onNotificationResponse(NotificationResponse response) {
+    handleTapData(_decodePayload(response.payload));
+  }
 
   Future<void> init() async {
     if (_initialized) return;
@@ -51,8 +87,19 @@ class NotificationService {
       macOS: iosInit,
     );
 
-    await _plugin.initialize(settings);
+    await _plugin.initialize(
+      settings,
+      onDidReceiveNotificationResponse: _onNotificationResponse,
+      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
+    );
     await _createAndroidChannels();
+
+    // If a tap on a (local) notification cold-started the app, capture it so
+    // the UI can route once it's ready.
+    final launch = await _plugin.getNotificationAppLaunchDetails();
+    if (launch?.didNotificationLaunchApp ?? false) {
+      handleTapData(_decodePayload(launch!.notificationResponse?.payload));
+    }
 
     await FirebaseMessagingService.instance.init(onTokenRefresh: syncFcmToken);
   }
@@ -207,6 +254,30 @@ class NotificationService {
       await prefs.setString(lastKey, token);
     } catch (e) {
       debugPrint('NotificationService: failed to sync FCM token: $e');
+    }
+  }
+
+  /// Pushes the user's per-category notification preferences to this device's
+  /// row in `device_tokens`, so the server-side `send-push` function can skip
+  /// categories the user turned off. No-ops when there is no token yet (i.e.
+  /// notifications are disabled / not registered).
+  Future<void> syncCategoryPrefs({
+    required bool meetingNotes,
+    required bool hourUpdates,
+    required bool swapRequests,
+  }) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+    final token = await FirebaseMessagingService.instance.getToken();
+    if (token == null || token.isEmpty) return;
+    try {
+      await Supabase.instance.client.from('device_tokens').update({
+        'notify_meeting_notes': meetingNotes,
+        'notify_hour_updates': hourUpdates,
+        'notify_swap_requests': swapRequests,
+      }).eq('fcm_token', token);
+    } catch (e) {
+      debugPrint('NotificationService: failed to sync category prefs: $e');
     }
   }
 

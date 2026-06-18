@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:firebase_core/firebase_core.dart';
@@ -21,6 +22,7 @@ class FirebaseMessagingService {
   bool _firebaseAvailable = false;
 
   StreamSubscription<RemoteMessage>? _foregroundSub;
+  StreamSubscription<RemoteMessage>? _openedAppSub;
   StreamSubscription<String>? _tokenRefreshSub;
 
   Future<void> init({required Future<void> Function(String?) onTokenRefresh}) async {
@@ -49,9 +51,22 @@ class FirebaseMessagingService {
         id: message.messageId?.hashCode ?? DateTime.now().millisecondsSinceEpoch,
         title: n.title ?? 'Notification',
         body: n.body ?? '',
-        payload: message.data.isEmpty ? null : message.data.toString(),
+        // Encode as JSON so a tap on this notification decodes back to the
+        // same data map used for routing.
+        payload: message.data.isEmpty ? null : jsonEncode(message.data),
       );
     });
+
+    // Tap on an OS-displayed FCM notification while the app was backgrounded.
+    _openedAppSub = FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      NotificationService.instance.handleTapData(message.data);
+    });
+
+    // Tap that cold-started the app from a terminated state.
+    final initial = await FirebaseMessaging.instance.getInitialMessage();
+    if (initial != null) {
+      NotificationService.instance.handleTapData(initial.data);
+    }
 
     _tokenRefreshSub =
         FirebaseMessaging.instance.onTokenRefresh.listen(onTokenRefresh);
@@ -108,6 +123,7 @@ class FirebaseMessagingService {
 
   void dispose() {
     _foregroundSub?.cancel();
+    _openedAppSub?.cancel();
     _tokenRefreshSub?.cancel();
   }
 }

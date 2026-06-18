@@ -123,7 +123,14 @@ class _MyAppState extends State<MyApp> {
                 "General Signed In event. Navigating to society selection.");
             Provider.of<SocietyProvider>(context, listen: false)
                 .loadUserSocieties();
-            NotificationService.instance.registerForPush();
+            // Only (re-)register this device for push if the user has
+            // notifications enabled. Registering unconditionally would
+            // re-add a device token that `setEnabled(false)` deliberately
+            // removed, silently re-enabling push the user had turned off.
+            if (Provider.of<NotificationsProvider>(context, listen: false)
+                .enabled) {
+              NotificationService.instance.registerForPush();
+            }
             _navigatorKey.currentState?.pushNamedAndRemoveUntil(
                 '/society_selection', (route) => false);
             break;
