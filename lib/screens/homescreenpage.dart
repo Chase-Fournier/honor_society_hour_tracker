@@ -1870,8 +1870,32 @@ class _HomePageState extends State<HomePage> {
   /// Throws:
   /// - PlatformException if URL launch fails
   void _launchFormLink(String urls) async {
-    final Uri url = Uri.parse(urls);
-    await launchUrl(url);
+    final trimmed = urls.trim();
+    if (trimmed.isEmpty) return;
+
+    // Links entered without a scheme (e.g. "google.com") parse to a schemeless
+    // URI that Android/iOS can't resolve (ACTIVITY_NOT_FOUND), so default to
+    // https:// when no scheme is present.
+    var url = Uri.parse(trimmed);
+    if (!url.hasScheme) {
+      url = Uri.parse('https://$trimmed');
+    }
+
+    try {
+      final launched =
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open link: $urls')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open link: $urls')),
+        );
+      }
+    }
   }
 
   /// Updates the form completion status for an attendee.

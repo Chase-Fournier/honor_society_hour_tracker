@@ -132,7 +132,8 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
       return Scaffold(
         appBar: AppBar(
           elevation: 0,
-          backgroundColor: Theme.of(context).colorScheme.surface,
+          backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
+          scrolledUnderElevation: AppDesign.elevationSmall,
           title: Text(
             'Society Administration',
             style: TextStyle(
@@ -570,10 +571,24 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
   List<HourRequirement> _requirements = [];
   bool _isLoading = false;
 
+  // Shared by the add/edit dialogs. Owned by this State (not the dialog) so
+  // they survive the dialog's dismiss animation and are disposed exactly once.
+  final TextEditingController _typeController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _hoursController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     _loadRequirements();
+  }
+
+  @override
+  void dispose() {
+    _typeController.dispose();
+    _descriptionController.dispose();
+    _hoursController.dispose();
+    super.dispose();
   }
 
   void _loadRequirements() {
@@ -587,16 +602,16 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
   }
 
   void _showEditRequirementDialog(HourRequirement requirement) {
-    String type = requirement.type;
-    String description = requirement.description;
-    double hours = requirement.hoursNeeded;
-    bool isActive = requirement.isActive;
+    _typeController.text = requirement.type;
+    _descriptionController.text = requirement.description;
+    _hoursController.text = requirement.hoursNeeded.toString();
     String iconName = requirement.iconName;
+    bool isActive = requirement.isActive;
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
+        builder: (context, setDialogState) => AlertDialog(
           title: const Text('Edit Hour Requirement'),
           shape: RoundedRectangleBorder(
             borderRadius: AppDesign.borderLarge,
@@ -605,54 +620,32 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Type Name',
-                    border: OutlineInputBorder(
-                      borderRadius: AppDesign.borderMedium,
-                    ),
-                    filled: true,
-                  ),
-                  controller: TextEditingController(text: type),
-                  onChanged: (value) => type = value,
+                AppTextField(
+                  label: 'Type Name',
+                  controller: _typeController,
+                  prefixIcon: Icons.label_outline,
                 ),
-                SizedBox(height: AppDesign.spacingM),
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Description',
-                    border: OutlineInputBorder(
-                      borderRadius: AppDesign.borderMedium,
-                    ),
-                    filled: true,
-                  ),
-                  controller: TextEditingController(text: description),
+                const SizedBox(height: AppDesign.spacingM),
+                AppTextField(
+                  label: 'Description',
+                  controller: _descriptionController,
                   maxLines: 2,
-                  onChanged: (value) => description = value,
                 ),
-                SizedBox(height: AppDesign.spacingM),
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Hours Required',
-                    border: OutlineInputBorder(
-                      borderRadius: AppDesign.borderMedium,
-                    ),
-                    filled: true,
-                  ),
-                  controller: TextEditingController(text: hours.toString()),
+                const SizedBox(height: AppDesign.spacingM),
+                AppTextField(
+                  label: 'Hours Required',
+                  controller: _hoursController,
+                  prefixIcon: Icons.timelapse,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  onChanged: (value) => hours = double.tryParse(value) ?? hours,
                 ),
-                SizedBox(height: AppDesign.spacingM),
+                const SizedBox(height: AppDesign.spacingM),
                 IconSelector(
                   initialValue: iconName,
-                  onChanged: (value) {
-                    setState(() {
-                      iconName = value;
-                    });
-                  },
+                  onChanged: (value) =>
+                      setDialogState(() => iconName = value),
                 ),
-                SizedBox(height: AppDesign.spacingM),
+                const SizedBox(height: AppDesign.spacingM),
                 Container(
                   decoration: BoxDecoration(
                     color: Theme.of(context)
@@ -666,7 +659,8 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                     subtitle: const Text(
                         'Inactive requirements won\'t be counted or displayed'),
                     value: isActive,
-                    onChanged: (value) => setState(() => isActive = value),
+                    onChanged: (value) =>
+                        setDialogState(() => isActive = value),
                   ),
                 ),
               ],
@@ -675,18 +669,16 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
           actions: [
             TextButton(
               onPressed: () {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
+                Provider.of<HapticsProvider>(context, listen: false)
+                    .selection();
                 Navigator.pop(context);
               },
               child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
+                Provider.of<HapticsProvider>(context, listen: false)
+                    .selection();
                 _showDeleteConfirmation(requirement);
               },
               style: TextButton.styleFrom(
@@ -695,69 +687,95 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
               child: const Text('Delete'),
             ),
             FilledButton(
-              onPressed: () async {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                if (type.isNotEmpty && hours > 0) {
-                  setState(() => _isLoading = true);
-                  try {
-                    await supabase.Supabase.instance.client
-                        .from('hour_requirements')
-                        .update({
-                      'type': type,
-                      'description': description,
-                      'hours_needed': hours,
-                      'is_active': isActive,
-                      'icon_name': iconName,
-                    }).eq('id', requirement.id);
-
-                    setState(() {
-                      final index = _requirements
-                          .indexWhere((r) => r.id == requirement.id);
-                      if (index != -1) {
-                        _requirements[index] = HourRequirement(
-                          id: requirement.id,
-                          type: type,
-                          description: description,
-                          hoursNeeded: hours,
-                          isActive: isActive,
-                          iconName: iconName,
-                        );
-                      }
-                    });
-
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content:
-                              const Text('Requirement updated successfully'),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                      Navigator.pop(context);
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error updating requirement: $e'),
-                          backgroundColor: Theme.of(context).colorScheme.error,
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    }
-                  } finally {
-                    setState(() => _isLoading = false);
-                  }
-                }
-              },
+              onPressed: () => _saveEditedRequirement(
+                requirement: requirement,
+                type: _typeController.text.trim(),
+                description: _descriptionController.text.trim(),
+                hours: double.tryParse(_hoursController.text.trim()) ??
+                    requirement.hoursNeeded,
+                isActive: isActive,
+                iconName: iconName,
+              ),
               child: const Text('Save'),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _saveEditedRequirement({
+    required HourRequirement requirement,
+    required String type,
+    required String description,
+    required double hours,
+    required bool isActive,
+    required String iconName,
+  }) async {
+    Provider.of<HapticsProvider>(context, listen: false).selection();
+
+    if (type.isEmpty || hours <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Enter a type name and hours greater than 0'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await supabase.Supabase.instance.client
+          .from('hour_requirements')
+          .update({
+        'type': type,
+        'description': description,
+        'hours_needed': hours,
+        'is_active': isActive,
+        'icon_name': iconName,
+      }).eq('id', requirement.id);
+
+      if (!mounted) return;
+      setState(() {
+        final index = _requirements.indexWhere((r) => r.id == requirement.id);
+        if (index != -1) {
+          _requirements[index] = HourRequirement(
+            id: requirement.id,
+            type: type,
+            description: description,
+            hoursNeeded: hours,
+            isActive: isActive,
+            iconName: iconName,
+          );
+        }
+      });
+      await Provider.of<SocietyProvider>(context, listen: false)
+          .refreshCurrentSociety();
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Requirement updated successfully'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating requirement: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   void _showDeleteConfirmation(HourRequirement requirement) {
@@ -838,9 +856,9 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
   }
 
   void _showAddRequirementDialog() {
-    String type = '';
-    String description = '';
-    double hours = 0;
+    _typeController.clear();
+    _descriptionController.clear();
+    _hoursController.clear();
     String iconName = 'workspaces';
     final society =
         Provider.of<SocietyProvider>(context, listen: false).currentSociety;
@@ -848,7 +866,7 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
+        builder: (context, setDialogState) => AlertDialog(
           title: const Text('Add Hour Requirement'),
           shape: RoundedRectangleBorder(
             borderRadius: AppDesign.borderLarge,
@@ -857,52 +875,33 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Type Name',
-                    hintText: 'E.g., Service, Tutoring, Leadership',
-                    border: OutlineInputBorder(
-                      borderRadius: AppDesign.borderMedium,
-                    ),
-                    filled: true,
-                  ),
-                  onChanged: (value) => type = value,
+                AppTextField(
+                  label: 'Type Name',
+                  hint: 'E.g., Service, Tutoring, Leadership',
+                  controller: _typeController,
+                  prefixIcon: Icons.label_outline,
                 ),
-                SizedBox(height: AppDesign.spacingM),
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Description',
-                    hintText: 'Describe what counts for this requirement',
-                    border: OutlineInputBorder(
-                      borderRadius: AppDesign.borderMedium,
-                    ),
-                    filled: true,
-                  ),
+                const SizedBox(height: AppDesign.spacingM),
+                AppTextField(
+                  label: 'Description',
+                  hint: 'Describe what counts for this requirement',
+                  controller: _descriptionController,
                   maxLines: 2,
-                  onChanged: (value) => description = value,
                 ),
-                SizedBox(height: AppDesign.spacingM),
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Hours Required',
-                    hintText: 'E.g., 10.0',
-                    border: OutlineInputBorder(
-                      borderRadius: AppDesign.borderMedium,
-                    ),
-                    filled: true,
-                  ),
+                const SizedBox(height: AppDesign.spacingM),
+                AppTextField(
+                  label: 'Hours Required',
+                  hint: 'E.g., 10.0',
+                  controller: _hoursController,
+                  prefixIcon: Icons.timelapse,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  onChanged: (value) => hours = double.tryParse(value) ?? 0,
                 ),
-                SizedBox(height: AppDesign.spacingM),
+                const SizedBox(height: AppDesign.spacingM),
                 IconSelector(
                   initialValue: iconName,
-                  onChanged: (value) {
-                    setState(() {
-                      iconName = value;
-                    });
-                  },
+                  onChanged: (value) =>
+                      setDialogState(() => iconName = value),
                 ),
               ],
             ),
@@ -910,68 +909,93 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
           actions: [
             TextButton(
               onPressed: () {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
+                Provider.of<HapticsProvider>(context, listen: false)
+                    .selection();
                 Navigator.pop(context);
               },
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () async {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                if (type.isNotEmpty && hours > 0) {
-                  setState(() => _isLoading = true);
-                  try {
-                    final response = await supabase.Supabase.instance.client
-                        .from('hour_requirements')
-                        .insert({
-                          'society_id': society!.id,
-                          'type': type,
-                          'description': description,
-                          'hours_needed': hours,
-                          'is_active': true,
-                          'icon_name': iconName,
-                        })
-                        .select()
-                        .single();
-
-                    setState(() {
-                      _requirements.add(HourRequirement.fromJson(response));
-                    });
-
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('Requirement added successfully'),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                      Navigator.pop(context);
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error adding requirement: $e'),
-                          backgroundColor: Theme.of(context).colorScheme.error,
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    }
-                  } finally {
-                    setState(() => _isLoading = false);
-                  }
-                }
-              },
+              onPressed: () => _saveNewRequirement(
+                societyId: society?.id,
+                type: _typeController.text.trim(),
+                description: _descriptionController.text.trim(),
+                hours: double.tryParse(_hoursController.text.trim()) ?? 0,
+                iconName: iconName,
+              ),
               child: const Text('Add'),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _saveNewRequirement({
+    required int? societyId,
+    required String type,
+    required String description,
+    required double hours,
+    required String iconName,
+  }) async {
+    Provider.of<HapticsProvider>(context, listen: false).selection();
+
+    if (type.isEmpty || hours <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Enter a type name and hours greater than 0'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    if (societyId == null) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final response = await supabase.Supabase.instance.client
+          .from('hour_requirements')
+          .insert({
+            'society_id': societyId,
+            'type': type,
+            'description': description,
+            'hours_needed': hours,
+            'is_active': true,
+            'icon_name': iconName,
+          })
+          .select()
+          .single();
+
+      if (!mounted) return;
+      setState(() {
+        _requirements.add(HourRequirement.fromJson(response));
+      });
+      await Provider.of<SocietyProvider>(context, listen: false)
+          .refreshCurrentSociety();
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Requirement added successfully'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error adding requirement: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -1004,7 +1028,7 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
             final hapticsProvider =
                 Provider.of<HapticsProvider>(context, listen: false);
             hapticsProvider.selection();
-            _showAddRequirementDialog;
+            _showAddRequirementDialog();
           },
           icon: const Icon(Icons.add),
           label: const Text('Add Requirement'),
@@ -1063,7 +1087,7 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                 final hapticsProvider =
                     Provider.of<HapticsProvider>(context, listen: false);
                 hapticsProvider.selection();
-                _showAddRequirementDialog;
+                _showAddRequirementDialog();
               },
               icon: const Icon(Icons.add),
               label: const Text('Add Your First Requirement'),
@@ -1080,19 +1104,20 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
       itemCount: _requirements.length,
       itemBuilder: (context, index) {
         final requirement = _requirements[index];
-        return Container(
+        return AppContentCard(
           margin: const EdgeInsets.only(bottom: AppDesign.spacingM),
-          child: AppCard(
-            elevation: 0,
-            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+          child: InkWell(
+            borderRadius: AppDesign.borderLarge,
             onTap: () {
               final hapticsProvider =
                   Provider.of<HapticsProvider>(context, listen: false);
               hapticsProvider.selection();
               _showEditRequirementDialog(requirement);
             },
-            child: Row(
-              children: [
+            child: Padding(
+              padding: AppDesign.paddingMedium,
+              child: Row(
+                children: [
                 Container(
                   padding: AppDesign.paddingMedium,
                   decoration: BoxDecoration(
@@ -1201,7 +1226,8 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
                   Icons.edit,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
-              ],
+                ],
+              ),
             ),
           ),
         );
