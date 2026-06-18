@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../common/app_design.dart';
 import '../common/app_widgets.dart';
 import 'package:provider/provider.dart';
@@ -120,7 +119,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       }
 
       if (mounted) {
-        
         setState(() {
           _graduationYearController.text = graduationYear;
           _isLoadingProfile = false;
@@ -135,7 +133,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   }
 
   Future<void> updateProfileDetails() async {
-    
     if (!_profileFormKey.currentState!.validate()) return;
     setState(() => _isLoadingProfile = true);
 
@@ -366,104 +363,10 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                         _buildPasswordSection(),
                       ],
                     ),
-
-                  // About / report-issue footer
-                  _buildFooter(),
                 ],
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  /// Opens an external [url] in the device browser, with haptic feedback.
-  Future<void> _launchUrl(String url) async {
-    context.read<HapticsProvider>().selection();
-    final uri = Uri.parse(url);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open link')),
-      );
-    }
-  }
-
-  /// A small footer with an "about the app" blurb and links to report an
-  /// issue or read more on GitHub.
-  Widget _buildFooter() {
-    final colorScheme = Theme.of(context).colorScheme;
-    const repoUrl = 'https://github.com/Chase-Fournier/wheeler_nhs';
-    const issuesUrl = '$repoUrl/issues';
-    const readmeUrl = '$repoUrl#readme';
-
-    return Padding(
-      padding: const EdgeInsets.only(
-        top: AppDesign.spacingXL,
-        bottom: AppDesign.spacingL,
-      ),
-      child: Column(
-        children: [
-          Text(
-            'Honor Society Tracker is a free, open-source app for tracking '
-            'volunteer hours.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-          ),
-          const SizedBox(height: AppDesign.spacingM),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: AppDesign.spacingL,
-            runSpacing: AppDesign.spacingS,
-            children: [
-              _buildFooterLink(
-                icon: Icons.bug_report_outlined,
-                label: 'Report an issue',
-                onTap: () => _launchUrl(issuesUrl),
-              ),
-              _buildFooterLink(
-                icon: Icons.info_outline,
-                label: 'About the app',
-                onTap: () => _launchUrl(readmeUrl),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// A single tappable footer link with a leading [icon] and [label].
-  Widget _buildFooterLink({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppDesign.radiusSmall),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppDesign.spacingS,
-          vertical: AppDesign.spacingXS,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: colorScheme.primary),
-            const SizedBox(width: AppDesign.spacingXS),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
-          ],
         ),
       ),
     );
@@ -474,7 +377,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     final List<String> graduationYears =
         List.generate(7, (i) => (currentYear - 2 + i).toString());
     final storedYear = _graduationYearController.text;
-    final dropdownValue = graduationYears.contains(storedYear) ? storedYear : null;
+    final dropdownValue =
+        graduationYears.contains(storedYear) ? storedYear : null;
     return AppGroupingCard(
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: Form(
@@ -520,32 +424,31 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             // Save Button
 
             SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isLoadingProfile ? null : updateProfileDetails,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        foregroundColor:
-                            Theme.of(context).colorScheme.onPrimary,
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: _isLoadingPassword
-                          ? const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                                SizedBox(width: 16),
-                                Text('Processing...'),
-                              ],
-                            )
-                          : const Text('Update Profile'),
-                    ),
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isLoadingProfile ? null : updateProfileDetails,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                ),
+                child: _isLoadingPassword
+                    ? const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                          SizedBox(width: 16),
+                          Text('Processing...'),
+                        ],
+                      )
+                    : const Text('Update Profile'),
+              ),
+            ),
           ],
         ),
       ),
@@ -662,32 +565,31 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 // Save Button
 
                 SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isLoadingEmail ? null : _updateEmail,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        foregroundColor:
-                            Theme.of(context).colorScheme.onPrimary,
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoadingEmail ? null : _updateEmail,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: _isLoadingPassword
-                          ? const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                                SizedBox(width: 16),
-                                Text('Processing...'),
-                              ],
-                            )
-                          : const Text('Update Email'),
                     ),
+                    child: _isLoadingPassword
+                        ? const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                              SizedBox(width: 16),
+                              Text('Processing...'),
+                            ],
+                          )
+                        : const Text('Update Email'),
                   ),
+                ),
 
                 const SizedBox(height: AppDesign.spacingS),
 
@@ -715,192 +617,190 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-            // Section Header
-            Row(
-              children: [
-                Icon(
-                  Icons.lock_outline,
-                  color: Theme.of(context).colorScheme.primary,
+          // Section Header
+          Row(
+            children: [
+              Icon(
+                Icons.lock_outline,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Password',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Change your account password',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(width: 12),
-                Text(
-                  'Password',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+          ),
+          const SizedBox(height: 24),
+
+          // Password Form
+          Form(
+            key: _passwordFormKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // New Password
+                TextFormField(
+                  controller: _newPasswordController,
+                  obscureText: _obscureNewPassword,
+                  decoration: InputDecoration(
+                    labelText: 'New Password',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureNewPassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                       ),
+                      onPressed: () {
+                        final hapticsProvider = Provider.of<HapticsProvider>(
+                            context,
+                            listen: false);
+                        hapticsProvider.selection();
+                        setState(() {
+                          _obscureNewPassword = !_obscureNewPassword;
+                        });
+                      },
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surface,
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a new password';
+                    }
+                    if (value.length < 8) {
+                      return 'Password must be at least 8 characters';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Confirm Password
+                TextFormField(
+                  controller: _confirmPasswordController,
+                  obscureText: _obscureConfirmPassword,
+                  decoration: InputDecoration(
+                    labelText: 'Confirm Password',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureConfirmPassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
+                      onPressed: () {
+                        final hapticsProvider = Provider.of<HapticsProvider>(
+                            context,
+                            listen: false);
+                        hapticsProvider.selection();
+                        setState(() {
+                          _obscureConfirmPassword = !_obscureConfirmPassword;
+                        });
+                      },
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surface,
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please confirm your new password';
+                    }
+                    if (value != _newPasswordController.text) {
+                      return 'Passwords do not match';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+
+                // Save Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoadingPassword ? null : _updatePassword,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _isLoadingPassword
+                        ? const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                              SizedBox(width: 16),
+                              Text('Processing...'),
+                            ],
+                          )
+                        : const Text('Update Password'),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // Password Requirements
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceVariant
+                        .withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .outline
+                          .withOpacity(0.3),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Password Requirements:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildRequirementRow('At least 8 characters long'),
+                      _buildRequirementRow(
+                          'Include upper and lowercase letters'),
+                      _buildRequirementRow('Include at least one number'),
+                      _buildRequirementRow(
+                          'Include at least one special character'),
+                    ],
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Change your account password',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-            ),
-            const SizedBox(height: 24),
-
-            // Password Form
-            Form(
-              key: _passwordFormKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // New Password
-                  TextFormField(
-                    controller: _newPasswordController,
-                    obscureText: _obscureNewPassword,
-                    decoration: InputDecoration(
-                      labelText: 'New Password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureNewPassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                        ),
-                        onPressed: () {
-                          final hapticsProvider = Provider.of<HapticsProvider>(
-                              context,
-                              listen: false);
-                          hapticsProvider.selection();
-                          setState(() {
-                            _obscureNewPassword = !_obscureNewPassword;
-                          });
-                        },
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: Theme.of(context).colorScheme.surface,
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter a new password';
-                      }
-                      if (value.length < 8) {
-                        return 'Password must be at least 8 characters';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Confirm Password
-                  TextFormField(
-                    controller: _confirmPasswordController,
-                    obscureText: _obscureConfirmPassword,
-                    decoration: InputDecoration(
-                      labelText: 'Confirm Password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureConfirmPassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                        ),
-                        onPressed: () {
-                          final hapticsProvider = Provider.of<HapticsProvider>(
-                              context,
-                              listen: false);
-                          hapticsProvider.selection();
-                          setState(() {
-                            _obscureConfirmPassword = !_obscureConfirmPassword;
-                          });
-                        },
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: Theme.of(context).colorScheme.surface,
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please confirm your new password';
-                      }
-                      if (value != _newPasswordController.text) {
-                        return 'Passwords do not match';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Save Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isLoadingPassword ? null : _updatePassword,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        foregroundColor:
-                            Theme.of(context).colorScheme.onPrimary,
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: _isLoadingPassword
-                          ? const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                                SizedBox(width: 16),
-                                Text('Processing...'),
-                              ],
-                            )
-                          : const Text('Update Password'),
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Password Requirements
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surfaceVariant
-                          .withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .outline
-                            .withOpacity(0.3),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Password Requirements:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        _buildRequirementRow('At least 8 characters long'),
-                        _buildRequirementRow(
-                            'Include upper and lowercase letters'),
-                        _buildRequirementRow('Include at least one number'),
-                        _buildRequirementRow(
-                            'Include at least one special character'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
+      ),
     );
   }
 

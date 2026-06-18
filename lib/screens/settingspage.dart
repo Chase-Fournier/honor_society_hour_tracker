@@ -1,9 +1,11 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../snake.dart';
 import 'societyadminpage.dart';
 import 'accountsettingspage.dart';
@@ -217,48 +219,55 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildWideScreenLayout() {
     return SingleChildScrollView(
       padding: AppDesign.paddingLarge,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
         children: [
-          // Left column - profile info and society
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildSocietyCard(),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Left column - profile info and society
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildSocietyCard(),
 
-                const SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
-                // User profile card
-                _buildUserProfileCard(),
+                    // User profile card
+                    _buildUserProfileCard(),
 
-                const SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
-                // Account settings card
-                _buildAccountSettingsCard(),
-              ],
-            ),
+                    // Account settings card
+                    _buildAccountSettingsCard(),
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 24),
+
+              // Right column - theme and other settings
+              Expanded(
+                flex: 4,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Appearance settings card
+                    _buildAppearanceCard(),
+
+                    const SizedBox(height: 24),
+
+                    // Games section - only show on web
+                    _buildGamesSection(),
+                  ],
+                ),
+              ),
+            ],
           ),
 
-          const SizedBox(width: 24),
-
-          // Right column - theme and other settings
-          Expanded(
-            flex: 4,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Appearance settings card
-                _buildAppearanceCard(),
-
-                const SizedBox(height: 24),
-
-                // Games section - only show on web
-                _buildGamesSection(),
-              ],
-            ),
-          ),
+          // About / report-issue footer
+          _buildFooter(),
         ],
       ),
     );
@@ -306,6 +315,9 @@ class _SettingsPageState extends State<SettingsPage> {
             icon: const Icon(Icons.games),
             label: const Text('Play Snake'),
           ),
+
+          // About / report-issue footer
+          _buildFooter(),
         ],
       ),
     );
@@ -424,67 +436,73 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildUserProfileCard() {
     return _buildProfileCard(
       child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Account Information',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Account Information',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                       Icon(Icons.person, size: 18, color: Theme.of(context).colorScheme.primary),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Name: $_name',
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.email, size: 18, color: Theme.of(context).colorScheme.primary),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Email: $_email',
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.school, size: 18, color: Theme.of(context).colorScheme.primary,),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Graduation Year: $_graduationYear',
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Icon(Icons.person,
+                        size: 18, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Name: $_name',
                         style: const TextStyle(fontSize: 16),
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.email,
+                        size: 18, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Email: $_email',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.school,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Graduation Year: $_graduationYear',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            IconButton(
-              icon: const Icon(Icons.logout),
-              color: Theme.of(context).colorScheme.primary,
-              onPressed: _signOut,
-              tooltip: 'Sign Out',
-            ),
-          ],
-        ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            color: Theme.of(context).colorScheme.primary,
+            onPressed: _signOut,
+            tooltip: 'Sign Out',
+          ),
+        ],
+      ),
     );
   }
 
@@ -546,69 +564,68 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildAppearanceCard() {
     return _buildProfileCard(
       child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Appearance',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Appearance',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Appearance — opens dedicated page with mode, color, and themes
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: AppDesign.borderSmall,
+              ),
+              child: Icon(
+                Icons.palette_outlined,
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
               ),
             ),
-            const SizedBox(height: 16),
+            title: const Text('Appearance'),
+            subtitle: Text(
+              _appearanceSummary(),
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              final hapticsProvider =
+                  Provider.of<HapticsProvider>(context, listen: false);
+              hapticsProvider.selection();
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AppearancePage()),
+              );
+            },
+          ),
 
-            // Appearance — opens dedicated page with mode, color, and themes
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: AppDesign.borderSmall,
+          const Divider(),
+
+          // Haptics Toggle
+          Consumer<HapticsProvider>(
+            builder: (context, hapticsProvider, child) {
+              return SwitchListTile(
+                title: const Text('Haptic Feedback'),
+                subtitle: const Text('Vibrate on interactions'),
+                secondary: Icon(
+                  Icons.vibration,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
-                child: Icon(
-                  Icons.palette_outlined,
-                  color: Theme.of(context).colorScheme.onPrimaryContainer,
-                ),
-              ),
-              title: const Text('Appearance'),
-              subtitle: Text(
-                _appearanceSummary(),
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const AppearancePage()),
-                );
-              },
-            ),
-
-            const Divider(),
-
-            // Haptics Toggle
-            Consumer<HapticsProvider>(
-              builder: (context, hapticsProvider, child) {
-                return SwitchListTile(
-                  title: const Text('Haptic Feedback'),
-                  subtitle: const Text('Vibrate on interactions'),
-                  secondary: Icon(
-                    Icons.vibration,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  value: hapticsProvider.isHapticsEnabled,
-                  onChanged: (bool value) {
-                    hapticsProvider.toggleHaptics(value);
-                  },
-                );
-              },
-            ),
-          ],
-        ),
+                value: hapticsProvider.isHapticsEnabled,
+                onChanged: (bool value) {
+                  hapticsProvider.toggleHaptics(value);
+                },
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -622,57 +639,53 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildGamesSection() {
     return _buildProfileCard(
       child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Games & Activities',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Games & Activities',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          GridView.count(
+            crossAxisCount: 3,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children: [
+              _buildGameCard(
+                'Snake',
+                Icons.videogame_asset,
+                Theme.of(context).colorScheme.tertiary,
+                () {
+                  final hapticsProvider =
+                      Provider.of<HapticsProvider>(context, listen: false);
+                  hapticsProvider.selection();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SnakePage()),
+                  );
+                },
               ),
-            ),
-            const SizedBox(height: 16),
-            GridView.count(
-              crossAxisCount: 3,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildGameCard(
-                  'Snake',
-                  Icons.videogame_asset,
-                  Theme.of(context).colorScheme.tertiary,
-                  () {
-                    final hapticsProvider =
-                        Provider.of<HapticsProvider>(context, listen: false);
-                    hapticsProvider.selection();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const SnakePage()),
-                    );
-                  },
-                ),
-                // Add more game cards in the future
-                _buildGameCard(
-                    'Coming Soon',
-                    Icons.airplanemode_active,
-                    Theme.of(context).colorScheme.secondary,
-                    () {},
-                    enabled: false),
-                _buildGameCard(
-                  'Coming Soon',
-                  Icons.pending,
-                  Theme.of(context).colorScheme.secondary,
-                  () {},
-                  enabled: false,
-                ),
-              ],
-            ),
-          ],
-        ),
+              // Add more game cards in the future
+              _buildGameCard('Coming Soon', Icons.airplanemode_active,
+                  Theme.of(context).colorScheme.secondary, () {},
+                  enabled: false),
+              _buildGameCard(
+                'Coming Soon',
+                Icons.pending,
+                Theme.of(context).colorScheme.secondary,
+                () {},
+                enabled: false,
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -721,7 +734,97 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
   }
-  
+
+  /// Opens an external [url] in the device browser, with haptic feedback.
+  Future<void> _launchUrl(String url) async {
+    context.read<HapticsProvider>().selection();
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open link')),
+      );
+    }
+  }
+
+  /// A small footer with an "about the app" blurb and links to report an
+  /// issue or read more on GitHub.
+  Widget _buildFooter() {
+    final colorScheme = Theme.of(context).colorScheme;
+    const repoUrl = 'https://github.com/Chase-Fournier/wheeler_nhs';
+    const issuesUrl = '$repoUrl/issues';
+    const readmeUrl = '$repoUrl#readme';
+
+    return Padding(
+      padding: const EdgeInsets.only(
+        top: AppDesign.spacingXL,
+        bottom: AppDesign.spacingL,
+      ),
+      child: Column(
+        children: [
+          Text(
+            'Honor Society Tracker is a free, open-source app for tracking '
+            'volunteer hours.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: AppDesign.spacingM),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: AppDesign.spacingL,
+            runSpacing: AppDesign.spacingS,
+            children: [
+              _buildFooterLink(
+                icon: Icons.bug_report_outlined,
+                label: 'Report an issue',
+                onTap: () => _launchUrl(issuesUrl),
+              ),
+              _buildFooterLink(
+                icon: Icons.info_outline,
+                label: 'About the app',
+                onTap: () => _launchUrl(readmeUrl),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// A single tappable footer link with a leading [icon] and [label].
+  Widget _buildFooterLink({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppDesign.radiusSmall),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppDesign.spacingS,
+          vertical: AppDesign.spacingXS,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: colorScheme.primary),
+            const SizedBox(width: AppDesign.spacingXS),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.primary,
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Future<void> _signOut() async {
     final navigationState = Navigator.of(context);
@@ -752,10 +855,4 @@ class _SettingsPageState extends State<SettingsPage> {
       );
     }
   }
-
-  
 }
-
-
-
-
