@@ -68,24 +68,6 @@ class _LeadershipPageState extends State<LeadershipPage> {
         shape: RoundedRectangleBorder(
           borderRadius: AppDesign.borderLarge,
         ),
-        title: Row(
-          children: [
-            Icon(
-              Icons.supervisor_account,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            SizedBox(width: AppDesign.spacingS),
-            Expanded(
-              child: Text(
-                role.title,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,6 +251,8 @@ class _LeadershipPageState extends State<LeadershipPage> {
                     ),
                     Text(
                       value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: Theme.of(context).colorScheme.primary,
                             fontWeight: FontWeight.w500,

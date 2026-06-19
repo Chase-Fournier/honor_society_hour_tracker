@@ -5,6 +5,9 @@ import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import 'package:intl/intl.dart';
 import '../providers/societyprovider.dart';
 import '../common/app_design.dart';
+import '../common/app_widgets.dart';
+import '../common/app_form.dart';
+import '../common/nhsformatutils.dart';
 import '../models/timeslot.dart';
 import '../models/hourrequirement.dart';
 import '../models/honorsociety.dart';
@@ -968,341 +971,74 @@ class _AdminEventsPageState extends State<AdminEventsPage>
   }
 
   void showAddEventDialog() {
-    final _formKey = GlobalKey<FormState>();
-    String _eventName = '';
-    String _eventDescription = '';
-    String _location = '';
-    DateTime _eventDate = DateTime.now();
-    List<TimeSlot> _timeSlots = [];
-    bool _isMandatory = false;
-    String? _selectedEventType;
-    int? _selectedCollectionId;
-    bool _requiresForms = false;
-    String _formLink = '';
-    int swap_request_deadline_hours = 24;
-    bool _hasDelay = false;
-    int _delayHours = 0;
-    late int _societyId =
-        widget.society?.id ?? 1; // Default to society_id 1 if none selected
+    final formKey = GlobalKey<_EventFormBodyState>();
+    final currentSocietyId =
+        widget.society?.id ?? _currentSociety?.id ?? 1;
 
-    showDialog(
+    showAppForm<void>(
       context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
-            return AlertDialog(
-              title: const Text('Add Event'),
-              content: SingleChildScrollView(
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Society Selection (if user is member of multiple societies)
-                      FutureBuilder<List<HonorSociety>>(
-                        future: _fetchUserSocieties(),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Center(
-                                child: CircularProgressIndicator());
-                          }
-
-                          if (snapshot.hasError) {
-                            return Text('Error: ${snapshot.error}');
-                          }
-
-                          final societies = snapshot.data ?? [];
-
-                          // Only show society dropdown if user is in multiple societies
-                          if (societies.length > 1) {
-                            return DropdownButtonFormField<int>(
-                              value: _societyId,
-                              items: societies
-                                  .map((society) => DropdownMenuItem(
-                                        value: society.id,
-                                        child: Text(society.name),
-                                      ))
-                                  .toList(),
-                              onChanged: (value) =>
-                                  setState(() => _societyId = value!),
-                              decoration: const InputDecoration(
-                                labelText: 'Society',
-                                border: OutlineInputBorder(),
-                                hintText: 'Select society for this event',
-                              ),
-                            );
-                          }
-
-                          // If only one society, show it as text
-                          if (societies.isNotEmpty) {
-                            _societyId = societies.first.id;
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 16.0),
-                              child: Row(
-                                children: [
-                                  const Text('Society: ',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold)),
-                                  Text(societies.first.name),
-                                ],
-                              ),
-                            );
-                          }
-
-                          return const SizedBox.shrink();
-                        },
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Event details
-                      TextFormField(
-                        decoration:
-                            const InputDecoration(labelText: 'Event Name'),
-                        validator: (value) => value!.isEmpty
-                            ? 'Please enter an event name'
-                            : null,
-                        onSaved: (value) => _eventName = value!,
-                      ),
-                      TextFormField(
-                        decoration: const InputDecoration(
-                            labelText: 'Event Description'),
-                        validator: (value) => value!.isEmpty
-                            ? 'Please enter a description'
-                            : null,
-                        onSaved: (value) => _eventDescription = value!,
-                      ),
-                      TextFormField(
-                        decoration: const InputDecoration(
-                          labelText: 'Location (optional)',
-                        ),
-                        onSaved: (value) => _location = value ?? '',
-                      ),
-                      SizedBox(
-                        height: 15,
-                      ),
-                      ElevatedButton(
-                        child: Text(_eventDate == null
-                            ? 'Select Date'
-                            : '${_eventDate.toString().substring(0, 10)}'),
-                        onPressed: () async {
-                          final hapticsProvider = Provider.of<HapticsProvider>(
-                              context,
-                              listen: false);
-                          hapticsProvider.selection();
-                          final DateTime? picked = await showDatePicker(
-                            context: context,
-                            initialDate: _eventDate,
-                            firstDate: DateTime.now(),
-                            lastDate:
-                                DateTime.now().add(const Duration(days: 365)),
-                          );
-                          if (picked != null) {
-                            setState(() => _eventDate = picked);
-                          }
-                        },
-                      ),
-                      FutureBuilder<List<HourRequirement>>(
-                          future: _fetchSocietyHourRequirements(_societyId),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return const CircularProgressIndicator();
-                            }
-
-                            final requirements = snapshot.data ?? [];
-                            final activeTypes = requirements
-                                .where((req) => req.isActive)
-                                .map((req) => req.type)
-                                .toList();
-
-                            // Add Meeting to the types if not already present
-                            if (!activeTypes.contains('Meeting')) {
-                              activeTypes.add('Meeting');
-                            }
-
-                            return DropdownButtonFormField<String>(
-                              value: _selectedEventType,
-                              items: activeTypes
-                                  .map((type) => DropdownMenuItem(
-                                      value: type, child: Text(type)))
-                                  .toList(),
-                              onChanged: (value) =>
-                                  setState(() => _selectedEventType = value),
-                              decoration: const InputDecoration(
-                                  labelText: 'Event Type'),
-                              validator: (value) => value == null
-                                  ? 'Please select an event type'
-                                  : null,
-                            );
-                          }),
-
-                      // Add remaining fields from the original implementation
-                      DropdownButtonFormField<int>(
-                        value: _selectedCollectionId,
-                        items: [
-                          const DropdownMenuItem(
-                              value: null, child: Text('No Collection')),
-                          ..._collections.map((collection) => DropdownMenuItem(
-                                value: collection.id,
-                                child: Text(collection.name),
-                              )),
-                        ],
-                        onChanged: (value) =>
-                            setState(() => _selectedCollectionId = value),
-                        decoration:
-                            const InputDecoration(labelText: 'Collection'),
-                      ),
-                      TextFormField(
-                        initialValue: swap_request_deadline_hours.toString(),
-                        decoration: const InputDecoration(
-                          labelText: 'Cancel Deadline (hours before event)',
-                        ),
-                        keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter the deadline';
-                          }
-                          final hours = int.tryParse(value);
-                          if (hours == null || hours < 0) {
-                            return 'Please enter a valid number of hours';
-                          }
-                          return null;
-                        },
-                        onSaved: (value) {
-                          swap_request_deadline_hours = int.parse(value!);
-                        },
-                      ),
-                      CheckboxListTile(
-                        title: const Text('Mandatory'),
-                        value: _isMandatory,
-                        onChanged: (bool? value) {
-                          setState(() => _isMandatory = value!);
-                        },
-                      ),
-                      CheckboxListTile(
-                        title: const Text('Requires Forms'),
-                        value: _requiresForms,
-                        onChanged: (bool? value) {
-                          setState(() => _requiresForms = value!);
-                        },
-                      ),
-                      if (_requiresForms)
-                        TextFormField(
-                          decoration:
-                              const InputDecoration(labelText: 'Form Link'),
-                          validator: (value) => value!.isEmpty
-                              ? 'Please enter a form link'
-                              : null,
-                          onSaved: (value) => _formLink = value!,
-                        ),
-                      CheckboxListTile(
-                        title: const Text('Signup Delay'),
-                        value: _hasDelay,
-                        onChanged: (bool? value) {
-                          setState(() => _hasDelay = value!);
-                        },
-                      ),
-                      if (_hasDelay)
-                        TextFormField(
-                          decoration: const InputDecoration(
-                            labelText: 'Delay Hours Before Event',
-                            helperText: 'Hours before event to allow signup',
-                          ),
-                          keyboardType: TextInputType.number,
-                          initialValue: _delayHours.toString(),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter delay hours';
-                            }
-                            final hours = int.tryParse(value);
-                            if (hours == null || hours < 0) {
-                              return 'Please enter a valid number';
-                            }
-                            return null;
-                          },
-                          onSaved: (value) {
-                            _delayHours = int.parse(value!);
-                          },
-                        ),
-                      SizedBox(
-                        height: 15,
-                      ),
-                      ElevatedButton(
-                        child: const Text('Add Time Slot'),
-                        onPressed: () {
-                          final hapticsProvider = Provider.of<HapticsProvider>(
-                              context,
-                              listen: false);
-                          hapticsProvider.selection();
-                          _showAddTimeSlotDialog(setState, _timeSlots);
-                        },
-                      ),
-                      ..._timeSlots.map((timeSlot) => ListTile(
-                            title: Text(
-                                '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}'),
-                            subtitle:
-                                Text('Capacity: ${timeSlot.numberOfPeople}'),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () {
-                                final hapticsProvider =
-                                    Provider.of<HapticsProvider>(context,
-                                        listen: false);
-                                hapticsProvider.selection();
-                                setState(() => _timeSlots.remove(timeSlot));
-                              },
-                            ),
-                          )),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  child: const Text('Cancel'),
-                  onPressed: () {
-                    final hapticsProvider =
-                        Provider.of<HapticsProvider>(context, listen: false);
-                    hapticsProvider.selection();
-                    Navigator.of(context).pop();
-                  },
-                ),
-                ElevatedButton(
-                  child: const Text('Add Event'),
-                  onPressed: () {
-                    final hapticsProvider =
-                        Provider.of<HapticsProvider>(context, listen: false);
-                    hapticsProvider.selection();
-                    if (_formKey.currentState!.validate()) {
-                      _formKey.currentState!.save();
-                      _addEvent(
-                        _eventName,
-                        _eventDescription,
-                        _location,
-                        _eventDate,
-                        _selectedEventType!,
-                        _isMandatory,
-                        _selectedCollectionId,
-                        _timeSlots,
-                        _requiresForms,
-                        _formLink,
-                        Duration(hours: swap_request_deadline_hours),
-                        _hasDelay,
-                        _delayHours,
-                        _societyId,
-                      );
-                      Navigator.of(context).pop();
-                    }
-                  },
-                ),
-              ],
-            );
-          },
-        );
-      },
+      title: 'Add Event',
+      icon: Icons.event,
+      body: (ctx) => _EventFormBody(
+        key: formKey,
+        defaultSocietyId: currentSocietyId,
+        collections: _collections,
+        fetchSocieties: _fetchUserSocieties,
+        fetchRequirements: _fetchSocietyHourRequirements,
+        editTimeSlot: _showTimeSlotForm,
+        onSubmit: (data) => _addEvent(
+          data.name,
+          data.description,
+          data.location,
+          data.date,
+          data.type,
+          data.isMandatory,
+          data.collectionId,
+          data.timeSlots,
+          data.requiresForms,
+          data.formLink,
+          Duration(hours: data.deadlineHours),
+          data.hasDelay,
+          data.delayHours,
+          data.societyId,
+        ),
+      ),
+      footer: (ctx) => _formFooter(
+        ctx,
+        submitLabel: 'Add Event',
+        onSubmit: () => formKey.currentState?.submit() ?? false,
+      ),
     );
+  }
+
+  /// Convenience accessor for the current society.
+  HonorSociety? get _currentSociety =>
+      Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+
+  /// Standard Cancel / Save footer for the shared form sheets. [onSubmit]
+  /// returns true when the form is valid and was submitted, in which case the
+  /// sheet is dismissed.
+  List<Widget> _formFooter(
+    BuildContext ctx, {
+    required String submitLabel,
+    required bool Function() onSubmit,
+  }) {
+    return [
+      OutlinedButton(
+        onPressed: () {
+          Provider.of<HapticsProvider>(context, listen: false).selection();
+          Navigator.of(ctx).pop();
+        },
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: () {
+          Provider.of<HapticsProvider>(context, listen: false).selection();
+          if (onSubmit()) Navigator.of(ctx).pop();
+        },
+        child: Text(submitLabel),
+      ),
+    ];
   }
 
 // Add this helper method to fetch user societies
@@ -1704,114 +1440,95 @@ class _AdminEventsPageState extends State<AdminEventsPage>
   ///
   /// Returns:
   /// - void
-  void _showAddTimeSlotDialog(
-      StateSetter parentSetState, List<TimeSlot> timeSlots) {
-    final _formKey = GlobalKey<FormState>();
-    TimeOfDay _startTime = TimeOfDay.now();
-    TimeOfDay _endTime = TimeOfDay.now();
-    int _capacity = 1;
-    String _notes = '';
+  /// Presents the shared time-slot form (responsive dialog / bottom sheet) and
+  /// resolves to the created/edited [TimeSlot], or null if cancelled. Used both
+  /// when building an event's slot list and when editing a saved slot.
+  Future<TimeSlot?> _showTimeSlotForm({TimeSlot? initial}) {
+    final formKey = GlobalKey<FormState>();
+    TimeOfDay startTime = initial?.time ?? TimeOfDay.now();
+    TimeOfDay endTime = initial?.endTime ?? TimeOfDay.now();
+    final capacityC =
+        TextEditingController(text: (initial?.numberOfPeople ?? 1).toString());
+    final notesC = TextEditingController(text: initial?.notes ?? '');
 
-    showDialog(
+    return showAppForm<TimeSlot>(
       context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
-            return AlertDialog(
-              title: const Text('Add Time Slot'),
-              content: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ElevatedButton(
-                      child: Text('Start Time: ${_startTime.format(context)}'),
-                      onPressed: () async {
-                        final hapticsProvider = Provider.of<HapticsProvider>(
-                            context,
-                            listen: false);
-                        hapticsProvider.selection();
-                        final TimeOfDay? picked = await showTimePicker(
-                          context: context,
-                          initialTime: _startTime,
-                        );
-                        if (picked != null) {
-                          setState(() => _startTime = picked);
-                        }
-                      },
-                    ),
-                    SizedBox(height: 14),
-                    ElevatedButton(
-                      child: Text('End Time: ${_endTime.format(context)}'),
-                      onPressed: () async {
-                        final hapticsProvider = Provider.of<HapticsProvider>(
-                            context,
-                            listen: false);
-                        hapticsProvider.selection();
-                        final TimeOfDay? picked = await showTimePicker(
-                          context: context,
-                          initialTime: _endTime,
-                        );
-                        if (picked != null) {
-                          setState(() => _endTime = picked);
-                        }
-                      },
-                    ),
-                    TextFormField(
-                      decoration: const InputDecoration(labelText: 'Capacity'),
-                      keyboardType: const TextInputType.numberWithOptions(),
-                      validator: (value) => int.tryParse(value!) == null
-                          ? 'Please enter a valid number'
-                          : null,
-                      onSaved: (value) => _capacity = int.parse(value!),
-                    ),
-                    TextFormField(
-                      decoration: const InputDecoration(labelText: 'Notes'),
-                      onSaved: (value) => _notes = value!,
-                    ),
-                  ],
-                ),
+      title: initial == null ? 'Add Time Slot' : 'Edit Time Slot',
+      icon: Icons.schedule,
+      body: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Form(
+          key: formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AppPickerField(
+                label: 'Start time',
+                value: NhsFormatUtils.formatTimeOfDay(startTime, ctx),
+                icon: Icons.play_arrow,
+                onTap: () async {
+                  final picked = await showTimePicker(
+                      context: ctx, initialTime: startTime);
+                  if (picked != null) setSheetState(() => startTime = picked);
+                },
               ),
-              actions: [
-                TextButton(
-                  child: const Text('Cancel'),
-                  onPressed: () {
-                    final hapticsProvider =
-                        Provider.of<HapticsProvider>(context, listen: false);
-                    hapticsProvider.selection();
-                    Navigator.of(context).pop();
-                  },
-                ),
-                ElevatedButton(
-                  child: const Text('Add Time Slot'),
-                  onPressed: () {
-                    final hapticsProvider =
-                        Provider.of<HapticsProvider>(context, listen: false);
-                    hapticsProvider.selection();
-                    if (_formKey.currentState!.validate()) {
-                      _formKey.currentState!.save();
-                      parentSetState(() {
-                        timeSlots.add(TimeSlot(
-                          id: DateTime.now()
-                              .millisecondsSinceEpoch, // Temporary ID
-                          time: _startTime,
-                          endTime: _endTime,
-                          numberOfPeople: _capacity,
-                          notes: _notes,
-                          eventId:
-                              0, // This will be set when the event is created
-                          createdAt: DateTime.now(),
-                          attendees: [],
-                        ));
-                      });
-                      Navigator.of(context).pop();
-                    }
-                  },
-                ),
-              ],
-            );
+              const SizedBox(height: AppDesign.spacingM),
+              AppPickerField(
+                label: 'End time',
+                value: NhsFormatUtils.formatTimeOfDay(endTime, ctx),
+                icon: Icons.stop,
+                onTap: () async {
+                  final picked =
+                      await showTimePicker(context: ctx, initialTime: endTime);
+                  if (picked != null) setSheetState(() => endTime = picked);
+                },
+              ),
+              const SizedBox(height: AppDesign.spacingM),
+              AppTextField(
+                label: 'Capacity',
+                controller: capacityC,
+                keyboardType: const TextInputType.numberWithOptions(),
+                validator: (value) =>
+                    int.tryParse(value ?? '') == null ? 'Enter a number' : null,
+              ),
+              const SizedBox(height: AppDesign.spacingM),
+              AppTextField(
+                label: 'Notes (optional)',
+                controller: notesC,
+              ),
+            ],
+          ),
+        ),
+      ),
+      footer: (ctx) => [
+        OutlinedButton(
+          onPressed: () {
+            Provider.of<HapticsProvider>(context, listen: false).selection();
+            Navigator.of(ctx).pop();
           },
-        );
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            Provider.of<HapticsProvider>(context, listen: false).selection();
+            if (formKey.currentState!.validate()) {
+              Navigator.of(ctx).pop(TimeSlot(
+                id: initial?.id ?? DateTime.now().millisecondsSinceEpoch,
+                time: startTime,
+                endTime: endTime,
+                numberOfPeople: int.parse(capacityC.text),
+                notes: notesC.text,
+                eventId: initial?.eventId ?? 0,
+                createdAt: initial?.createdAt ?? DateTime.now(),
+                attendees: initial?.attendees ?? [],
+              ));
+            }
+          },
+          child: Text(initial == null ? 'Add' : 'Save'),
+        ),
+      ],
+      onDispose: () {
+        capacityC.dispose();
+        notesC.dispose();
       },
     );
   }
@@ -1819,304 +1536,55 @@ class _AdminEventsPageState extends State<AdminEventsPage>
   // In AdminEventsPage class - replace the _showEditEventDialog method
 
   void _showEditEventDialog(Event event) {
-    final _formKey = GlobalKey<FormState>();
-    String _eventName = event.name;
-    String _eventDescription = event.description;
-    String _location = event.location ?? '';
-    DateTime _eventDate = event.date;
-    List<TimeSlot> _timeSlots = List.from(event.timeSlots);
-    bool _isMandatory = event.isMandatory;
-    String? _selectedEventType = event.type;
-    int? _selectedCollectionId = event.collectionId;
-    bool _requiresForms = event.requiresForms;
-    String _formLink = event.formLink ?? '';
-    int swapRequestDeadline = event.swapRequestDeadline.inHours;
-    bool _hasDelay = event.hasDelay;
-    int _delayHours = event.delayHours;
+    final formKey = GlobalKey<_EventFormBodyState>();
+    final societyId = _currentSociety?.id ?? widget.society?.id ?? 1;
 
-    // Get available event types from society
-    List<String> availableTypes = _getAvailableEventTypes();
-
-    showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return StatefulBuilder(
-            builder: (BuildContext context, StateSetter setState) {
-              return AlertDialog(
-                title: const Text('Edit Event'),
-                content: SingleChildScrollView(
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextFormField(
-                          initialValue: _eventName,
-                          decoration:
-                              const InputDecoration(labelText: 'Event Name'),
-                          validator: (value) => value!.isEmpty
-                              ? 'Please enter an event name'
-                              : null,
-                          onSaved: (value) => _eventName = value!,
-                        ),
-                        TextFormField(
-                          initialValue: _eventDescription,
-                          decoration: const InputDecoration(
-                              labelText: 'Event Description'),
-                          validator: (value) => value!.isEmpty
-                              ? 'Please enter a description'
-                              : null,
-                          onSaved: (value) => _eventDescription = value!,
-                        ),
-                        TextFormField(
-                          initialValue: _location,
-                          decoration: const InputDecoration(
-                            labelText: 'Location (optional)',
-                          ),
-                          onSaved: (value) => _location = value ?? '',
-                        ),
-                        SizedBox(
-                          height: 10,
-                        ),
-                        ElevatedButton(
-                          child: Text(
-                              'Date: ${_eventDate.toString().substring(0, 10)}'),
-                          onPressed: () async {
-                            final hapticsProvider =
-                                Provider.of<HapticsProvider>(context,
-                                    listen: false);
-                            hapticsProvider.selection();
-                            final DateTime? picked = await showDatePicker(
-                              context: context,
-                              initialDate: _eventDate,
-                              firstDate: DateTime.now(),
-                              lastDate:
-                                  DateTime.now().add(const Duration(days: 365)),
-                            );
-                            if (picked != null) {
-                              setState(() => _eventDate = picked);
-                            }
-                          },
-                        ),
-                        DropdownButtonFormField<String>(
-                          value: availableTypes.contains(_selectedEventType)
-                              ? _selectedEventType
-                              : availableTypes.first,
-                          items: availableTypes
-                              .map((type) => DropdownMenuItem(
-                                  value: type, child: Text(type)))
-                              .toList(),
-                          onChanged: (value) =>
-                              setState(() => _selectedEventType = value),
-                          decoration:
-                              const InputDecoration(labelText: 'Event Type'),
-                          validator: (value) => value == null
-                              ? 'Please select an event type'
-                              : null,
-                        ),
-                        TextFormField(
-                          initialValue: swapRequestDeadline.toString(),
-                          decoration: const InputDecoration(
-                            labelText: 'Cancel Deadline (hours before Event)',
-                          ),
-                          keyboardType: const TextInputType.numberWithOptions(),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter the deadline';
-                            }
-                            final hours = int.tryParse(value);
-                            if (hours == null || hours < 0) {
-                              return 'Please enter a valid number of hours';
-                            }
-                            return null;
-                          },
-                          onSaved: (value) {
-                            swapRequestDeadline = int.parse(value!);
-                          },
-                        ),
-                        DropdownButtonFormField<int>(
-                          value: _selectedCollectionId,
-                          items: [
-                            const DropdownMenuItem(
-                                value: null, child: Text('No Collection')),
-                            ..._collections
-                                .map((collection) => DropdownMenuItem(
-                                      value: collection.id,
-                                      child: Text(collection.name),
-                                    )),
-                          ],
-                          onChanged: (value) =>
-                              setState(() => _selectedCollectionId = value),
-                          decoration:
-                              const InputDecoration(labelText: 'Collection'),
-                        ),
-                        CheckboxListTile(
-                          title: const Text('Mandatory'),
-                          value: _isMandatory,
-                          onChanged: (bool? value) {
-                            setState(() => _isMandatory = value!);
-                          },
-                        ),
-                        CheckboxListTile(
-                          title: const Text('Requires Forms'),
-                          value: _requiresForms,
-                          onChanged: (bool? value) {
-                            setState(() => _requiresForms = value!);
-                          },
-                        ),
-                        if (_requiresForms)
-                          TextFormField(
-                            initialValue: _formLink,
-                            decoration:
-                                const InputDecoration(labelText: 'Form Link'),
-                            validator: (value) => value!.isEmpty
-                                ? 'Please enter a form link'
-                                : null,
-                            onSaved: (value) => _formLink = value!,
-                          ),
-                        CheckboxListTile(
-                          title: const Text('Signup Delay'),
-                          value: _hasDelay,
-                          onChanged: (bool? value) {
-                            setState(() => _hasDelay = value!);
-                          },
-                        ),
-                        if (_hasDelay)
-                          TextFormField(
-                            decoration: const InputDecoration(
-                              labelText: 'Delay Hours Before Event',
-                              helperText: 'Hours before event to allow signup',
-                            ),
-                            keyboardType: TextInputType.number,
-                            initialValue: _delayHours.toString(),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter delay hours';
-                              }
-                              final hours = int.tryParse(value);
-                              if (hours == null || hours < 0) {
-                                return 'Please enter a valid number';
-                              }
-                              return null;
-                            },
-                            onSaved: (value) {
-                              _delayHours = int.parse(value!);
-                            },
-                          ),
-                        ElevatedButton(
-                          child: const Text('Add Time Slot'),
-                          onPressed: () {
-                            final hapticsProvider =
-                                Provider.of<HapticsProvider>(context,
-                                    listen: false);
-                            hapticsProvider.selection();
-                            _showAddTimeSlotDialog(setState, _timeSlots);
-                          },
-                        ),
-                        ..._timeSlots.map((timeSlot) => ListTile(
-                              title: Text(
-                                  '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}'),
-                              subtitle:
-                                  Text('Capacity: ${timeSlot.numberOfPeople}'),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.delete_outline),
-                                onPressed: () {
-                                  final hapticsProvider =
-                                      Provider.of<HapticsProvider>(context,
-                                          listen: false);
-                                  hapticsProvider.selection();
-                                  setState(() => _timeSlots.remove(timeSlot));
-                                },
-                              ),
-                            )),
-                      ],
-                    ),
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    child: const Text('Cancel'),
-                    onPressed: () {
-                      final hapticsProvider =
-                          Provider.of<HapticsProvider>(context, listen: false);
-                      hapticsProvider.selection();
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                  ElevatedButton(
-                    child: const Text('Update'),
-                    onPressed: () {
-                      final hapticsProvider =
-                          Provider.of<HapticsProvider>(context, listen: false);
-                      hapticsProvider.selection();
-                      if (_formKey.currentState!.validate()) {
-                        _formKey.currentState!.save();
-                        final society =
-                            Provider.of<SocietyProvider>(context, listen: false)
-                                .currentSociety;
-                        if (society == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('No society selected')),
-                          );
-                          return;
-                        }
-                        _updateEvent(
-                            event.id,
-                            _eventName,
-                            _eventDescription,
-                            _location,
-                            _eventDate,
-                            _selectedEventType!,
-                            _isMandatory,
-                            _selectedCollectionId,
-                            _timeSlots,
-                            _requiresForms,
-                            _formLink,
-                            Duration(hours: swapRequestDeadline),
-                            _hasDelay,
-                            _delayHours,
-                            society.id);
-                        Navigator.of(context).pop();
-                      }
-                    },
-                  ),
-                ],
-              );
-            },
+    showAppForm<void>(
+      context: context,
+      title: 'Edit Event',
+      icon: Icons.edit_calendar,
+      body: (ctx) => _EventFormBody(
+        key: formKey,
+        existing: event,
+        defaultSocietyId: societyId,
+        collections: _collections,
+        fetchSocieties: _fetchUserSocieties,
+        fetchRequirements: _fetchSocietyHourRequirements,
+        editTimeSlot: _showTimeSlotForm,
+        onSubmit: (data) {
+          final society = _currentSociety;
+          if (society == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No society selected')),
+            );
+            return;
+          }
+          _updateEvent(
+            event.id,
+            data.name,
+            data.description,
+            data.location,
+            data.date,
+            data.type,
+            data.isMandatory,
+            data.collectionId,
+            data.timeSlots,
+            data.requiresForms,
+            data.formLink,
+            Duration(hours: data.deadlineHours),
+            data.hasDelay,
+            data.delayHours,
+            society.id,
           );
-        });
+        },
+      ),
+      footer: (ctx) => _formFooter(
+        ctx,
+        submitLabel: 'Save',
+        onSubmit: () => formKey.currentState?.submit() ?? false,
+      ),
+    );
   }
-
-// In AdminEventsPage class - add this helper method for getting available event types
-  List<String> _getAvailableEventTypes() {
-    // Get the current society
-    final society =
-        Provider.of<SocietyProvider>(context, listen: false).currentSociety;
-    if (society == null) {
-      // Default fallback types if no society is available
-      return ['Service', 'Tutoring', 'Meeting'];
-    }
-
-    // Always include Meeting as a type
-    final types = ['Meeting'];
-
-    // Add all active requirement types
-    for (final req in society.hourRequirements) {
-      if (req.isActive && !types.contains(req.type)) {
-        types.add(req.type);
-      }
-    }
-
-    // If somehow we still don't have any types, add default ones
-    if (types.isEmpty) {
-      types.addAll(['Service', 'Tutoring', 'Meeting']);
-    }
-
-    return types;
-  }
-
-// In AdminEventsPage class - update the showAddEventDialog method
 
 // Update the _addEvent method to include societyId
   Future<void> _addEvent(
@@ -2229,58 +1697,34 @@ class _AdminEventsPageState extends State<AdminEventsPage>
     }
   }
 
-  void _showAddCollectionDialog() async {
-    String collectionName = '';
+  void _showAddCollectionDialog() {
+    final formKey = GlobalKey<FormState>();
+    final nameC = TextEditingController();
 
-    final result = await showDialog(
+    showAppForm<void>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Add Collection'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                decoration: const InputDecoration(
-                  labelText: 'Collection Name',
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter the collection name';
-                  }
-                  return null;
-                },
-                onChanged: (value) {
-                  collectionName = value;
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                Navigator.of(context).pop();
-              },
-            ),
-            ElevatedButton(
-              child: const Text('Add'),
-              onPressed: () {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                if (collectionName.isNotEmpty) {
-                  _addCollection(collectionName);
-                  Navigator.of(context).pop();
-                }
-              },
-            ),
-          ],
-        );
-      },
+      title: 'Add Collection',
+      icon: Icons.folder_outlined,
+      body: (ctx) => Form(
+        key: formKey,
+        child: AppTextField(
+          label: 'Collection name',
+          controller: nameC,
+          validator: (value) => (value == null || value.trim().isEmpty)
+              ? 'Please enter the collection name'
+              : null,
+        ),
+      ),
+      footer: (ctx) => _formFooter(
+        ctx,
+        submitLabel: 'Add',
+        onSubmit: () {
+          if (!(formKey.currentState?.validate() ?? false)) return false;
+          _addCollection(nameC.text.trim());
+          return true;
+        },
+      ),
+      onDispose: nameC.dispose,
     );
   }
 
@@ -2527,99 +1971,12 @@ class _AdminEventsPageState extends State<AdminEventsPage>
   ///
   /// Returns:
   /// - void
-  void _showEditTimeSlotDialog(Event event, TimeSlot timeSlot) {
-    final _formKey = GlobalKey<FormState>();
-    TimeOfDay _startTime = timeSlot.time;
-    TimeOfDay _endTime = timeSlot.endTime;
-    int _capacity = timeSlot.numberOfPeople;
-    String _notes = timeSlot.notes;
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Edit Time Slot'),
-          content: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ElevatedButton(
-                  child: Text('Start Time: ${_startTime.format(context)}'),
-                  onPressed: () async {
-                    final hapticsProvider =
-                        Provider.of<HapticsProvider>(context, listen: false);
-                    hapticsProvider.selection();
-                    final TimeOfDay? picked = await showTimePicker(
-                      context: context,
-                      initialTime: _startTime,
-                    );
-                    if (picked != null) {
-                      setState(() => _startTime = picked);
-                    }
-                  },
-                ),
-                SizedBox(height: 14),
-                ElevatedButton(
-                  child: Text('End Time: ${_endTime.format(context)}'),
-                  onPressed: () async {
-                    final hapticsProvider =
-                        Provider.of<HapticsProvider>(context, listen: false);
-                    hapticsProvider.selection();
-                    final TimeOfDay? picked = await showTimePicker(
-                      context: context,
-                      initialTime: _endTime,
-                    );
-                    if (picked != null) {
-                      setState(() => _endTime = picked);
-                    }
-                  },
-                ),
-                TextFormField(
-                  initialValue: _capacity.toString(),
-                  decoration: const InputDecoration(labelText: 'Capacity'),
-                  keyboardType: const TextInputType.numberWithOptions(),
-                  validator: (value) => int.tryParse(value!) == null
-                      ? 'Please enter a valid number'
-                      : null,
-                  onSaved: (value) => _capacity = int.parse(value!),
-                ),
-                TextFormField(
-                  initialValue: _notes,
-                  decoration: const InputDecoration(labelText: 'Notes'),
-                  onSaved: (value) => _notes = value!,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                Navigator.of(context).pop();
-              },
-            ),
-            ElevatedButton(
-              child: const Text('Update Time Slot'),
-              onPressed: () {
-                final hapticsProvider =
-                    Provider.of<HapticsProvider>(context, listen: false);
-                hapticsProvider.selection();
-                if (_formKey.currentState!.validate()) {
-                  _formKey.currentState!.save();
-                  _updateTimeSlot(
-                      event, timeSlot, _startTime, _endTime, _capacity, _notes);
-                  Navigator.of(context).pop();
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
+  void _showEditTimeSlotDialog(Event event, TimeSlot timeSlot) async {
+    final updated = await _showTimeSlotForm(initial: timeSlot);
+    if (updated != null) {
+      _updateTimeSlot(event, timeSlot, updated.time, updated.endTime,
+          updated.numberOfPeople, updated.notes);
+    }
   }
 
   /// Updates existing time slot information.
@@ -3071,8 +2428,8 @@ class _AdminEventsPageState extends State<AdminEventsPage>
 
   void showAddContinuousEventDialog({ContinuousEvent? existing}) {
     final formKey = GlobalKey<FormState>();
-    String name = existing?.name ?? '';
-    String description = existing?.description ?? '';
+    final nameC = TextEditingController(text: existing?.name ?? '');
+    final descC = TextEditingController(text: existing?.description ?? '');
     String? selectedType = existing?.type;
     bool allowMultiple = existing?.allowMultipleSubmissions ?? true;
     bool isActive = existing?.isActive ?? true;
@@ -3083,329 +2440,340 @@ class _AdminEventsPageState extends State<AdminEventsPage>
         existing?.societyId ?? societyProvider.currentSociety?.id ?? 1;
     final hourReqs = societyProvider.currentSociety?.hourRequirements ?? [];
 
-    showDialog(
+    showAppForm<void>(
       context: context,
-      builder: (BuildContext ctx) {
-        return StatefulBuilder(
-          builder: (BuildContext ctx, StateSetter setSt) {
-            void addOrEditStep({ContinuousEventStep? edit, int? index}) {
-              final descCtl =
-                  TextEditingController(text: edit?.description ?? '');
-              final linkCtl = TextEditingController(text: edit?.link ?? '');
-              showDialog(
-                context: ctx,
-                builder: (sCtx) {
-                  return AlertDialog(
-                    title: Text(edit == null ? 'Add Step' : 'Edit Step'),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextField(
-                          controller: descCtl,
-                          maxLines: 3,
-                          decoration: const InputDecoration(
-                            labelText: 'Description',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: linkCtl,
-                          keyboardType: TextInputType.url,
-                          decoration: const InputDecoration(
-                            labelText: 'Link (optional)',
-                            hintText: 'https://...',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ],
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(sCtx).pop(),
-                        child: const Text('Cancel'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          final desc = descCtl.text.trim();
-                          if (desc.isEmpty) return;
-                          final link = linkCtl.text.trim();
-                          setSt(() {
-                            final step = ContinuousEventStep(
-                              order: index ?? steps.length,
-                              description: desc,
-                              link: link.isEmpty ? null : link,
-                            );
-                            if (index != null) {
-                              steps[index] = step;
-                            } else {
-                              steps.add(step);
-                            }
-                          });
-                          Navigator.of(sCtx).pop();
-                        },
-                        child: const Text('Save'),
-                      ),
-                    ],
-                  );
-                },
-              );
+      title: existing == null
+          ? 'Add Ongoing Opportunity'
+          : 'Edit Ongoing Opportunity',
+      icon: Icons.repeat,
+      body: (ctx) => StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setSt) {
+          Future<void> addOrEditStep({ContinuousEventStep? edit, int? index}) async {
+            final result = await _showStepForm(
+                initial: edit, order: index ?? steps.length);
+            if (result != null) {
+              setSt(() {
+                if (index != null) {
+                  steps[index] = result;
+                } else {
+                  steps.add(result);
+                }
+              });
             }
+          }
 
-            final activeTypes = hourReqs
-                .where((r) => r.isActive || r.type == selectedType)
-                .map((r) => r.type)
-                .toSet()
-                .toList();
-            if (selectedType != null && !activeTypes.contains(selectedType)) {
-              activeTypes.add(selectedType!);
-            }
+          final activeTypes = hourReqs
+              .where((r) => r.isActive || r.type == selectedType)
+              .map((r) => r.type)
+              .toSet()
+              .toList();
+          if (selectedType != null && !activeTypes.contains(selectedType)) {
+            activeTypes.add(selectedType!);
+          }
 
-            return AlertDialog(
-              title: Text(existing == null
-                  ? 'Add Ongoing Opportunity'
-                  : 'Edit Ongoing Opportunity'),
-              content: SingleChildScrollView(
-                child: Form(
-                  key: formKey,
+          return Form(
+            key: formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppFormSection(
+                  title: 'Details',
+                  icon: Icons.info_outline,
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      TextFormField(
-                        initialValue: name,
-                        decoration:
-                            const InputDecoration(labelText: 'Name'),
-                        validator: (v) =>
-                            (v == null || v.isEmpty) ? 'Required' : null,
-                        onSaved: (v) => name = v!.trim(),
+                      AppTextField(
+                        label: 'Name',
+                        controller: nameC,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Enter a name'
+                            : null,
                       ),
-                      TextFormField(
-                        initialValue: description,
-                        decoration: const InputDecoration(
-                            labelText: 'Description'),
+                      const SizedBox(height: AppDesign.spacingM),
+                      AppTextField(
+                        label: 'Description',
+                        controller: descC,
                         maxLines: 3,
-                        onSaved: (v) => description = (v ?? '').trim(),
                       ),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        value: selectedType,
+                      const SizedBox(height: AppDesign.spacingM),
+                      AppDropdownField<String>(
+                        label: 'Hour type',
+                        value: activeTypes.contains(selectedType)
+                            ? selectedType
+                            : null,
                         items: activeTypes
-                            .map((t) => DropdownMenuItem(
-                                  value: t,
-                                  child: Text(t),
-                                ))
+                            .map((t) =>
+                                DropdownMenuItem(value: t, child: Text(t)))
                             .toList(),
                         onChanged: (v) => setSt(() => selectedType = v),
-                        decoration:
-                            const InputDecoration(labelText: 'Hour Type'),
                         validator: (v) => v == null ? 'Pick a type' : null,
                       ),
-                      const SizedBox(height: 8),
-                      CheckboxListTile(
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppDesign.spacingL),
+                AppFormSection(
+                  title: 'Options',
+                  icon: Icons.tune,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      AppSwitchRow(
+                        title: 'Allow multiple submissions',
+                        subtitle: 'Members can log hours more than once',
                         value: allowMultiple,
-                        onChanged: (v) =>
-                            setSt(() => allowMultiple = v ?? true),
-                        title: const Text('Allow multiple submissions'),
-                        subtitle: const Text(
-                            'Members can log hours more than once'),
-                        contentPadding: EdgeInsets.zero,
+                        onChanged: (v) => setSt(() => allowMultiple = v),
                       ),
                       if (existing != null)
-                        CheckboxListTile(
+                        AppSwitchRow(
+                          title: 'Active',
+                          subtitle: 'Visible to members',
                           value: isActive,
-                          onChanged: (v) =>
-                              setSt(() => isActive = v ?? true),
-                          title: const Text('Active'),
-                          subtitle: const Text('Visible to members'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Steps (${steps.length}/10)',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          TextButton.icon(
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add Step'),
-                            onPressed: steps.length >= 10
-                                ? null
-                                : () => addOrEditStep(),
-                          ),
-                        ],
-                      ),
-                      if (steps.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Text(
-                            'No steps yet. Add up to 10 so members know what to do.',
-                            style: TextStyle(
-                              color:
-                                  Theme.of(context).colorScheme.onSurfaceVariant,
-                              fontSize: 12,
-                            ),
-                          ),
-                        )
-                      else
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            for (int i = 0; i < steps.length; i++)
-                              Padding(
-                                key: ValueKey('step-$i-${steps[i].description}'),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 4),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 12,
-                                          child: Text('${i + 1}',
-                                              style: const TextStyle(
-                                                  fontSize: 11)),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                steps[i].description,
-                                                maxLines: 2,
-                                                overflow:
-                                                    TextOverflow.ellipsis,
-                                              ),
-                                              if (steps[i].link != null)
-                                                Text(
-                                                  steps[i].link!,
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .onSurfaceVariant,
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.end,
-                                      children: [
-                                        IconButton(
-                                          visualDensity: VisualDensity.compact,
-                                          tooltip: 'Move up',
-                                          icon: const Icon(Icons.arrow_upward,
-                                              size: 20),
-                                          onPressed: i == 0
-                                              ? null
-                                              : () => setSt(() {
-                                                    final item =
-                                                        steps.removeAt(i);
-                                                    steps.insert(i - 1, item);
-                                                    for (var j = 0;
-                                                        j < steps.length;
-                                                        j++) {
-                                                      steps[j] = steps[j]
-                                                          .copyWith(order: j);
-                                                    }
-                                                  }),
-                                        ),
-                                        IconButton(
-                                          visualDensity: VisualDensity.compact,
-                                          tooltip: 'Move down',
-                                          icon: const Icon(
-                                              Icons.arrow_downward,
-                                              size: 20),
-                                          onPressed: i == steps.length - 1
-                                              ? null
-                                              : () => setSt(() {
-                                                    final item =
-                                                        steps.removeAt(i);
-                                                    steps.insert(i + 1, item);
-                                                    for (var j = 0;
-                                                        j < steps.length;
-                                                        j++) {
-                                                      steps[j] = steps[j]
-                                                          .copyWith(order: j);
-                                                    }
-                                                  }),
-                                        ),
-                                        IconButton(
-                                          visualDensity: VisualDensity.compact,
-                                          tooltip: 'Edit',
-                                          icon: const Icon(Icons.edit,
-                                              size: 20),
-                                          onPressed: () => addOrEditStep(
-                                              edit: steps[i], index: i),
-                                        ),
-                                        IconButton(
-                                          visualDensity: VisualDensity.compact,
-                                          tooltip: 'Delete',
-                                          icon: const Icon(Icons.delete_outline,
-                                              size: 20),
-                                          onPressed: () => setSt(() {
-                                            steps.removeAt(i);
-                                            for (var j = 0;
-                                                j < steps.length;
-                                                j++) {
-                                              steps[j] = steps[j]
-                                                  .copyWith(order: j);
-                                            }
-                                          }),
-                                        ),
-                                      ],
-                                    ),
-                                    const Divider(height: 1),
-                                  ],
-                                ),
-                              ),
-                          ],
+                          onChanged: (v) => setSt(() => isActive = v),
                         ),
                     ],
                   ),
                 ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (!formKey.currentState!.validate()) return;
-                    formKey.currentState!.save();
-                    Navigator.of(ctx).pop();
-                    await _saveContinuousEvent(
-                      existing: existing,
-                      societyId: societyId,
-                      name: name,
-                      description: description,
-                      type: selectedType!,
-                      allowMultiple: allowMultiple,
-                      isActive: isActive,
-                      steps: steps,
-                    );
-                  },
-                  child: Text(existing == null ? 'Create' : 'Save'),
+                const SizedBox(height: AppDesign.spacingL),
+                AppFormSection(
+                  title: 'Steps (${steps.length}/10)',
+                  icon: Icons.checklist,
+                  subtitle: 'Tell members what to do, up to 10 steps',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (steps.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: AppDesign.spacingS),
+                          child: Text(
+                            'No steps yet.',
+                            style: Theme.of(ctx)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color: Theme.of(ctx)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                          ),
+                        )
+                      else
+                        for (int i = 0; i < steps.length; i++)
+                          _buildStepRow(ctx, steps, i, setSt, addOrEditStep),
+                      const SizedBox(height: AppDesign.spacingS),
+                      OutlinedButton.icon(
+                        onPressed:
+                            steps.length >= 10 ? null : () => addOrEditStep(),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add step'),
+                      ),
+                    ],
+                  ),
                 ),
               ],
+            ),
+          );
+        },
+      ),
+      footer: (ctx) => [
+        OutlinedButton(
+          onPressed: () {
+            Provider.of<HapticsProvider>(context, listen: false).selection();
+            Navigator.of(ctx).pop();
+          },
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () async {
+            Provider.of<HapticsProvider>(context, listen: false).selection();
+            if (!(formKey.currentState?.validate() ?? false)) return;
+            Navigator.of(ctx).pop();
+            await _saveContinuousEvent(
+              existing: existing,
+              societyId: societyId,
+              name: nameC.text.trim(),
+              description: descC.text.trim(),
+              type: selectedType!,
+              allowMultiple: allowMultiple,
+              isActive: isActive,
+              steps: steps,
             );
           },
-        );
+          child: Text(existing == null ? 'Create' : 'Save'),
+        ),
+      ],
+      onDispose: () {
+        nameC.dispose();
+        descC.dispose();
+      },
+    );
+  }
+
+  /// One step row in the ongoing-opportunity form: numbered, with reorder /
+  /// edit / delete controls.
+  Widget _buildStepRow(
+    BuildContext ctx,
+    List<ContinuousEventStep> steps,
+    int i,
+    StateSetter setSt,
+    Future<void> Function({ContinuousEventStep? edit, int? index}) addOrEditStep,
+  ) {
+    void renumber() {
+      for (var j = 0; j < steps.length; j++) {
+        steps[j] = steps[j].copyWith(order: j);
+      }
+    }
+
+    return Padding(
+      key: ValueKey('step-$i-${steps[i].description}'),
+      padding: const EdgeInsets.symmetric(vertical: AppDesign.spacingXS),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 12,
+                child: Text('${i + 1}', style: const TextStyle(fontSize: 11)),
+              ),
+              const SizedBox(width: AppDesign.spacingS),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      steps[i].description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (steps[i].link != null)
+                      Text(
+                        steps[i].link!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                            ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Move up',
+                icon: const Icon(Icons.arrow_upward, size: 20),
+                onPressed: i == 0
+                    ? null
+                    : () => setSt(() {
+                          final item = steps.removeAt(i);
+                          steps.insert(i - 1, item);
+                          renumber();
+                        }),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Move down',
+                icon: const Icon(Icons.arrow_downward, size: 20),
+                onPressed: i == steps.length - 1
+                    ? null
+                    : () => setSt(() {
+                          final item = steps.removeAt(i);
+                          steps.insert(i + 1, item);
+                          renumber();
+                        }),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Edit',
+                icon: const Icon(Icons.edit, size: 20),
+                onPressed: () => addOrEditStep(edit: steps[i], index: i),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Delete',
+                icon: const Icon(Icons.delete_outline, size: 20),
+                onPressed: () => setSt(() {
+                  steps.removeAt(i);
+                  renumber();
+                }),
+              ),
+            ],
+          ),
+          const Divider(height: 1),
+        ],
+      ),
+    );
+  }
+
+  /// Presents the add/edit-step form and resolves to the created/edited step,
+  /// or null if cancelled.
+  Future<ContinuousEventStep?> _showStepForm({
+    ContinuousEventStep? initial,
+    required int order,
+  }) {
+    final formKey = GlobalKey<FormState>();
+    final descC = TextEditingController(text: initial?.description ?? '');
+    final linkC = TextEditingController(text: initial?.link ?? '');
+
+    return showAppForm<ContinuousEventStep>(
+      context: context,
+      title: initial == null ? 'Add Step' : 'Edit Step',
+      icon: Icons.checklist,
+      body: (ctx) => Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppTextField(
+              label: 'Description',
+              controller: descC,
+              maxLines: 3,
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'Enter a description' : null,
+            ),
+            const SizedBox(height: AppDesign.spacingM),
+            AppTextField(
+              label: 'Link (optional)',
+              controller: linkC,
+              hint: 'https://...',
+              keyboardType: TextInputType.url,
+            ),
+          ],
+        ),
+      ),
+      footer: (ctx) => [
+        OutlinedButton(
+          onPressed: () {
+            Provider.of<HapticsProvider>(context, listen: false).selection();
+            Navigator.of(ctx).pop();
+          },
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            Provider.of<HapticsProvider>(context, listen: false).selection();
+            if (formKey.currentState!.validate()) {
+              final link = linkC.text.trim();
+              Navigator.of(ctx).pop(ContinuousEventStep(
+                order: order,
+                description: descC.text.trim(),
+                link: link.isEmpty ? null : link,
+              ));
+            }
+          },
+          child: const Text('Save'),
+        ),
+      ],
+      onDispose: () {
+        descC.dispose();
+        linkC.dispose();
       },
     );
   }
@@ -3456,5 +2824,428 @@ class _AdminEventsPageState extends State<AdminEventsPage>
         );
       }
     }
+  }
+}
+
+/// Result payload emitted by [_EventFormBody] on submit.
+class _EventFormData {
+  final String name;
+  final String description;
+  final String location;
+  final DateTime date;
+  final String type;
+  final bool isMandatory;
+  final int? collectionId;
+  final List<TimeSlot> timeSlots;
+  final bool requiresForms;
+  final String formLink;
+  final int deadlineHours;
+  final bool hasDelay;
+  final int delayHours;
+  final int societyId;
+
+  _EventFormData({
+    required this.name,
+    required this.description,
+    required this.location,
+    required this.date,
+    required this.type,
+    required this.isMandatory,
+    required this.collectionId,
+    required this.timeSlots,
+    required this.requiresForms,
+    required this.formLink,
+    required this.deadlineHours,
+    required this.hasDelay,
+    required this.delayHours,
+    required this.societyId,
+  });
+}
+
+/// Shared, sectioned event form used by both the Add and Edit flows. Present it
+/// through [showAppForm] and trigger [submit] from the footer's Save button via
+/// a `GlobalKey<_EventFormBodyState>`.
+class _EventFormBody extends StatefulWidget {
+  final Event? existing;
+  final int defaultSocietyId;
+  final List<Collection> collections;
+  final Future<List<HonorSociety>> Function() fetchSocieties;
+  final Future<List<HourRequirement>> Function(int societyId) fetchRequirements;
+  final Future<TimeSlot?> Function({TimeSlot? initial}) editTimeSlot;
+  final void Function(_EventFormData data) onSubmit;
+
+  const _EventFormBody({
+    super.key,
+    this.existing,
+    required this.defaultSocietyId,
+    required this.collections,
+    required this.fetchSocieties,
+    required this.fetchRequirements,
+    required this.editTimeSlot,
+    required this.onSubmit,
+  });
+
+  @override
+  State<_EventFormBody> createState() => _EventFormBodyState();
+}
+
+class _EventFormBodyState extends State<_EventFormBody> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameC;
+  late final TextEditingController _descC;
+  late final TextEditingController _locationC;
+  late final TextEditingController _formLinkC;
+  late final TextEditingController _deadlineC;
+  late final TextEditingController _delayC;
+
+  late DateTime _date;
+  String? _type;
+  int? _collectionId;
+  bool _mandatory = false;
+  bool _requiresForms = false;
+  bool _hasDelay = false;
+  late int _societyId;
+  late List<TimeSlot> _timeSlots;
+
+  // Cached async lookups so a stray rebuild (toggling a switch, etc.) doesn't
+  // re-hit the network or flash the dropdowns. The type list is re-fetched only
+  // when the selected society changes.
+  late Future<List<HonorSociety>> _societiesFuture;
+  Future<List<HourRequirement>>? _typesFuture;
+  int? _typesFutureSocietyId;
+
+  bool get _isEditing => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.existing;
+    _nameC = TextEditingController(text: e?.name ?? '');
+    _descC = TextEditingController(text: e?.description ?? '');
+    _locationC = TextEditingController(text: e?.location ?? '');
+    _formLinkC = TextEditingController(text: e?.formLink ?? '');
+    _deadlineC = TextEditingController(
+        text: (e?.swapRequestDeadline.inHours ?? 24).toString());
+    _delayC = TextEditingController(text: (e?.delayHours ?? 0).toString());
+    _date = e?.date ?? DateTime.now();
+    _type = e?.type;
+    _collectionId = e?.collectionId;
+    _mandatory = e?.isMandatory ?? false;
+    _requiresForms = e?.requiresForms ?? false;
+    _hasDelay = e?.hasDelay ?? false;
+    _societyId = widget.defaultSocietyId;
+    _timeSlots = List<TimeSlot>.from(e?.timeSlots ?? const []);
+    _societiesFuture = widget.fetchSocieties();
+    // Once societies load, make sure _societyId points at one of them so the
+    // selector's displayed value and the value actually submitted stay in sync
+    // (the selector otherwise falls back to the first society visually only).
+    _societiesFuture.then((societies) {
+      if (!mounted) return;
+      if (societies.isNotEmpty && !societies.any((s) => s.id == _societyId)) {
+        setState(() => _societyId = societies.first.id);
+      }
+    });
+  }
+
+  Future<List<HourRequirement>> _typesFor(int societyId) {
+    if (_typesFuture == null || _typesFutureSocietyId != societyId) {
+      _typesFuture = widget.fetchRequirements(societyId);
+      _typesFutureSocietyId = societyId;
+    }
+    return _typesFuture!;
+  }
+
+  @override
+  void dispose() {
+    _nameC.dispose();
+    _descC.dispose();
+    _locationC.dispose();
+    _formLinkC.dispose();
+    _deadlineC.dispose();
+    _delayC.dispose();
+    super.dispose();
+  }
+
+  /// Validates and, when valid, emits the form data. Returns true on success.
+  bool submit() {
+    if (!(_formKey.currentState?.validate() ?? false)) return false;
+    if (_type == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select an event type')),
+      );
+      return false;
+    }
+    widget.onSubmit(_EventFormData(
+      name: _nameC.text.trim(),
+      description: _descC.text.trim(),
+      location: _locationC.text.trim(),
+      date: _date,
+      type: _type!,
+      isMandatory: _mandatory,
+      collectionId: _collectionId,
+      timeSlots: _timeSlots,
+      requiresForms: _requiresForms,
+      formLink: _formLinkC.text.trim(),
+      deadlineHours: int.tryParse(_deadlineC.text) ?? 24,
+      hasDelay: _hasDelay,
+      delayHours: int.tryParse(_delayC.text) ?? 0,
+      societyId: _societyId,
+    ));
+    return true;
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    // Allow editing events whose date is already in the past without crashing.
+    final first = _date.isBefore(now) ? _date : now;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: first,
+      lastDate: now.add(const Duration(days: 365)),
+    );
+    if (picked != null) setState(() => _date = picked);
+  }
+
+  Future<void> _addSlot() async {
+    final slot = await widget.editTimeSlot();
+    if (slot != null) setState(() => _timeSlots.add(slot));
+  }
+
+  Future<void> _editSlot(TimeSlot slot) async {
+    final updated = await widget.editTimeSlot(initial: slot);
+    if (updated != null && mounted) {
+      setState(() {
+        final i = _timeSlots.indexOf(slot);
+        if (i >= 0) _timeSlots[i] = updated;
+      });
+    }
+  }
+
+  String? _validateNonNegativeInt(String? value) {
+    if (value == null || value.isEmpty) return 'Enter a number';
+    final n = int.tryParse(value);
+    if (n == null || n < 0) return 'Enter a valid number';
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppFormSection(
+            title: 'Details',
+            icon: Icons.info_outline,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!_isEditing) _buildSocietySelector(),
+                AppTextField(
+                  label: 'Event name',
+                  controller: _nameC,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Enter an event name'
+                      : null,
+                ),
+                const SizedBox(height: AppDesign.spacingM),
+                AppTextField(
+                  label: 'Description',
+                  controller: _descC,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Enter a description'
+                      : null,
+                ),
+                const SizedBox(height: AppDesign.spacingM),
+                AppTextField(
+                  label: 'Location (optional)',
+                  controller: _locationC,
+                ),
+                const SizedBox(height: AppDesign.spacingM),
+                _buildTypeDropdown(),
+                const SizedBox(height: AppDesign.spacingM),
+                _buildCollectionDropdown(),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppDesign.spacingL),
+          AppFormSection(
+            title: 'Schedule',
+            icon: Icons.event,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppPickerField(
+                  label: 'Date',
+                  value: NhsFormatUtils.formatDate(_date),
+                  icon: Icons.calendar_today,
+                  onTap: _pickDate,
+                ),
+                if (_timeSlots.isNotEmpty) ...[
+                  const SizedBox(height: AppDesign.spacingS),
+                  ..._timeSlots.map(_buildSlotTile),
+                ],
+                const SizedBox(height: AppDesign.spacingS),
+                OutlinedButton.icon(
+                  onPressed: _addSlot,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add time slot'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppDesign.spacingL),
+          AppFormSection(
+            title: 'Options',
+            icon: Icons.tune,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppSwitchRow(
+                  title: 'Mandatory',
+                  value: _mandatory,
+                  onChanged: (v) => setState(() => _mandatory = v),
+                ),
+                AppSwitchRow(
+                  title: 'Requires forms',
+                  value: _requiresForms,
+                  onChanged: (v) => setState(() => _requiresForms = v),
+                ),
+                if (_requiresForms) ...[
+                  const SizedBox(height: AppDesign.spacingS),
+                  AppTextField(
+                    label: 'Form link',
+                    controller: _formLinkC,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Enter a form link'
+                        : null,
+                  ),
+                ],
+                AppSwitchRow(
+                  title: 'Signup delay',
+                  subtitle: 'Hold sign-ups until closer to the event',
+                  value: _hasDelay,
+                  onChanged: (v) => setState(() => _hasDelay = v),
+                ),
+                if (_hasDelay) ...[
+                  const SizedBox(height: AppDesign.spacingS),
+                  AppTextField(
+                    label: 'Delay hours before event',
+                    controller: _delayC,
+                    keyboardType: TextInputType.number,
+                    validator: _validateNonNegativeInt,
+                  ),
+                ],
+                const SizedBox(height: AppDesign.spacingM),
+                AppTextField(
+                  label: 'Cancel deadline (hours before event)',
+                  controller: _deadlineC,
+                  keyboardType: const TextInputType.numberWithOptions(),
+                  validator: _validateNonNegativeInt,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSocietySelector() {
+    return FutureBuilder<List<HonorSociety>>(
+      future: _societiesFuture,
+      builder: (context, snapshot) {
+        final societies = snapshot.data ?? [];
+        if (societies.length <= 1) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppDesign.spacingM),
+          child: AppDropdownField<int>(
+            label: 'Society',
+            value: societies.any((s) => s.id == _societyId)
+                ? _societyId
+                : societies.first.id,
+            items: societies
+                .map((s) => DropdownMenuItem(value: s.id, child: Text(s.name)))
+                .toList(),
+            onChanged: (v) => setState(() => _societyId = v!),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTypeDropdown() {
+    return FutureBuilder<List<HourRequirement>>(
+      future: _typesFor(_societyId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppDesign.spacingS),
+            child: LinearProgressIndicator(),
+          );
+        }
+        final types = snapshot.data
+                ?.where((req) => req.isActive)
+                .map((req) => req.type)
+                .toList() ??
+            <String>[];
+        if (!types.contains('Meeting')) types.add('Meeting');
+        return AppDropdownField<String>(
+          label: 'Event type',
+          value: types.contains(_type) ? _type : null,
+          items: types
+              .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+              .toList(),
+          onChanged: (v) => setState(() => _type = v),
+          validator: (v) => v == null ? 'Please select an event type' : null,
+        );
+      },
+    );
+  }
+
+  Widget _buildCollectionDropdown() {
+    // Fall back to 'No collection' if the event points at a collection that is
+    // no longer in the list, otherwise the dropdown asserts on a missing value.
+    final hasCollection =
+        widget.collections.any((c) => c.id == _collectionId);
+    return AppDropdownField<int?>(
+      label: 'Collection',
+      value: hasCollection ? _collectionId : null,
+      items: [
+        const DropdownMenuItem(value: null, child: Text('No collection')),
+        ...widget.collections.map(
+          (c) => DropdownMenuItem(value: c.id, child: Text(c.name)),
+        ),
+      ],
+      onChanged: (v) => setState(() => _collectionId = v),
+    );
+  }
+
+  Widget _buildSlotTile(TimeSlot slot) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppDesign.spacingS),
+      child: Material(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: AppDesign.borderMedium,
+        child: ListTile(
+          shape: RoundedRectangleBorder(borderRadius: AppDesign.borderMedium),
+          contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppDesign.spacingM, vertical: AppDesign.spacingXS),
+          title: Text(NhsFormatUtils.formatTimeSlot(slot, context)),
+          subtitle: Text('Capacity: ${slot.numberOfPeople}'),
+          onTap: () => _editSlot(slot),
+          trailing: IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Remove',
+            onPressed: () {
+              Provider.of<HapticsProvider>(context, listen: false).selection();
+              setState(() => _timeSlots.remove(slot));
+            },
+          ),
+        ),
+      ),
+    );
   }
 }

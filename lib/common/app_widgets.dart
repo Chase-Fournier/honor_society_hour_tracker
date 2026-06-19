@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'app_design.dart';
 
 //Consistant Card
@@ -88,6 +89,8 @@ class AppTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final Function(String)? onChanged;
   final TextInputType keyboardType;
+  final int maxLines;
+  final List<TextInputFormatter>? inputFormatters;
 
   const AppTextField({
     Key? key,
@@ -100,6 +103,8 @@ class AppTextField extends StatelessWidget {
     this.validator,
     this.onChanged,
     this.keyboardType = TextInputType.text,
+    this.maxLines = 1,
+    this.inputFormatters,
   }) : super(key: key);
 
   @override
@@ -110,6 +115,8 @@ class AppTextField extends StatelessWidget {
       validator: validator,
       onChanged: onChanged,
       keyboardType: keyboardType,
+      maxLines: maxLines,
+      inputFormatters: inputFormatters,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,

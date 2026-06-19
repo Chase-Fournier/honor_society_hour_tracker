@@ -849,403 +849,11 @@ void _showEnhancedMeetingNotesDialog() {
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (context) => DraggableScrollableSheet(
-      initialChildSize: 0.9,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      builder: (context, scrollController) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          children: [
-            // Handle bar + header combined
-            Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.secondaryContainer,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(height: 12),
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.onSecondaryContainer.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 16, 8, 20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Meeting Notes',
-                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).colorScheme.onSecondaryContainer,
-                                ),
-                              ),
-                              Text(
-                                '${_meetingNotes.length} ${_meetingNotes.length == 1 ? 'note' : 'notes'} available',
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSecondaryContainer.withOpacity(0.8),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () {
-                            hapticsProvider.selection();
-                            Navigator.pop(context);
-                          },
-                          color: Theme.of(context).colorScheme.onSecondaryContainer,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            // Notes list
-            Expanded(
-              child: _meetingNotes.isEmpty
-                  ? _buildEmptyNotesState()
-                  : ListView.builder(
-                      controller: scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      itemCount: _meetingNotes.length,
-                      itemBuilder: (context, index) {
-                        final note = _meetingNotes[index];
-                        final isRecent = note.createdAt.isAfter(
-                          DateTime.now().subtract(const Duration(days: 7)),
-                        );
-                        
-                        return AnimatedContainer(
-                          duration: Duration(milliseconds: 300 + (index * 50)),
-                          curve: Curves.easeOutCubic,
-                          margin: const EdgeInsets.only(bottom: 12),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: () {
-                                hapticsProvider.light();
-                                Navigator.pop(context);
-                                _showEnhancedNoteDetailsDialog(note);
-                              },
-                              borderRadius: BorderRadius.circular(20),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: isRecent 
-                                      ? Theme.of(context).colorScheme.tertiary.withOpacity(0.3)
-                                      : Theme.of(context).colorScheme.outlineVariant,
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      // Date badge
-                                      Container(
-                                        width: 60,
-                                        padding: const EdgeInsets.symmetric(vertical: 8),
-                                        decoration: BoxDecoration(
-                                          color: isRecent 
-                                            ? Theme.of(context).colorScheme.tertiaryContainer
-                                            : Theme.of(context).colorScheme.surfaceVariant,
-                                          borderRadius: BorderRadius.circular(16),
-                                        ),
-                                        child: Column(
-                                          children: [
-                                            Text(
-                                              DateFormat('MMM').format(note.createdAt),
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
-                                                color: isRecent
-                                                  ? Theme.of(context).colorScheme.onTertiaryContainer
-                                                  : Theme.of(context).colorScheme.onSurfaceVariant,
-                                              ),
-                                            ),
-                                            Text(
-                                              DateFormat('dd').format(note.createdAt),
-                                              style: TextStyle(
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.bold,
-                                                color: isRecent
-                                                  ? Theme.of(context).colorScheme.onTertiaryContainer
-                                                  : Theme.of(context).colorScheme.onSurfaceVariant,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      
-                                      // Note content
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: Text(
-                                                    note.title,
-                                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                ),
-                                                if (isRecent)
-                                                  Container(
-                                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                    decoration: BoxDecoration(
-                                                      color: Theme.of(context).colorScheme.tertiary,
-                                                      borderRadius: BorderRadius.circular(12),
-                                                    ),
-                                                    child: Text(
-                                                      'NEW',
-                                                      style: TextStyle(
-                                                        fontSize: 10,
-                                                        fontWeight: FontWeight.bold,
-                                                        color: Theme.of(context).colorScheme.onTertiary,
-                                                      ),
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              note.text,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Row(
-                                              children: [
-                                                Icon(
-                                                  Icons.access_time,
-                                                  size: 14,
-                                                  color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  _getTimeAgo(note.createdAt),
-                                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                    color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      
-                                      // Arrow indicator
-                                      Icon(
-                                        Icons.arrow_forward_ios_rounded,
-                                        size: 16,
-                                        color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
+    builder: (context) => _MeetingNotesSheet(
+      notes: _meetingNotes,
+      haptics: hapticsProvider,
     ),
   );
-}
-
-// Enhanced Note Details Dialog
-void _showEnhancedNoteDetailsDialog(MeetingNote note) {
-  QuillController displayController;
-  
-  if (note.content != null && note.content!.isNotEmpty) {
-    try {
-      final deltaJson = jsonDecode(note.content!);
-      displayController = QuillController(
-        document: Document.fromJson(deltaJson),
-        selection: const TextSelection.collapsed(offset: 0),
-      );
-    } catch (e) {
-      displayController = QuillController.basic();
-      displayController.document.insert(0, note.text);
-    }
-  } else {
-    displayController = QuillController.basic();
-    displayController.document.insert(0, note.text);
-  }
-
-  showDialog(
-    context: context,
-    builder: (context) => Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: 600,
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.secondaryContainer,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-              ),
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    note.title,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSecondaryContainer,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    DateFormat.yMMMd().format(note.createdAt),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSecondaryContainer.withOpacity(0.7),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: QuillEditor.basic(
-                  controller: displayController,
-                  config: QuillEditorConfig(
-                    onLaunchUrl: (url) async {
-                      final uri = Uri.tryParse(url);
-                      if (uri != null) {
-                        await launchUrl(uri, mode: LaunchMode.externalApplication);
-                      }
-                    },
-                  ),
-                ),
-              ),
-            ),
-
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  FilledButton(
-                    onPressed: () {
-                      displayController.dispose();
-                      Navigator.pop(context);
-                    },
-                    child: const Text('Close'),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-// Empty state for meeting notes
-Widget _buildEmptyNotesState() {
-  return Center(
-    child: Padding(
-      padding: const EdgeInsets.all(48),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.3),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.note_add_rounded,
-              size: 48,
-              color: Theme.of(context).colorScheme.secondary,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'No Meeting Notes Yet',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Meeting notes from your society will appear here',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-// Helper function for time ago
-String _getTimeAgo(DateTime dateTime) {
-  final now = DateTime.now();
-  final difference = now.difference(dateTime);
-
-  if (difference.inDays > 30) {
-    return DateFormat('MMM d, y').format(dateTime);
-  } else if (difference.inDays > 7) {
-    final weeks = (difference.inDays / 7).floor();
-    return '$weeks ${weeks == 1 ? 'week' : 'weeks'} ago';
-  } else if (difference.inDays > 0) {
-    return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
-  } else if (difference.inHours > 0) {
-    return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
-  } else if (difference.inMinutes > 0) {
-    return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'} ago';
-  } else {
-    return 'Just now';
-  }
 }
 
 Future<void> _fetchPendingSubmissions() async {
@@ -1364,4 +972,546 @@ Widget _buildPendingSubmissionTile(ContinuousEventSubmission s) {
       ),
   );
 }
+}
+
+// Meeting notes bottom sheet. Switches its content in place between the notes
+// list and a single note's details instead of closing and reopening a dialog.
+class _MeetingNotesSheet extends StatefulWidget {
+  final List<MeetingNote> notes;
+  final HapticsProvider haptics;
+
+  const _MeetingNotesSheet({
+    required this.notes,
+    required this.haptics,
+  });
+
+  @override
+  State<_MeetingNotesSheet> createState() => _MeetingNotesSheetState();
+}
+
+class _MeetingNotesSheetState extends State<_MeetingNotesSheet> {
+  MeetingNote? _selectedNote;
+  QuillController? _detailController;
+
+  @override
+  void dispose() {
+    _detailController?.dispose();
+    super.dispose();
+  }
+
+  void _openNote(MeetingNote note) {
+    widget.haptics.light();
+    setState(() {
+      _detailController?.dispose();
+      _detailController = _buildControllerFor(note);
+      _selectedNote = note;
+    });
+  }
+
+  void _backToList() {
+    widget.haptics.selection();
+    setState(() {
+      _selectedNote = null;
+      _detailController?.dispose();
+      _detailController = null;
+    });
+  }
+
+  QuillController _buildControllerFor(MeetingNote note) {
+    if (note.content != null && note.content!.isNotEmpty) {
+      try {
+        final deltaJson = jsonDecode(note.content!);
+        return QuillController(
+          document: Document.fromJson(deltaJson),
+          selection: const TextSelection.collapsed(offset: 0),
+        );
+      } catch (_) {
+        final controller = QuillController.basic();
+        controller.document.insert(0, note.text);
+        return controller;
+      }
+    }
+    final controller = QuillController.basic();
+    controller.document.insert(0, note.text);
+    return controller;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.9,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (context, scrollController) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 250),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          child: _selectedNote == null
+              ? _buildListView(scrollController)
+              : _buildDetailView(_selectedNote!),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildListView(ScrollController scrollController) {
+    return Column(
+      key: const ValueKey('meeting_notes_list'),
+      children: [
+        // Handle bar + header
+        Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.secondaryContainer,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSecondaryContainer
+                      .withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 16, 8, 20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Meeting Notes',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSecondaryContainer,
+                            ),
+                          ),
+                          Text(
+                            '${widget.notes.length} ${widget.notes.length == 1 ? 'note' : 'notes'} available',
+                            style:
+                                Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSecondaryContainer
+                                  .withOpacity(0.8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () {
+                        widget.haptics.selection();
+                        Navigator.pop(context);
+                      },
+                      color: Theme.of(context).colorScheme.onSecondaryContainer,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Notes list
+        Expanded(
+          child: widget.notes.isEmpty
+              ? _buildEmptyNotesState()
+              : ListView.builder(
+                  controller: scrollController,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: widget.notes.length,
+                  itemBuilder: (context, index) {
+                    final note = widget.notes[index];
+                    final isRecent = note.createdAt.isAfter(
+                      DateTime.now().subtract(const Duration(days: 7)),
+                    );
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => _openNote(note),
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceVariant
+                                  .withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isRecent
+                                    ? Theme.of(context)
+                                        .colorScheme
+                                        .tertiary
+                                        .withOpacity(0.3)
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .outlineVariant,
+                                width: 1,
+                              ),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Date badge
+                                  Container(
+                                    width: 60,
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: isRecent
+                                          ? Theme.of(context)
+                                              .colorScheme
+                                              .tertiaryContainer
+                                          : Theme.of(context)
+                                              .colorScheme
+                                              .surfaceVariant,
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Text(
+                                          DateFormat('MMM').format(note.createdAt),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: isRecent
+                                                ? Theme.of(context)
+                                                    .colorScheme
+                                                    .onTertiaryContainer
+                                                : Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
+                                          ),
+                                        ),
+                                        Text(
+                                          DateFormat('dd').format(note.createdAt),
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                            color: isRecent
+                                                ? Theme.of(context)
+                                                    .colorScheme
+                                                    .onTertiaryContainer
+                                                : Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+
+                                  // Note content
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                note.title,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .titleMedium
+                                                    ?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                            if (isRecent)
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .tertiary,
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                child: Text(
+                                                  'NEW',
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .onTertiary,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          note.text,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium
+                                              ?.copyWith(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.access_time,
+                                              size: 14,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant
+                                                  .withOpacity(0.7),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              _getTimeAgo(note.createdAt),
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.copyWith(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurfaceVariant
+                                                    .withOpacity(0.7),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // Arrow indicator
+                                  Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    size: 16,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant
+                                        .withOpacity(0.5),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailView(MeetingNote note) {
+    return Column(
+      key: const ValueKey('meeting_note_detail'),
+      children: [
+        // Handle bar + header with back button
+        Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.secondaryContainer,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSecondaryContainer
+                      .withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 16, 8, 20),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      tooltip: 'Back to notes',
+                      onPressed: _backToList,
+                      color: Theme.of(context).colorScheme.onSecondaryContainer,
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            note.title,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSecondaryContainer,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            DateFormat.yMMMd().format(note.createdAt),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSecondaryContainer
+                                  .withOpacity(0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () {
+                        widget.haptics.selection();
+                        Navigator.pop(context);
+                      },
+                      color: Theme.of(context).colorScheme.onSecondaryContainer,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Note body
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: QuillEditor.basic(
+              controller: _detailController!,
+              config: QuillEditorConfig(
+                onLaunchUrl: (url) async {
+                  final uri = Uri.tryParse(url);
+                  if (uri == null) return;
+                  try {
+                    await launchUrl(uri,
+                        mode: LaunchMode.externalApplication);
+                  } catch (_) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Could not open link')),
+                      );
+                    }
+                  }
+                },
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyNotesState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .secondaryContainer
+                    .withOpacity(0.3),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.note_add_rounded,
+                size: 48,
+                color: Theme.of(context).colorScheme.secondary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No Meeting Notes Yet',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Meeting notes from your society will appear here',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant
+                        .withOpacity(0.7),
+                  ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays > 30) {
+      return DateFormat('MMM d, y').format(dateTime);
+    } else if (difference.inDays > 7) {
+      final weeks = (difference.inDays / 7).floor();
+      return '$weeks ${weeks == 1 ? 'week' : 'weeks'} ago';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'} ago';
+    } else {
+      return 'Just now';
+    }
+  }
 }

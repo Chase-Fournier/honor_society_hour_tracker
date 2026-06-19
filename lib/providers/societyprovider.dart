@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../models/honorsociety.dart';
 import '../models/hourrequirement.dart';
@@ -8,6 +9,7 @@ class SocietyProvider extends ChangeNotifier {
   HonorSociety? _currentSociety;
   List<HonorSociety> _userSocieties = [];
   bool _isAdmin = false;
+  bool _viewAsMember = false;
   bool _isLoading = true;
   String? _loadingError;
 
@@ -17,8 +19,45 @@ class SocietyProvider extends ChangeNotifier {
   /// All societies the user is a member of
   List<HonorSociety> get userSocieties => _userSocieties;
 
-  /// Whether the user is an admin of the current society
+  /// Whether the user is an admin of the current society (database truth).
+  /// Use this to decide whether admin-only controls (e.g. "Manage Admins",
+  /// the view switcher) should be available — it is unaffected by the
+  /// view-as-member preview toggle.
   bool get isAdmin => _isAdmin;
+
+  /// Whether an admin has chosen to preview the current society as a member.
+  /// Persisted per society in SharedPreferences.
+  bool get viewAsMember => _viewAsMember;
+
+  /// Whether the admin shell should be shown. True only when the user is an
+  /// admin AND is not currently previewing the member view.
+  bool get showAdminView => _isAdmin && !_viewAsMember;
+
+  /// SharedPreferences key holding the view preference for a given society.
+  String _viewModeKey(int societyId) => 'view_as_member_$societyId';
+
+  /// Load the persisted view preference for the current society. Non-admins
+  /// always see the member view, so the flag is forced off for them.
+  Future<void> _loadViewMode() async {
+    if (_currentSociety == null || !_isAdmin) {
+      _viewAsMember = false;
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    _viewAsMember =
+        prefs.getBool(_viewModeKey(_currentSociety!.id)) ?? false;
+  }
+
+  /// Toggle whether the current admin previews the society as a member. The
+  /// choice is persisted per society so it is restored next time the society
+  /// is opened.
+  Future<void> setViewAsMember(bool value) async {
+    if (!_isAdmin || _currentSociety == null) return;
+    _viewAsMember = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_viewModeKey(_currentSociety!.id), value);
+  }
 
   /// Whether data is currently loading
   bool get isLoading => _isLoading;
@@ -133,6 +172,8 @@ class SocietyProvider extends ChangeNotifier {
 
       debugPrint('SocietyProvider: Current society: ${_currentSociety?.name}');
 
+      await _loadViewMode();
+
       _isLoading = false;
       _isInitialized = true;
       notifyListeners();
@@ -228,6 +269,8 @@ class SocietyProvider extends ChangeNotifier {
 
         _isAdmin = response['is_admin'] ?? false;
       }
+
+      await _loadViewMode();
 
       _isLoading = false;
       notifyListeners();
@@ -456,6 +499,7 @@ class SocietyProvider extends ChangeNotifier {
     _currentSociety = null;
     _userSocieties = [];
     _isAdmin = false;
+    _viewAsMember = false;
     _isLoading = false;
     _loadingError = null;
     notifyListeners();
