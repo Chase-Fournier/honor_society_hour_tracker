@@ -693,12 +693,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
       return SizedBox();
     }
     return OutlinedButton.icon(
-      onPressed: () {
-        final hapticsProvider =
-            Provider.of<HapticsProvider>(context, listen: false);
-        hapticsProvider.selection();
-        _openWebsite;
-      },
+      onPressed: _openWebsite,
       icon: const Icon(Icons.bug_report),
       label: const Text('Report an Issue'),
       style: OutlinedButton.styleFrom(
@@ -731,7 +726,12 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
         (customUrl != null && customUrl.isNotEmpty) ? customUrl : defaultUrl;
 
     try {
-      final Uri url = Uri.parse(urlToLaunch);
+      // Links saved without a scheme (e.g. "forms.gle/abc") parse to a
+      // schemeless URI the OS can't resolve, so default to https://.
+      var url = Uri.parse(urlToLaunch.trim());
+      if (!url.hasScheme) {
+        url = Uri.parse('https://${urlToLaunch.trim()}');
+      }
       if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
         // Show a more user-friendly error
         if (mounted) {

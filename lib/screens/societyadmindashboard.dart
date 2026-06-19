@@ -60,6 +60,10 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
     }
 
   Future<void> _fetchDashboardData() async {
+    // Can be invoked from a `.then` after returning from another page; bail if
+    // this State was disposed in the meantime (e.g. MainScreen rebuilt the tab
+    // while the society was refreshing).
+    if (!mounted) return;
     final society =
         Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     if (society == null) {
@@ -759,7 +763,9 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
                   context,
                   MaterialPageRoute(
                       builder: (context) => const SocietyAdminPage()),
-                ).then((_) => _fetchDashboardData());
+                ).then((_) {
+                  if (mounted) _fetchDashboardData();
+                });
               },
               tooltip: 'Society Settings',
             ),

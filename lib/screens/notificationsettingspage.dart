@@ -34,6 +34,37 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     return '$days day${days == 1 ? '' : 's'} before';
   }
 
+  // Flat, hairline-bordered card matching the Profile page's cards.
+  Widget _buildCard({
+    required Widget child,
+    EdgeInsetsGeometry padding = AppDesign.paddingMedium,
+  }) {
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppDesign.borderLarge,
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
+          width: 1,
+        ),
+      ),
+      child: Padding(padding: padding, child: child),
+    );
+  }
+
+  // Section title matching the Profile page (20px, bold, primary).
+  Widget _sectionHeader(String title) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final notifications = context.watch<NotificationsProvider>();
@@ -41,17 +72,26 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
         elevation: 0,
+        backgroundColor: Theme.of(context).bannerTheme.backgroundColor,
+        scrolledUnderElevation: AppDesign.elevationSmall,
+        centerTitle: true,
+        title: Text(
+          'Notifications',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 24.0,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
       ),
       body: ListView(
         padding: AppDesign.paddingMedium,
         children: [
-          Card(
-            shape: RoundedRectangleBorder(
-              borderRadius: AppDesign.borderLarge,
-            ),
+          // Master toggle
+          _buildCard(
             child: SwitchListTile(
+              contentPadding: EdgeInsets.zero,
               title: const Text('Enable Notifications'),
               subtitle: const Text(
                   'Allow Wheeler NHS to send reminders and updates.'),
@@ -61,7 +101,10 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                       height: 24,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : null,
+                  : Icon(
+                      Icons.notifications_active_outlined,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
               value: notifications.enabled,
               onChanged: _togglingEnabled
                   ? null
@@ -86,7 +129,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                     },
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppDesign.spacingL),
           AbsorbPointer(
             absorbing: !notifications.enabled,
             child: Opacity(
@@ -94,32 +137,21 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: AppDesign.borderLarge,
-                    ),
+                  _buildCard(
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              'What to notify me about',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color:
-                                    Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                          ),
-                        ),
+                        _sectionHeader('What to notify me about'),
+                        const SizedBox(height: AppDesign.spacingS),
                         SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
                           title: const Text('Event reminders'),
                           subtitle:
                               const Text('Before time slots you signed up for'),
-                          secondary: const Icon(Icons.event_available),
+                          secondary: Icon(
+                            Icons.event_available,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                           value: notifications.eventReminders,
                           onChanged: (v) {
                             haptics.selection();
@@ -127,9 +159,13 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                           },
                         ),
                         SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
                           title: const Text('New meeting notes'),
                           subtitle: const Text('When an admin posts notes'),
-                          secondary: const Icon(Icons.sticky_note_2),
+                          secondary: Icon(
+                            Icons.sticky_note_2,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                           value: notifications.meetingNotes,
                           onChanged: (v) {
                             haptics.selection();
@@ -137,10 +173,14 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                           },
                         ),
                         SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
                           title: const Text('Hours updated by admin'),
                           subtitle: const Text(
                               'Attendance marked or hours adjusted'),
-                          secondary: const Icon(Icons.timer),
+                          secondary: Icon(
+                            Icons.timer,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                           value: notifications.hourUpdates,
                           onChanged: (v) {
                             haptics.selection();
@@ -148,10 +188,14 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                           },
                         ),
                         SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
                           title: const Text('Swap requests'),
                           subtitle: const Text(
                               'When a swap involves you or you accept/decline'),
-                          secondary: const Icon(Icons.swap_horiz),
+                          secondary: Icon(
+                            Icons.swap_horiz,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                           value: notifications.swapRequests,
                           onChanged: (v) {
                             haptics.selection();
@@ -165,31 +209,16 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: AppDesign.borderLarge,
-                    ),
+                  const SizedBox(height: AppDesign.spacingL),
+                  _buildCard(
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              'Event reminder timing',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color:
-                                    Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
+                        _sectionHeader('Event reminder timing'),
+                        const SizedBox(height: AppDesign.spacingS),
                         for (final minutes in _reminderChoices)
                           RadioListTile<int>(
+                            contentPadding: EdgeInsets.zero,
                             title: Text(_reminderLabel(minutes)),
                             value: minutes,
                             groupValue: notifications.reminderMinutesBefore,
@@ -202,13 +231,14 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: AppDesign.borderLarge,
-                    ),
+                  const SizedBox(height: AppDesign.spacingL),
+                  _buildCard(
                     child: ListTile(
-                      leading: const Icon(Icons.send),
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        Icons.send,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                       title: const Text('Send a test notification'),
                       subtitle: const Text(
                           'Useful to confirm everything is working.'),
@@ -307,10 +337,14 @@ class _AdminSubmissionNotifyTileState
   @override
   Widget build(BuildContext context) {
     return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
       title: const Text('Ongoing event submissions'),
       subtitle: const Text(
           'When a member submits hours for review (admins only)'),
-      secondary: const Icon(Icons.assignment_turned_in),
+      secondary: Icon(
+        Icons.assignment_turned_in,
+        color: Theme.of(context).colorScheme.primary,
+      ),
       value: _value,
       onChanged: _loading ? null : _set,
     );

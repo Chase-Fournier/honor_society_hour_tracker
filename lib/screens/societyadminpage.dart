@@ -108,7 +108,7 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
         );
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -540,15 +540,22 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child:  _isLoading
-                          ? const Row(
+                      child: _isLoading
+                          ? Row(
                               mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Center(
-                                  child: CircularProgressIndicator(),
+                                SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                  ),
                                 ),
-                                SizedBox(width: 16),
-                                Text('Processing...'),
+                                const SizedBox(width: 16),
+                                const Text('Processing...'),
                               ],
                             )
                           : const Text('Save Society Details'),
