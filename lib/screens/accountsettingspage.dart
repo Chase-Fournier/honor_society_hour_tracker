@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../common/app_design.dart';
 import '../common/app_widgets.dart';
+import '../common/graduationyearutils.dart';
 import 'package:provider/provider.dart';
 import '../providers/hapticsprovider.dart';
 
@@ -373,12 +375,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   }
 
   Widget _buildProfileSection() {
-    final currentYear = DateTime.now().year;
-    final List<String> graduationYears =
-        List.generate(7, (i) => (currentYear - 2 + i).toString());
-    final storedYear = _graduationYearController.text;
-    final dropdownValue =
-        graduationYears.contains(storedYear) ? storedYear : null;
     return AppGroupingCard(
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: Form(
@@ -394,30 +390,22 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             ),
             const SizedBox(height: AppDesign.spacingL),
 
-            DropdownButtonFormField<String>(
-              value: dropdownValue,
-              decoration: const InputDecoration(
+            TextFormField(
+              controller: _graduationYearController,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(4),
+              ],
+              decoration: InputDecoration(
                 labelText: 'Graduation Year',
-                prefixIcon: Icon(Icons.school),
-                border: OutlineInputBorder(),
+                hintText: 'e.g. ${DateTime.now().year + 1}',
+                helperText:
+                    'Between ${GraduationYearUtils.minYear} and ${GraduationYearUtils.maxYear}',
+                prefixIcon: const Icon(Icons.school),
+                border: const OutlineInputBorder(),
               ),
-              items: graduationYears
-                  .map((year) => DropdownMenuItem(
-                        value: year,
-                        child: Text(year),
-                      ))
-                  .toList(),
-              onChanged: (value) {
-                setState(() {
-                  _graduationYearController.text = value ?? '';
-                });
-              },
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please select your graduation year';
-                }
-                return null;
-              },
+              validator: GraduationYearUtils.validate,
             ),
             const SizedBox(height: AppDesign.spacingL),
 

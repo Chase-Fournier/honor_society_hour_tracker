@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../common/app_design.dart';
 import '../common/app_widgets.dart';
+import '../common/graduationyearutils.dart';
 import 'societyselectionpage.dart';
 import 'waitingpage.dart';
 import '../providers/hapticsprovider.dart';
@@ -314,13 +315,10 @@ class _LoginPageState extends State<LoginPage>
                 ),
                 MetaDataField(
                   prefixIcon: const Icon(Icons.school),
-                  label: 'Graduation Year',
+                  label:
+                      'Graduation Year (${GraduationYearUtils.minYear}-${GraduationYearUtils.maxYear})',
                   key: 'graduation_year',
-                  validator: (val) {
-                    return val == null || val.isEmpty
-                        ? 'Please enter your graduation year'
-                        : null;
-                  },
+                  validator: GraduationYearUtils.validate,
                 ),
               ],
             ),
