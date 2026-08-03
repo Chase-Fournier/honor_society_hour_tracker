@@ -31,6 +31,61 @@ class FakeSupabase {
     final matches = requestsFor(table).toList();
     return matches.isEmpty ? null : matches.last;
   }
+
+  /// Requests to `/rest/v1/rpc/<name>`.
+  Iterable<http.Request> rpcCalls(String name) =>
+      requests.where((r) => r.url.path == '/rest/v1/rpc/$name');
+
+  /// Decoded params of the last call to RPC [name]. Null if never called.
+  Map<String, dynamic>? rpcParams(String name) {
+    final calls = rpcCalls(name).toList();
+    if (calls.isEmpty) return null;
+    final body = calls.last.body;
+    if (body.isEmpty) return const {};
+    return jsonDecode(body) as Map<String, dynamic>;
+  }
+
+  /// HTTP methods used against [table], in order — e.g. `['GET', 'PATCH']`.
+  ///
+  /// Useful for asserting a screen batches its writes instead of issuing one
+  /// request per row.
+  List<String> methodsFor(String table) =>
+      requestsFor(table).map((r) => r.method).toList();
+
+  /// Decoded JSON bodies of every non-GET request to [table], in order.
+  ///
+  /// PostgREST accepts either a single object or an array; both come back here
+  /// as written, so a caller checking "one batched insert" should look for a
+  /// single entry holding a List.
+  List<dynamic> writesTo(String table) => requestsFor(table)
+      .where((r) => r.method != 'GET' && r.body.isNotEmpty)
+      .map((r) => jsonDecode(r.body))
+      .toList();
+
+  /// The single row written to [table]. Fails the test if there was not
+  /// exactly one write carrying exactly one row.
+  Map<String, dynamic> soleWriteTo(String table) {
+    final writes = writesTo(table);
+    expect(writes, hasLength(1),
+        reason: 'expected exactly one write to "$table"');
+
+    final payload = writes.single;
+    if (payload is List) {
+      expect(payload, hasLength(1),
+          reason: 'expected the write to "$table" to carry one row');
+      return payload.single as Map<String, dynamic>;
+    }
+    return payload as Map<String, dynamic>;
+  }
+
+  /// Every row written to [table], flattening single-object and array payloads.
+  List<Map<String, dynamic>> rowsWrittenTo(String table) => [
+        for (final payload in writesTo(table))
+          if (payload is List)
+            ...payload.cast<Map<String, dynamic>>()
+          else
+            payload as Map<String, dynamic>,
+      ];
 }
 
 /// Describes one canned response.
@@ -47,6 +102,24 @@ class FakeResponse {
   /// A PostgREST error payload, e.g. an RLS refusal.
   const FakeResponse.error(String this.body, {this.statusCode = 400})
       : isRaw = true;
+
+  /// What PostgREST returns when row-level security refuses a write.
+  ///
+  /// This is the case CLAUDE.md warns about: a blocked write can look like
+  /// success unless the caller checks. Every write path should have a test
+  /// using this to prove failure is actually surfaced.
+  const FakeResponse.rlsDenied()
+      : body = '{"code":"42501","message":"new row violates row-level security '
+            'policy","details":null,"hint":null}',
+        statusCode = 403,
+        isRaw = true;
+
+  /// What `.single()` sees when the query matched no rows.
+  const FakeResponse.noRows()
+      : body = '{"code":"PGRST116","message":"JSON object requested, multiple '
+            '(or no) rows returned","details":null,"hint":null}',
+        statusCode = 406,
+        isRaw = true;
 
   final Object? body;
   final int statusCode;

@@ -31,6 +31,7 @@ import '../providers/notificationsprovider.dart';
 import '../common/progress_bars.dart';
 import 'continuouseventdetailpage.dart';
 import '../data/supabase_client.dart';
+import '../logic/signup_result.dart';
 
 
 class HomePage extends StatefulWidget {
@@ -2285,9 +2286,10 @@ class _HomePageState extends State<HomePage> {
             'p_timeslot_id': timeSlot.id,
             'p_user_id': userId,
           },
-        ) as String?;
+        );
 
-        if (status == 'ok') {
+        final outcome = signupOutcomeFrom(status);
+        if (outcome == SignupOutcome.ok) {
           await logactivity(
             event.name,
             '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
@@ -2312,17 +2314,16 @@ class _HomePageState extends State<HomePage> {
             );
           }
           _fetchEvents();
-        } else if (status == 'full') {
-          hapticsProvider.error();
-          if (mounted) {
+        } else {
+          // Covers 'full', 'already', and anything unrecognised. The previous
+          // if/else chain matched only the three documented values, so a null
+          // or a status added server-side left the user with no feedback and
+          // no signup.
+          if (outcome == SignupOutcome.full) hapticsProvider.error();
+          final message = signupMessageFor(outcome);
+          if (mounted && message != null) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('This time slot is now full.')),
-            );
-          }
-        } else if (status == 'already') {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("You're already signed up for this slot.")),
+              SnackBar(content: Text(message)),
             );
           }
         }

@@ -11,6 +11,7 @@ import '../providers/societyprovider.dart';
 import '../providers/hapticsprovider.dart';
 import '../data/supabase_client.dart';
 import '../logic/hours.dart';
+import '../logic/attendance.dart';
 
 class AttendanceCheckPage extends StatefulWidget {
   final Event event;
@@ -117,60 +118,69 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
           ? _absentAttendees.where((a) => a.isPresent).toList()
           : _presentAttendees.where((a) => !a.isPresent).toList();
 
-      for (var attendee in attendeesToUpdate) {
+      if (attendeesToUpdate.isNotEmpty) {
         final society =
             Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+        final slotId = widget.timeSlot.id ?? 0;
+        final userIds = attendeesToUpdate.map((a) => a.userId).toList();
 
-        // Check if the attendee already has service hours for this event
-        final existingHours = await supabase
+        // One lookup for the whole roster. This used to be a select per
+        // attendee inside the loop below.
+        final existingRows = await supabase
             .from('Service hours')
-            .select()
-            .eq('user_id', attendee.userId)
-            .eq('timeslot_id', widget.timeSlot.id ?? 0)
-            .maybeSingle();
+            .select('user_id')
+            .eq('timeslot_id', slotId)
+            .inFilter('user_id', userIds);
 
-        if (existingHours == null && attendee.isPresent) {
-          // Add service hours
-          await supabase.from('Service hours').insert({
-            'user_id': attendee.userId,
-            'event_name': widget.event.name,
-            'timeslot_id': widget.timeSlot.id,
-            'hours': timeSlotHours(widget.timeSlot),
-            'date': widget.event.date.toIso8601String(),
-            'type': widget.event.type,
-            'society_id': society?.id,
-          });
+        final existingUserIds = {
+          for (final row in existingRows) row['user_id'] as String,
+        };
 
-          await logactivity(
-            widget.event.name,
-            '${widget.timeSlot.time.format(context)} - ${widget.timeSlot.endTime.format(context)}',
-            timeSlotHours(widget.timeSlot),
-            'attendance_marked',
-            attendee.userId,
-            societyId: society?.id,
-          );
-        } else if (existingHours != null && !attendee.isPresent) {
-          // Remove service hours
+        final changes = attendanceChangesFor(
+          attendees: attendeesToUpdate,
+          userIdsWithExistingHours: existingUserIds,
+          event: widget.event,
+          timeSlot: widget.timeSlot,
+          societyId: society?.id,
+        );
+
+        // Batched writes, one query per kind of change.
+        if (changes.hoursToInsert.isNotEmpty) {
+          await supabase
+              .from('Service hours')
+              .insert([for (final row in changes.hoursToInsert) row.toJson()]);
+        }
+
+        if (changes.userIdsToClear.isNotEmpty) {
           await supabase
               .from('Service hours')
               .delete()
-              .eq('user_id', attendee.userId)
-              .eq('timeslot_id', widget.timeSlot.id ?? 0);
-
-          await logactivity(
-            widget.event.name,
-            '${widget.timeSlot.time.format(context)} - ${widget.timeSlot.endTime.format(context)}',
-            timeSlotHours(widget.timeSlot),
-            'attendance_removed',
-            attendee.userId,
-            societyId: society?.id,
-          );
+              .eq('timeslot_id', slotId)
+              .inFilter('user_id', changes.userIdsToClear);
         }
 
-        // Update attendance status
-        await supabase
-            .from('Attendees')
-            .update({'is_present': attendee.isPresent}).eq('id', attendee.id);
+        for (final entry in changes.presenceByAttendeeId.entries) {
+          await supabase
+              .from('Attendees')
+              .update({'is_present': entry.value}).eq('id', entry.key);
+        }
+
+        // Activity logging stays per-member: each entry names one person.
+        if (!mounted) return;
+        final slotLabel =
+            '${widget.timeSlot.time.format(context)} - ${widget.timeSlot.endTime.format(context)}';
+        final hours = timeSlotHours(widget.timeSlot);
+
+        for (final row in changes.hoursToInsert) {
+          await logactivity(widget.event.name, slotLabel, hours,
+              'attendance_marked', row.userId,
+              societyId: society?.id);
+        }
+        for (final userId in changes.userIdsToClear) {
+          await logactivity(widget.event.name, slotLabel, hours,
+              'attendance_removed', userId,
+              societyId: society?.id);
+        }
       }
 
       ScaffoldMessenger.of(context).showSnackBar(

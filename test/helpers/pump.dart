@@ -37,8 +37,16 @@ Future<void> pumpWithProviders(
   SharedPreferences.setMockInitialValues(const {});
 
   if (surfaceSize != null) {
-    await tester.binding.setSurfaceSize(surfaceSize);
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    // Set the view rather than calling setSurfaceSize: the latter resizes the
+    // render surface but does not reliably propagate into the MediaQuery that
+    // widgets read, so responsive branches keyed on
+    // MediaQuery.of(context).size silently take the wrong path.
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = surfaceSize;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
   }
 
   await tester.pumpWidget(
