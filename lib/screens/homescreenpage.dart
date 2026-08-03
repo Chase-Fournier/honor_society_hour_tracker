@@ -12,7 +12,6 @@ import '../models/timeslot.dart';
 import '../models/hourrequirement.dart';
 import '../models/honorsociety.dart';
 import '../models/collection.dart';
-import '../models/completedhour.dart';
 import '../models/event.dart';
 import '../models/swaprequest.dart';
 import '../models/userprofile.dart';
@@ -32,6 +31,7 @@ import '../common/progress_bars.dart';
 import 'continuouseventdetailpage.dart';
 import '../data/supabase_client.dart';
 import '../logic/signup_result.dart';
+import '../logic/hour_summary.dart';
 
 
 class HomePage extends StatefulWidget {
@@ -219,68 +219,20 @@ class _HomePageState extends State<HomePage> {
           .eq('society_id', society.id);
 
       if (_events != null) {
-        final data = response;
-        Map<String, double> completedHoursMap = {};
-        Map<String, double> potentialHoursMap = {};
-        Map<String, List<CompletedHour>> hoursByTypeMap = {};
+        // Aggregation lives in lib/logic/hour_summary.dart so it can be tested
+        // without the screen. It also matches types via normalizeType: this
+        // block used to bucket on the raw string, so hours logged as "service"
+        // never counted towards the "Service" requirement and vanished from
+        // the member's totals.
+        final summary = summariseHours(
+          loggedRows: response.cast<Map<String, dynamic>>(),
+          upcomingEvents: _events!,
+          requirementTypes: _requirementMap.keys,
+          userId: userId,
+        );
 
-        // Initialize maps with all requirement types
-        for (final reqType in _requirementMap.keys) {
-          completedHoursMap[reqType] = 0;
-          potentialHoursMap[reqType] = 0;
-          hoursByTypeMap[reqType] = [];
-        }
-
-        // Always include Meeting type
-        if (!completedHoursMap.containsKey('Meeting')) {
-          completedHoursMap['Meeting'] = 0;
-          potentialHoursMap['Meeting'] = 0;
-          hoursByTypeMap['Meeting'] = [];
-        }
-
-        // Process completed hours
-        for (final entry in data) {
-          final hours = (entry['hours'] as num?)?.toDouble() ?? 0.0;
-          final eventType = entry['type'] as String;
-          final eventName = entry['event_name'] as String? ?? 'Unknown Event';
-          final dateString = entry['date'] as String?;
-          final DateTime date =
-              dateString != null ? DateTime.parse(dateString) : DateTime.now();
-
-          if (completedHoursMap.containsKey(eventType)) {
-            completedHoursMap[eventType] =
-                completedHoursMap[eventType]! + hours;
-            potentialHoursMap[eventType] =
-                potentialHoursMap[eventType]! + hours;
-
-            // Also store the individual hour entries
-            hoursByTypeMap[eventType]!.add(CompletedHour(
-              title: eventName,
-              date: date,
-              hours: hours,
-            ));
-          }
-        }
-
-        // Process potential hours from upcoming events
-        for (final event in _events) {
-          for (final timeSlot in event.timeSlots) {
-            final isSignedUp =
-                timeSlot.attendees.any((attendee) => attendee.userId == userId);
-            final isNotPresent = timeSlot.attendees.any(
-                (attendee) => attendee.userId == userId && !attendee.isPresent);
-
-            if (isSignedUp && isNotPresent) {
-              final duration = NhsFormatUtils.calculateDuration(
-                  timeSlot.time, timeSlot.endTime);
-
-              if (potentialHoursMap.containsKey(event.type)) {
-                potentialHoursMap[event.type] =
-                    potentialHoursMap[event.type]! + duration;
-              }
-            }
-          }
-        }
+        final completedHoursMap = summary.completedByType;
+        final potentialHoursMap = summary.potentialByType;
 
         if (mounted) {
           setState(() {
