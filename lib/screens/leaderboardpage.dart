@@ -1,13 +1,12 @@
 import 'dart:async';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../common/app_design.dart';
 import '../models/userranking.dart';
 import '../providers/societyprovider.dart';
 import '../providers/hapticsprovider.dart';
+import '../data/supabase_client.dart';
 
-final supabase = Supabase.instance.client;
 
 class LeaderboardPage extends StatefulWidget {
   final String currentUserId;

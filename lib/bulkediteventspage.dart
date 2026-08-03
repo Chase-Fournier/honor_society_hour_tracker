@@ -1,15 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import 'providers/societyprovider.dart';
 import 'common/app_design.dart';
 import 'models/affecteduser.dart';
 import 'models/customeventgroup.dart';
 import 'models/logactivity.dart';
 import '../providers/hapticsprovider.dart';
+import 'data/supabase_client.dart';
 
-final supabase = Supabase.instance.client;
 
 class BulkEditEventsPage extends StatefulWidget {
   const BulkEditEventsPage({super.key});

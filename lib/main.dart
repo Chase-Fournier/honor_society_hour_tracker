@@ -16,6 +16,7 @@ import 'providers/notificationsprovider.dart';
 import 'services/notification_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import 'data/supabase_client.dart';
 
 enum SortOrder {
   ascending,
@@ -287,102 +288,100 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => widget.themeNotifier),
-        ChangeNotifierProvider(create: (_) => themeprovider.ThemeProvider()),
-      ],
-      child: FutureBuilder<void>(
-        future: _themeColorFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const MaterialApp(
-              localizationsDelegates: [
-                  FlutterQuillLocalizations.delegate,
-                  GlobalMaterialLocalizations.delegate,
-                  GlobalWidgetsLocalizations.delegate,
-                  GlobalCupertinoLocalizations.delegate,
-                  
-                ],
-                supportedLocales: [
-                  Locale('en', 'US'), 
-                ],
-              home: Scaffold(
-                body: Center(
-                  child: CircularProgressIndicator(),
-                ),
+    // ThemeNotifier and ThemeProvider are already supplied by the MultiProvider
+    // in main(). This used to open a *second* MultiProvider here that
+    // constructed a fresh ThemeProvider, so the Consumer below resolved a
+    // different instance from the one the rest of the app wrote to. Both wrote
+    // the same 'themeMode' SharedPreferences key, so a theme change applied to
+    // one instance and was only picked up by the other after a restart.
+    return FutureBuilder<void>(
+      future: _themeColorFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const MaterialApp(
+            localizationsDelegates: [
+              FlutterQuillLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: [
+              Locale('en', 'US'),
+            ],
+            home: Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
               ),
-            );
-          }
-          return Consumer<themeprovider.ThemeProvider>(
-            builder: (context, themeProvider, _) {
-              return AnimatedBuilder(
-                animation: widget.themeNotifier,
-                builder: (context, _) {
-                  return MaterialApp(
-                    localizationsDelegates: const [
+            ),
+          );
+        }
+        return Consumer<themeprovider.ThemeProvider>(
+          builder: (context, themeProvider, _) {
+            return AnimatedBuilder(
+              animation: widget.themeNotifier,
+              builder: (context, _) {
+                return MaterialApp(
+                  localizationsDelegates: const [
                     FlutterQuillLocalizations.delegate,
                     GlobalMaterialLocalizations.delegate,
                     GlobalWidgetsLocalizations.delegate,
                     GlobalCupertinoLocalizations.delegate,
-                    
                   ],
                   supportedLocales: const [
-                    Locale('en', 'US'), 
-                ],
-                    navigatorKey: _navigatorKey, // Assign the navigatorKey
-                    title: 'Wheeler Honor Societies',
-                    debugShowCheckedModeBanner: false,
-                    theme: themeProvider
-                        .getThemeData(widget.themeNotifier.themeColor),
-                    initialRoute: '/',
-                    routes: {
-                      '/': (context) => const LoginPage(),
-                      '/society_selection': (context) =>
-                          const SocietySelectionPage(),
-                      '/reset-password': (context) => const ResetPasswordPage(),
-                    },
-                    onGenerateRoute: (settings) {
-                      if (settings.name == '/reset-password') {
-                        final args =
-                            settings.arguments as ResetPasswordPageArguments?;
-                        String? accessToken = args?.accessToken;
+                    Locale('en', 'US'),
+                  ],
+                  navigatorKey: _navigatorKey, // Assign the navigatorKey
+                  title: 'Wheeler Honor Societies',
+                  debugShowCheckedModeBanner: false,
+                  theme: themeProvider
+                      .getThemeData(widget.themeNotifier.themeColor),
+                  initialRoute: '/',
+                  routes: {
+                    '/': (context) => const LoginPage(),
+                    '/society_selection': (context) =>
+                        const SocietySelectionPage(),
+                    '/reset-password': (context) => const ResetPasswordPage(),
+                  },
+                  onGenerateRoute: (settings) {
+                    if (settings.name == '/reset-password') {
+                      final args =
+                          settings.arguments as ResetPasswordPageArguments?;
+                      String? accessToken = args?.accessToken;
 
-                        return MaterialPageRoute(
-                          builder: (context) => ResetPasswordPage(
-                            accessToken: accessToken,
-                            onPasswordResetFlowComplete: () {
-                              if (mounted) {
-                                // Ensure _MyAppState is still mounted
-                                setState(() {
-                                  _isProcessingPasswordRecovery = false;
-                                  debugPrint(
-                                      "ResetPasswordPage flow complete. _isProcessingPasswordRecovery set to false.");
-                                });
-                              }
-                            },
-                          ),
-                          settings: settings,
-                        );
-                      }
-                      if (settings.name == '/society_selection') {
-                        return MaterialPageRoute(
-                            builder: (context) => const SocietySelectionPage());
-                      }
-                      if (settings.name == '/') {
-                        return MaterialPageRoute(
-                            builder: (context) => const LoginPage());
-                      }
-                      // Handle other routes if necessary, or return null
-                      return null;
-                    },
-                  );
-                },
-              );
-            },
-          );
-        },
-      ),
+                      return MaterialPageRoute(
+                        builder: (context) => ResetPasswordPage(
+                          accessToken: accessToken,
+                          onPasswordResetFlowComplete: () {
+                            if (mounted) {
+                              // Ensure _MyAppState is still mounted
+                              setState(() {
+                                _isProcessingPasswordRecovery = false;
+                                debugPrint(
+                                    "ResetPasswordPage flow complete. _isProcessingPasswordRecovery set to false.");
+                              });
+                            }
+                          },
+                        ),
+                        settings: settings,
+                      );
+                    }
+                    if (settings.name == '/society_selection') {
+                      return MaterialPageRoute(
+                          builder: (context) => const SocietySelectionPage());
+                    }
+                    if (settings.name == '/') {
+                      return MaterialPageRoute(
+                          builder: (context) => const LoginPage());
+                    }
+                    // Handle other routes if necessary, or return null
+                    return null;
+                  },
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 
@@ -393,5 +392,3 @@ class _MyAppState extends State<MyApp> {
     themeNotifier.updateThemeColor(color);
   }
 }
-
-final supabase = Supabase.instance.client;

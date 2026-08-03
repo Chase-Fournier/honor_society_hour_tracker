@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart' as supabase;
-import '../main.dart';
+import '../data/supabase_client.dart';
 import 'JoinRequestsAdmin.dart';
 import '../providers/societyprovider.dart';
 import 'package:provider/provider.dart';
@@ -73,7 +72,7 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
       }
 
       // Update society details
-      await supabase.Supabase.instance.client.from('honor_societies').update({
+      await supabase.from('honor_societies').update({
         'name': _nameController.text.trim(),
         'description': _descriptionController.text.trim(),
         'meeting_requirement': int.parse(_meetingRequirementController.text),
@@ -734,7 +733,7 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
 
     setState(() => _isLoading = true);
     try {
-      await supabase.Supabase.instance.client
+      await supabase
           .from('hour_requirements')
           .update({
         'type': type,
@@ -814,7 +813,7 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
               hapticsProvider.selection();
               setState(() => _isLoading = true);
               try {
-                await supabase.Supabase.instance.client
+                await supabase
                     .from('hour_requirements')
                     .delete()
                     .eq('id', requirement.id);
@@ -961,7 +960,7 @@ class _HourRequirementsPageState extends State<HourRequirementsPage> {
 
     setState(() => _isLoading = true);
     try {
-      final response = await supabase.Supabase.instance.client
+      final response = await supabase
           .from('hour_requirements')
           .insert({
             'society_id': societyId,

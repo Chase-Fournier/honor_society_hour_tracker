@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import 'package:intl/intl.dart';
 import 'dart:math';
 import 'JoinRequestsAdmin.dart';
@@ -18,8 +17,9 @@ import 'package:shimmer/shimmer.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_html/flutter_html.dart';
 import '../common/app_design.dart';
+import '../data/supabase_client.dart';
+import '../logic/relative_time.dart';
 
-final supabase = Supabase.instance.client;
 
 /// Dashboard for society administrators showing statistics and quick access to management features
 class SocietyAdminDashboard extends StatefulWidget {
@@ -887,7 +887,7 @@ class _SocietyAdminDashboardState extends State<SocietyAdminDashboard> {
                       },
                     ),
                     Text(
-                      _getTimeAgo(note.createdAt),
+                      timeAgoShort(note.createdAt),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -1313,22 +1313,6 @@ void _showNoteDetailsDialog(MeetingNote note) {
     },
   );
 }
-  String _getTimeAgo(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-
-    if (difference.inDays > 7) {
-      return DateFormat('MMM d').format(dateTime);
-    } else if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
-    } else {
-      return 'Just now';
-    }
-  }
 
 
   Widget _buildEnhancedRecentActivity() {
@@ -1485,7 +1469,7 @@ Widget _buildActivityItem(ActivitySummary activity, int index) {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          _getTimeAgo(activity.dateTime),
+                          timeAgoShort(activity.dateTime),
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),

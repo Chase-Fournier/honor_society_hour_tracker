@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'app_design.dart';
 import 'iconutils.dart';
+import '../logic/hours.dart';
 
 /// Completed + potential hours bar for one requirement type.
 /// Pure: all inputs are parameters. Extracted from HomePage.
 Widget buildDoubleProgressBar(BuildContext context, String title,
     double completedHours, double potentialHours, int hoursNeeded) {
-  final isComplete = completedHours >= hoursNeeded;
+  final isComplete = meetsRequirement(completedHours, hoursNeeded);
 
   return Card(
     elevation: 0,
@@ -77,7 +78,7 @@ Widget buildDoubleProgressBar(BuildContext context, String title,
                 curve: Curves.easeInOut,
                 tween: Tween<double>(
                   begin: 0,
-                  end: (potentialHours / hoursNeeded).clamp(0.0, 1.0),
+                  end: progressFraction(potentialHours, hoursNeeded),
                 ),
                 builder: (context, potentialValue, _) {
                   return FractionallySizedBox(
@@ -102,7 +103,7 @@ Widget buildDoubleProgressBar(BuildContext context, String title,
                 curve: Curves.easeOutQuart,
                 tween: Tween<double>(
                   begin: 0,
-                  end: (completedHours / hoursNeeded).clamp(0.0, 1.0),
+                  end: progressFraction(completedHours, hoursNeeded),
                 ),
                 builder: (context, completedValue, _) {
                   return FractionallySizedBox(
@@ -186,7 +187,7 @@ Widget buildDoubleProgressBar(BuildContext context, String title,
 Widget buildMeetingProgressBar(BuildContext context, double completedHours,
     int hoursNeeded, {required int meetingsLeft}) {
   final meetingsAttended = completedHours.floor();
-  final isComplete = meetingsAttended >= hoursNeeded;
+  final isComplete = meetsRequirement(meetingsAttended.toDouble(), hoursNeeded);
 
   return Card(
     elevation: 0,
@@ -245,7 +246,7 @@ Widget buildMeetingProgressBar(BuildContext context, double completedHours,
             curve: Curves.easeOutQuart,
             tween: Tween<double>(
               begin: 0,
-              end: (meetingsAttended / hoursNeeded).clamp(0.0, 1.0),
+              end: progressFraction(meetingsAttended.toDouble(), hoursNeeded),
             ),
             builder: (context, value, _) {
               return Stack(

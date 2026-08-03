@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/societyprovider.dart';
-import '../main.dart';
+import '../data/supabase_client.dart';
 import '../common/app_design.dart';
 import '../common/app_widgets.dart';
 import '../common/nhsformatutils.dart';

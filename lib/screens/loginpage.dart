@@ -8,7 +8,6 @@ import 'societyselectionpage.dart';
 import 'waitingpage.dart';
 import '../providers/hapticsprovider.dart';
 
-final supabase = Supabase.instance.client;
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});

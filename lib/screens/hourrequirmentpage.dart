@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../models/hourrequirement.dart';
 import '../models/honorsociety.dart';
 import 'package:provider/provider.dart';
 import '../providers/hapticsprovider.dart';
+import '../data/supabase_client.dart';
 
-final supabase = Supabase.instance.client;
 
 class HourRequirementsPage extends StatefulWidget {
   final HonorSociety society;

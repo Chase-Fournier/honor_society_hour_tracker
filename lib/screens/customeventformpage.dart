@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../providers/societyprovider.dart';
 import '../common/app_design.dart';
 import '../common/app_widgets.dart';
@@ -10,8 +9,8 @@ import '../common/nhsformatutils.dart';
 import '../models/userprofile.dart';
 import '../models/logactivity.dart';
 import '../providers/hapticsprovider.dart';
+import '../data/supabase_client.dart';
 
-final supabase = Supabase.instance.client;
 
 class BulkCustomEventFormPage extends StatefulWidget {
   final List<UserProfile> users;

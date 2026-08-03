@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../providers/societyprovider.dart';
 import '../models/leadershiprole.dart';
 import '../common/app_design.dart';
 import '../common/app_widgets.dart';
 import '../providers/hapticsprovider.dart';
+import '../data/supabase_client.dart';
 
-final supabase = Supabase.instance.client;
 
 class AdminLeadershipPage extends StatefulWidget {
   const AdminLeadershipPage({Key? key}) : super(key: key);

@@ -1,3 +1,5 @@
+import 'package:clock/clock.dart';
+import '../logic/hours.dart';
 import 'package:flutter/material.dart';
 import '../models/timeslot.dart';
 import 'package:intl/intl.dart';
@@ -13,16 +15,14 @@ class NhsFormatUtils {
   }
 
   static String formatTimeOfDay(TimeOfDay time, BuildContext context) {
-    final now = DateTime.now();
+    final now = clock.now();
     final dateTime =
         DateTime(now.year, now.month, now.day, time.hour, time.minute);
     return DateFormat.jm().format(dateTime);
   }
 
-  static double calculateDuration(TimeOfDay startTime, TimeOfDay endTime) {
-    final startMinutes = startTime.hour * 60 + startTime.minute;
-    final endMinutes = endTime.hour * 60 + endTime.minute;
-    final difference = endMinutes - startMinutes;
-    return difference / 60.0;
-  }
+  /// Deprecated alias for [durationInHours]; kept so existing call sites read
+  /// naturally. New code should use the function in `lib/logic/hours.dart`.
+  static double calculateDuration(TimeOfDay startTime, TimeOfDay endTime) =>
+      durationInHours(startTime, endTime);
 }

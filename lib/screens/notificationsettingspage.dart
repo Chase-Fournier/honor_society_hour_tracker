@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 
 import '../common/app_design.dart';
 import '../providers/hapticsprovider.dart';
 import '../providers/notificationsprovider.dart';
 import '../providers/societyprovider.dart';
 import '../services/notification_service.dart';
+import '../data/supabase_client.dart';
 
 class NotificationSettingsPage extends StatefulWidget {
   const NotificationSettingsPage({super.key});
@@ -285,7 +285,6 @@ class _AdminSubmissionNotifyTileState
   }
 
   Future<void> _load() async {
-    final supabase = Supabase.instance.client;
     final userId = supabase.auth.currentUser?.id;
     final societyId = context.read<SocietyProvider>().currentSociety?.id;
     if (userId == null || societyId == null) {
@@ -311,7 +310,6 @@ class _AdminSubmissionNotifyTileState
   }
 
   Future<void> _set(bool v) async {
-    final supabase = Supabase.instance.client;
     final userId = supabase.auth.currentUser?.id;
     final societyId = context.read<SocietyProvider>().currentSociety?.id;
     if (userId == null || societyId == null) return;

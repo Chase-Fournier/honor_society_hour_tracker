@@ -19,8 +19,8 @@ import '../providers/themeprovider.dart' as themeprovider;
 import 'societyselectionpage.dart';
 import '../providers/societyprovider.dart';
 import '../providers/hapticsprovider.dart';
+import '../data/supabase_client.dart';
 
-final supabase = Supabase.instance.client;
 
 class SettingsPage extends StatefulWidget {
   final HonorSociety? society;
@@ -60,7 +60,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final userId = user?.id;
 
     if (userId != null) {
-      final response = await Supabase.instance.client
+      final response = await supabase
           .from('profiles')
           .select()
           .eq('user_id', userId)

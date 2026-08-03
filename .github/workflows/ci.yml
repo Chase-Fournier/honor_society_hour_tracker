@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Pinned to the version this suite was written against. Bump
+          # deliberately, not automatically -- a Flutter upgrade can change
+          # widget-test semantics.
+          flutter-version: '3.35.5'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Scoped to code added or reorganised by the test-suite work. The rest of
+      # lib/ has never been formatter-clean, so a repo-wide check would fail on
+      # untouched files. Widen this list as more of the app gets formatted.
+      - name: Check formatting
+        run: >
+          dart format --output=none --set-exit-if-changed
+          lib/data lib/logic lib/common/app_validators.dart test
+
+      # `flutter analyze` fails on infos by default, and this repo carries a
+      # long-standing baseline of ~641 of them (mostly deprecated withOpacity
+      # and surfaceVariant). Gate on errors only, so CI catches things that
+      # actually break the build without demanding a 641-issue cleanup first.
+      # Drop these flags once the baseline is cleared.
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Test
+        run: flutter test
