@@ -25,6 +25,14 @@ dart run flutter_native_splash:create
 
 Dart SDK: `^3.1.1`. Android `minSdkVersion` is 21.
 
+**There is no test suite and no CI** — `test/widget_test.dart` is empty, so
+`flutter test` proves nothing. `flutter analyze` is the only automated gate;
+everything else has to be checked by running the app. Analyze on the whole repo
+reports ~640 pre-existing infos/warnings (deprecated `withOpacity`,
+`surfaceVariant`, unused elements), so scope it to the files you touched
+(`flutter analyze lib/screens/foo.dart`) and compare against that baseline rather
+than expecting a clean run. Run `dart format` on files you rewrite.
+
 ## Architecture
 
 ### Entry point and routing (`lib/main.dart`)
@@ -50,23 +58,41 @@ Five `ChangeNotifier`s are registered at app start in `MultiProvider`. They are 
   - Admin: Dashboard, Events, Attendance, Lists, Settings.
   - Member: Home, Completed Hours, Settings.
 - Each tab is its own top-level screen under `lib/screens/`. There is no shared route table for them — they're swapped via `PageController`.
+- **Responsive list screens** follow one pattern: `MediaQuery.of(context).size.width > 900` renders a spreadsheet-style table (fixed header row, tap-to-sort column headers with an arrow indicator, zebra rows); anything narrower renders a card list. `adminlistspage.dart` and `JoinRequestsAdmin.dart` both do this — copy from them rather than inventing a third layout.
+- **Multi-select** on those screens swaps the whole app bar: a "browse" bar (sort / enter-selection / tools) becomes a contextual bar (close, "N selected", select-all, the bulk actions). Bulk operations issue one batched Supabase query with `.inFilter('id', ids)`, never a loop of single-row calls.
 
 ### Data layer
 - **No repository / service layer.** Screens and providers issue Supabase queries inline. When changing a database column or join, expect to grep across multiple `.dart` files.
 - Models in `lib/models/` are plain Dart classes with `fromJson` (and sometimes `toJson`) factories that map Supabase snake_case columns to camelCase fields. Examples: `Event`, `TimeSlot`, `HonorSociety`, `HourRequirement`, `UserProfile`, `SwapRequest`, `MeetingNote`, `ActivityLog`.
 - Snake_case ↔ camelCase mapping happens manually in each `fromJson` — be careful when adding fields.
+- Schema changes live in `supabase/migrations/` (timestamp-prefixed SQL, applied with `supabase db push`); edge functions live in `supabase/functions/`. Tables predating that folder — `profiles`, `society_join_requests`, `user_society_memberships`, `Notes` — have no migration on disk, so their columns and RLS policies can only be confirmed against the live project. When a write might be refused by RLS, chain `.select()` onto it and compare the returned rows to what you asked for; a blocked Supabase write otherwise looks like success.
 
 ### Common UI primitives (`lib/common/`)
 - `app_design.dart` — design tokens: `AppDesign.radiusMedium`, `paddingMedium`, `spacingM`, `elevationSmall`, etc. Use these instead of hardcoding magic numbers.
 - `app_theme.dart` / `app_widgets.dart` — shared widgets like `AppCard` that wrap Material widgets with the design tokens and pull colors from `Theme.of(context).colorScheme`.
 - `customnavigationbar.dart` — abstraction layer over the three nav-bar packages so `MainScreen` doesn't care which one is active.
 - `iconutils.dart`, `nhsformatutils.dart`, `normalizetype.dart` — helpers for icon name → `IconData` mapping, formatting hours/dates, and normalizing the `type` field on events/requirements.
+- `graduationyearutils.dart` — the single source for the graduation-year rule (a rolling window anchored on the current year) and its `TextFormField` validator. Both the signup form (`loginpage.dart`) and account settings use it; change the bounds here, not at the call sites.
 
 ### One-off top-level files in `lib/`
 - `snake.dart` — the bundled Snake mini-game (49KB, self-contained). Not part of the main flow.
 - `exporttoexcel.dart` — Excel report generation via the `excel` package.
 - `bulkediteventspage.dart` — admin bulk-edit screen kept at the top level rather than under `screens/` (historical).
 - `updateattendence.dart` — small attendance helper.
+
+## Design language (`plans/009-ui-consistency.md`)
+
+`lib/screens/adminattendencepage.dart` is the agreed reference look, and plan 009
+codifies it as recipes R1–R8: `bannerTheme` app bar, Material `FilterChip`
+filters, flat `elevation: 0` cards with a hairline `outlineVariant` border and a
+soft shadow (`AppContentCard`), tinted grouping cards (`AppGroupingCard`),
+centered icon+headline empty states, and no hardcoded `Colors.*`. Prefer the
+shared widgets in `app_widgets.dart` over hand-rolling a `Container`. The plan
+also inventories which screens still deviate — read it before restyling anything.
+
+`plans/` holds numbered implementation plans with a status table in
+`plans/README.md`; check there before starting sizable work in case a plan
+already covers it.
 
 ## Conventions to follow
 

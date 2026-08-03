@@ -56,7 +56,6 @@ class _LoginPageState extends State<LoginPage>
       body: Center(
         child: SingleChildScrollView(
           child: Container(
-       
             constraints: BoxConstraints(
               maxWidth: isWideScreen
                   ? 1200
@@ -118,7 +117,6 @@ class _LoginPageState extends State<LoginPage>
 
   Widget _buildMobileLayout() {
     return AppCard(
-      
       elevation: AppDesign.elevationSmall,
       borderRadius: AppDesign.borderXLarge,
       padding: AppDesign.paddingLarge,

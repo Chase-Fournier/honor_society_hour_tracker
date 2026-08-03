@@ -1025,25 +1025,29 @@ void _showDesktopAddDialog() {
   showDialog(
     context: context,
     builder: (context) {
+      final size = MediaQuery.of(context).size;
       return AlertDialog(
         title: const Text('Add Meeting Note'),
-        content: SingleChildScrollView(
-          child: SizedBox(
-            width: 500,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  decoration: const InputDecoration(
-                    labelText: 'Title',
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (value) => title = value,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        content: SizedBox(
+          // Fill most of the window so there's real room to write, but stay
+          // bounded on very large displays.
+          width: min(900.0, size.width * 0.9),
+          height: min(720.0, size.height * 0.8),
+          child: Column(
+            children: [
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Title',
+                  border: OutlineInputBorder(),
                 ),
-                const SizedBox(height: 16),
-                _CollapsibleQuillEditor(controller: _quillController!),
-              ],
-            ),
+                onChanged: (value) => title = value,
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: _CollapsibleQuillEditor(controller: _quillController!),
+              ),
+            ],
           ),
         ),
         actions: [
@@ -1145,6 +1149,7 @@ void _showDesktopEditDialog(MeetingNote note) {
   showDialog(
     context: context,
     builder: (context) {
+      final size = MediaQuery.of(context).size;
       return AlertDialog(
         title: Row(
           children: [
@@ -1162,24 +1167,25 @@ void _showDesktopEditDialog(MeetingNote note) {
             ),
           ],
         ),
-        content: SingleChildScrollView(
-          child: SizedBox(
-            width: 500,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  decoration: const InputDecoration(
-                    labelText: 'Title',
-                    border: OutlineInputBorder(),
-                  ),
-                  controller: TextEditingController(text: title),
-                  onChanged: (value) => title = value,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        content: SizedBox(
+          width: min(900.0, size.width * 0.9),
+          height: min(720.0, size.height * 0.8),
+          child: Column(
+            children: [
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Title',
+                  border: OutlineInputBorder(),
                 ),
-                const SizedBox(height: 16),
-                _CollapsibleQuillEditor(controller: _quillController!),
-              ],
-            ),
+                controller: TextEditingController(text: title),
+                onChanged: (value) => title = value,
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: _CollapsibleQuillEditor(controller: _quillController!),
+              ),
+            ],
           ),
         ),
         actions: [
@@ -1690,9 +1696,11 @@ Widget _buildNotesLoadingState() {
       baseColor: Theme.of(context).colorScheme.surfaceVariant,
       highlightColor: Theme.of(context).colorScheme.surface,
       child: Container(
+        width: double.infinity,
         height: 200,
         padding: const EdgeInsets.all(20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: List.generate(3, (index) => Container(
             height: 50,
             margin: const EdgeInsets.only(bottom: 10),
@@ -1713,6 +1721,7 @@ Widget _buildEmptyActivityState() {
     elevation: 0,
     shape: RoundedRectangleBorder(borderRadius: AppDesign.borderLarge),
     child: Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(48),
       child: Column(
         children: [
@@ -1752,6 +1761,9 @@ Widget _buildEmptyActivityState() {
 
 Widget _buildEmptyNotesState() {
   return Container(
+    // Without this the Column shrink-wraps and the surrounding Card
+    // collapses to the width of its widest line instead of the section.
+    width: double.infinity,
     padding: const EdgeInsets.all(48),
     child: Column(
       children: [
@@ -2102,9 +2114,10 @@ class _MobileRichTextEditorState extends State<_MobileRichTextEditor> {
   }
 }
 
+/// Fills whatever height the parent gives it — the note dialogs size it.
 class _CollapsibleQuillEditor extends StatefulWidget {
   final QuillController controller;
-  
+
   const _CollapsibleQuillEditor({required this.controller});
 
   @override
@@ -2117,7 +2130,6 @@ class _CollapsibleQuillEditorState extends State<_CollapsibleQuillEditor> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 300,
       decoration: BoxDecoration(
         border: Border.all(color: Theme.of(context).colorScheme.outline),
         borderRadius: BorderRadius.circular(8),
