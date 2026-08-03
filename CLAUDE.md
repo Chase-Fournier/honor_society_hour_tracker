@@ -39,15 +39,24 @@ Dart SDK: `^3.1.1`. Android `minSdkVersion` is 21.
 - `test/helpers/pump.dart` — `pumpWithProviders` / `pumpInScaffold` supply the
   provider stack every interactive widget expects.
 - `test/flutter_test_config.dart` — runs before every test file. Disables
-  GoogleFonts runtime fetching and stubs gaimon's method channel.
+  GoogleFonts runtime fetching, stubs gaimon's method channel, and initializes
+  an inert `Supabase` instance (empty local storage, no auto-refresh, MockClient
+  transport) so third-party widgets like `SupaEmailAuth` can render. App code
+  still goes through `supabaseOverride`.
 
-Two things to know when writing tests:
+Gotchas worth knowing before you write a test here:
 
 - **Providers do async work in their constructors.** Awaiting your own
   `load...()` is not enough; the constructor's call can resolve afterwards and
   clobber what you just set. Drain with `await Future<void>.delayed(Duration.zero)`.
+- **Build providers inside `tester.runAsync`.** A `testWidgets` body runs in a
+  fake-async zone where a real `Future` never completes, so constructing a
+  `SocietyProvider` in one hangs the test until the runner times out.
 - **`defaultTargetPlatform` is `android` under `flutter_test`**, so
   platform-gated code (e.g. `HapticsProvider`) takes its mobile path.
+- **Dense admin screens overflow the default 800×600 surface.** Pass
+  `surfaceSize:` to `pumpWithProviders`, and consume any expected overflow with
+  `tester.takeException()` rather than letting it mask a real failure.
 
 `flutter analyze` still reports ~641 pre-existing infos/warnings (deprecated
 `withOpacity`, `surfaceVariant`, unused elements), so scope it to the files you

@@ -11,6 +11,7 @@
 // suite fails loudly rather than mysteriously.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:nhs_tracker/data/supabase_client.dart';
 import 'package:nhs_tracker/models/logactivity.dart';
@@ -35,18 +36,30 @@ void main() {
     expect(const MainScreen(), isA<MainScreen>());
   });
 
-  test('supabase getter is lazy, not resolved at import time', () {
-    // No override installed and no Supabase.initialize() in this test, so the
-    // getter must still be untouched -- and must throw only when *used*.
+  test('supabase resolves without an override installed', () {
+    // test/flutter_test_config.dart initializes an inert Supabase instance for
+    // the third-party auth widgets, so the real client is reachable here. The
+    // property that matters is that the imports above did not blow up -- a
+    // top-level `final` would have thrown at library load, before any of this
+    // ran, no matter what the config did.
     expect(supabaseOverride, isNull);
-    expect(() => supabase, throwsA(anything));
+    expect(supabase, isA<SupabaseClient>());
   });
 
-  test('supabaseOverride round-trips', () {
+  test('supabaseOverride redirects the getter and restores cleanly', () {
     addTearDown(() => supabaseOverride = null);
-    expect(supabaseOverride, isNull);
+    final real = supabase;
+
+    final fake = SupabaseClient('http://localhost:1', 'k',
+        authOptions: const AuthClientOptions(autoRefreshToken: false));
+    addTearDown(fake.dispose);
+
+    supabaseOverride = fake;
+    expect(supabase, same(fake));
+    expect(supabase, isNot(same(real)));
+
     supabaseOverride = null;
-    expect(supabaseOverride, isNull);
+    expect(supabase, same(real));
   });
 
   test('unused-symbol guard keeps the imports above alive', () {

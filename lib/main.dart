@@ -17,6 +17,7 @@ import 'services/notification_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'data/supabase_client.dart';
+import 'logic/deep_links.dart';
 
 enum SortOrder {
   ascending,
@@ -210,72 +211,54 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  void _setProcessingPasswordRecovery(bool value) {
+    if (!mounted || _isProcessingPasswordRecovery == value) return;
+    setState(() {
+      _isProcessingPasswordRecovery = value;
+    });
+  }
+
+  /// Routes a deep link. The URL parsing lives in `lib/logic/deep_links.dart`;
+  /// what remains here is the guard flag and the navigation it drives.
   void _handleDeepLink(Uri uri) {
     debugPrint("Handling deep link: $uri");
-    final isCustomSchemeRecovery =
-        uri.scheme == 'com.wheelermun.nhs' && uri.host == 'reset-password';
+    final intent = parseDeepLink(uri);
 
-    if (isCustomSchemeRecovery) {
-      if (mounted) {
-        setState(() {
-          _isProcessingPasswordRecovery = true;
-        });
-      }
-      debugPrint(
-          "Password reset link identified. Set _isProcessingPasswordRecovery=true.");
+    // Arm the guard as soon as a recovery link is recognised — even a malformed
+    // one — so a session created by the token cannot trigger the normal
+    // signed-in navigation before ResetPasswordPage takes over.
+    if (intent.isRecoveryAttempt) {
+      _setProcessingPasswordRecovery(true);
+    }
 
-      if (!uri.hasFragment) {
-        debugPrint('Password reset link fragment is missing.');
-        if (mounted) {
-          setState(() {
-            _isProcessingPasswordRecovery = false;
-          });
-        }
-        return;
-      }
-
-      // The fragment is a "?-less" query string of the form
-      //   access_token=...&type=recovery&...
-      // Uri.splitQueryString parses that directly without the brittle
-      // "?" + fragment hack the previous code used.
-      final fragmentParams = Uri.splitQueryString(uri.fragment);
-      final accessToken = fragmentParams['access_token'];
-      final type = fragmentParams['type'];
-
-      if (accessToken != null && type == 'recovery') {
+    switch (intent.action) {
+      case DeepLinkAction.passwordRecovery:
         debugPrint(
             "Access token for recovery found. Navigating to /reset-password.");
         _navigatorKey.currentState?.pushNamed(
           '/reset-password',
-          arguments: ResetPasswordPageArguments(accessToken: accessToken),
+          arguments:
+              ResetPasswordPageArguments(accessToken: intent.accessToken!),
         );
-      } else {
-        debugPrint(
-            'Access token or recovery type missing/invalid in password reset link. Token: $accessToken, Type: $type');
-        if (mounted) {
-          setState(() {
-            _isProcessingPasswordRecovery = false;
-          });
-        }
-      }
-    } else if (uri.scheme == 'com.wheelermun.nhs' && uri.host == 'callback') {
-      // Handle other callbacks like email verification.
-      // Ensure _isProcessingPasswordRecovery is false if it's not a password reset continuation.
-      debugPrint('Received auth callback (e.g., email verification): $uri');
-      if (mounted && _isProcessingPasswordRecovery) {
-        setState(() {
-          _isProcessingPasswordRecovery = false;
-        });
-      }
-      // Supabase client handles the session for email verification.
-      // The onAuthStateChange listener will then navigate appropriately (e.g., to login or society_selection).
-    } else {
-      // Unrelated deep link
-      if (mounted && _isProcessingPasswordRecovery) {
-        setState(() {
-          _isProcessingPasswordRecovery = false;
-        });
-      }
+        break;
+
+      case DeepLinkAction.invalidPasswordRecovery:
+        // Disarm: a recovery link we cannot act on must not leave the app
+        // permanently suppressing sign-in navigation.
+        debugPrint('Password reset link is missing a usable access token.');
+        _setProcessingPasswordRecovery(false);
+        break;
+
+      case DeepLinkAction.authCallback:
+        // Supabase handles the session for email verification, and
+        // onAuthStateChange navigates from there.
+        debugPrint('Received auth callback (e.g., email verification): $uri');
+        _setProcessingPasswordRecovery(false);
+        break;
+
+      case DeepLinkAction.unrelated:
+        _setProcessingPasswordRecovery(false);
+        break;
     }
   }
 
