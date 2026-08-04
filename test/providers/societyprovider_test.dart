@@ -254,6 +254,79 @@ void main() {
 
       expect(provider.currentSociety?.id, 2);
     });
+
+    /// `_checkAdminStatus` is the only query in the provider that uses
+    /// `.single()`, so the Accept header tells it apart from the roster load.
+    bool isAdminCheck(request) =>
+        ((request.headers['Accept'] ?? request.headers['accept'] ?? '')
+                as String)
+            .contains('vnd.pgrst.object');
+
+    // Regression: the admin check kept the last known value on *any* failure.
+    // Switching societies re-runs that check, so an admin of society 1 who hit
+    // a blip while opening society 2 was handed society 2's admin shell.
+    test('fails closed when the admin check fails while switching societies',
+        () async {
+      var failAdminCheck = false;
+      await createFakeSupabase(
+        handler: (request) {
+          if (isAdminCheck(request)) {
+            return failAdminCheck
+                ? const FakeResponse.error(
+                    '{"code":"42501","message":"permission denied"}',
+                    statusCode: 403,
+                  )
+                : FakeResponse(membershipRow(isAdmin: false));
+          }
+          return FakeResponse([
+            membershipRow(isAdmin: true, society: honorSocietyRow(id: 1)),
+            membershipRow(isAdmin: false, society: honorSocietyRow(id: 2)),
+          ]);
+        },
+      );
+
+      final provider = await loadedProvider();
+      expect(provider.isAdmin, isTrue, reason: 'admin of society 1');
+
+      failAdminCheck = true;
+      await provider.setCurrentSociety(2);
+
+      expect(provider.currentSociety?.id, 2);
+      expect(provider.isAdmin, isFalse,
+          reason: "society 1's admin flag must not carry into society 2");
+      expect(provider.showAdminView, isFalse);
+    });
+
+    // The other half of the same rule: within one society, a transient failure
+    // must not demote an admin into the member shell until they restart.
+    test('keeps the admin flag when the check fails for the same society',
+        () async {
+      var failAdminCheck = false;
+      await createFakeSupabase(
+        handler: (request) {
+          if (isAdminCheck(request)) {
+            return failAdminCheck
+                ? const FakeResponse.error(
+                    '{"code":"503","message":"service unavailable"}',
+                    statusCode: 503,
+                  )
+                : FakeResponse(membershipRow(isAdmin: true));
+          }
+          return FakeResponse([
+            membershipRow(isAdmin: true, society: honorSocietyRow(id: 1)),
+          ]);
+        },
+      );
+
+      final provider = await loadedProvider();
+      expect(provider.isAdmin, isTrue);
+
+      failAdminCheck = true;
+      await provider.setCurrentSociety(1);
+
+      expect(provider.isAdmin, isTrue,
+          reason: 'a blip re-checking the current society must not demote');
+    });
   });
 
   group('view mode', () {

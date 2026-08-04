@@ -9,6 +9,7 @@ import '../common/app_design.dart';
 import '../common/app_widgets.dart';
 import '../screens/adminleadershippage.dart';
 import '../providers/hapticsprovider.dart';
+import '../common/app_validators.dart';
 
 class SocietyAdminPage extends StatefulWidget {
   const SocietyAdminPage({Key? key}) : super(key: key);
@@ -352,15 +353,8 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
             hint: 'https://example.com/logo.png',
             controller: _imageUrlController,
             prefixIcon: Icons.link,
-            validator: (value) {
-              if (value != null && value.trim().isNotEmpty) {
-                final uri = Uri.tryParse(value.trim());
-                if (uri == null || !uri.hasScheme) {
-                  return 'Please enter a valid URL';
-                }
-              }
-              return null;
-            },
+            validator: (value) => AppValidators.optionalUrl(value,
+                message: 'Please enter a valid URL'),
             onChanged: (value) {
               // Trigger rebuild to update image preview
               setState(() {});
@@ -387,12 +381,8 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
             hint: 'Enter the official name of your society',
             controller: _nameController,
             prefixIcon: Icons.school,
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Please enter the society name';
-              }
-              return null;
-            },
+            validator: (value) => AppValidators.required(value,
+                message: 'Please enter the society name'),
           ),
           SizedBox(height: AppDesign.spacingM),
           AppTextField(
@@ -401,12 +391,8 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
             controller: _descriptionController,
             prefixIcon: Icons.description,
             keyboardType: TextInputType.multiline,
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Please enter a description';
-              }
-              return null;
-            },
+            validator: (value) => AppValidators.required(value,
+                message: 'Please enter a description'),
           ),
         ],
       ),
@@ -447,15 +433,9 @@ class _SocietyAdminPageState extends State<SocietyAdminPage>
             controller: _errorFormUrlController,
             prefixIcon: Icons.bug_report,
             keyboardType: TextInputType.url,
-            validator: (value) {
-              if (value != null && value.trim().isNotEmpty) {
-                final uri = Uri.tryParse(value.trim());
-                if (uri == null || !uri.hasScheme) {
-                  return 'Please enter a valid URL (starting with http:// or https://)';
-                }
-              }
-              return null;
-            },
+            validator: (value) => AppValidators.optionalUrl(value,
+                message:
+                    'Please enter a valid URL (starting with http:// or https://)'),
           ),
         ],
       ),

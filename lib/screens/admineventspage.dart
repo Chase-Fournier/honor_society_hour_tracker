@@ -20,6 +20,7 @@ import '../common/iconutils.dart';
 import '../providers/hapticsprovider.dart';
 import 'continuouseventsubmissionspage.dart';
 import '../data/supabase_client.dart';
+import '../common/app_validators.dart';
 
 
 class AdminEventsPage extends StatefulWidget {
@@ -1486,8 +1487,7 @@ class _AdminEventsPageState extends State<AdminEventsPage>
                 label: 'Capacity',
                 controller: capacityC,
                 keyboardType: const TextInputType.numberWithOptions(),
-                validator: (value) =>
-                    int.tryParse(value ?? '') == null ? 'Enter a number' : null,
+                validator: AppValidators.integer,
               ),
               const SizedBox(height: AppDesign.spacingM),
               AppTextField(
@@ -1709,9 +1709,8 @@ class _AdminEventsPageState extends State<AdminEventsPage>
         child: AppTextField(
           label: 'Collection name',
           controller: nameC,
-          validator: (value) => (value == null || value.trim().isEmpty)
-              ? 'Please enter the collection name'
-              : null,
+          validator: (value) => AppValidators.required(value,
+              message: 'Please enter the collection name'),
         ),
       ),
       footer: (ctx) => _formFooter(
@@ -2484,9 +2483,8 @@ class _AdminEventsPageState extends State<AdminEventsPage>
                       AppTextField(
                         label: 'Name',
                         controller: nameC,
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Enter a name'
-                            : null,
+                        validator: (v) =>
+                            AppValidators.required(v, message: 'Enter a name'),
                       ),
                       const SizedBox(height: AppDesign.spacingM),
                       AppTextField(
@@ -2735,7 +2733,7 @@ class _AdminEventsPageState extends State<AdminEventsPage>
               controller: descC,
               maxLines: 3,
               validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Enter a description' : null,
+                  AppValidators.required(v, message: 'Enter a description'),
             ),
             const SizedBox(height: AppDesign.spacingM),
             AppTextField(
@@ -3021,13 +3019,6 @@ class _EventFormBodyState extends State<_EventFormBody> {
     }
   }
 
-  String? _validateNonNegativeInt(String? value) {
-    if (value == null || value.isEmpty) return 'Enter a number';
-    final n = int.tryParse(value);
-    if (n == null || n < 0) return 'Enter a valid number';
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Form(
@@ -3045,17 +3036,15 @@ class _EventFormBodyState extends State<_EventFormBody> {
                 AppTextField(
                   label: 'Event name',
                   controller: _nameC,
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Enter an event name'
-                      : null,
+                  validator: (v) =>
+                      AppValidators.required(v, message: 'Enter an event name'),
                 ),
                 const SizedBox(height: AppDesign.spacingM),
                 AppTextField(
                   label: 'Description',
                   controller: _descC,
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Enter a description'
-                      : null,
+                  validator: (v) =>
+                      AppValidators.required(v, message: 'Enter a description'),
                 ),
                 const SizedBox(height: AppDesign.spacingM),
                 AppTextField(
@@ -3117,9 +3106,8 @@ class _EventFormBodyState extends State<_EventFormBody> {
                   AppTextField(
                     label: 'Form link',
                     controller: _formLinkC,
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Enter a form link'
-                        : null,
+                    validator: (v) =>
+                        AppValidators.required(v, message: 'Enter a form link'),
                   ),
                 ],
                 AppSwitchRow(
@@ -3134,7 +3122,7 @@ class _EventFormBodyState extends State<_EventFormBody> {
                     label: 'Delay hours before event',
                     controller: _delayC,
                     keyboardType: TextInputType.number,
-                    validator: _validateNonNegativeInt,
+                    validator: AppValidators.nonNegativeInt,
                   ),
                 ],
                 const SizedBox(height: AppDesign.spacingM),
@@ -3142,7 +3130,7 @@ class _EventFormBodyState extends State<_EventFormBody> {
                   label: 'Cancel deadline (hours before event)',
                   controller: _deadlineC,
                   keyboardType: const TextInputType.numberWithOptions(),
-                  validator: _validateNonNegativeInt,
+                  validator: AppValidators.nonNegativeInt,
                 ),
               ],
             ),

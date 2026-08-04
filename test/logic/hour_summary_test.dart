@@ -39,6 +39,27 @@ void main() {
       final summary = summarise(types: ['Service']);
       expect(summary.completedByType.containsKey('Meeting'), isTrue);
     });
+
+    // Callers hold raw `hour_requirements.type` strings and are tempted to
+    // index the maps with them. The buckets are keyed by normalizeType, so a
+    // requirement stored as "service hours" seeds a bucket called
+    // "Service Hours" and a raw lookup silently reads 0 off a populated total.
+    // homescreenpage.dart's _buildProgressBars normalizes at the lookup; this
+    // pins the contract it depends on.
+    test('buckets are keyed by the normalized type, not the raw string', () {
+      final summary = summarise(
+        types: ['service hours', 'TUTORING'],
+        logged: [loggedRow(type: 'service hours', hours: 3)],
+      );
+
+      expect(summary.completedByType.keys,
+          containsAll(['Service Hours', 'Tutoring']));
+      expect(summary.completedByType.containsKey('service hours'), isFalse,
+          reason: 'indexing with the raw requirement string must not work');
+      expect(summary.completedByType['Service Hours'], 3);
+      expect(summary.completedFor('service hours'), 3,
+          reason: 'completedFor normalizes, so it accepts either form');
+    });
   });
 
   group('completed hours', () {

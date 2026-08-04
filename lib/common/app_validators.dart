@@ -1,13 +1,21 @@
 /// Shared `TextFormField` validators.
 ///
-/// These existed inline at ~15 call sites and disagreed with each other:
-/// "hours" was validated five different ways (`!= 0`, `> 0 && <= 999`, and
-/// plain any-parseable) and URLs two ways (`hasScheme` alone versus
-/// `hasScheme && hasAuthority`). Centralising them makes the rules testable and
-/// consistent.
+/// These existed inline across the form screens and disagreed with each other —
+/// URLs were checked two ways (`hasScheme` alone versus
+/// `hasScheme && hasAuthority`) and "required" a dozen ways, some trimming and
+/// some not. Centralising them makes the rules testable and consistent.
 ///
 /// Each returns `null` when the value is acceptable, matching the
 /// `FormFieldValidator<String>` contract.
+///
+/// Note what is deliberately *not* here: a single rule for hours. The four
+/// admin hour-entry fields (`adminlistspage`, `customeventformpage`,
+/// `bulkediteventspage`) use a `signed: true` keyboard, and one adds an input
+/// formatter that explicitly allows a leading `-`, because docking a member's
+/// hours is a real admin action. [hours] rejects anything `<= 0`, so it fits
+/// the member-facing submission form and nothing else. Keep those call sites
+/// inline rather than "consolidating" them onto a rule that forbids what they
+/// exist to do.
 class AppValidators {
   const AppValidators._();
 
@@ -16,11 +24,12 @@ class AppValidators {
     return (value == null || value.trim().isEmpty) ? message : null;
   }
 
-  /// A number of hours: required, numeric, greater than zero, at most [max].
+  /// A number of hours a member is claiming: required, numeric, greater than
+  /// zero, at most [max].
   ///
-  /// The strictest of the previous variants is used as the single rule. The
-  /// looser ones accepted 0 (a no-op entry) or a negative value, and one
-  /// accepted a value of any magnitude.
+  /// Only for the member-facing submission form. See the note on [AppValidators]
+  /// before reaching for this on an admin hour-entry field — those accept
+  /// negative values on purpose.
   static String? hours(String? value, {double max = 999}) {
     final text = value?.trim() ?? '';
     if (text.isEmpty) return 'Required';
@@ -31,14 +40,6 @@ class AppValidators {
     if (parsed > max) return 'Too large';
 
     return null;
-  }
-
-  /// [hours], but blank is allowed — used by bulk edit, where an empty field
-  /// means "leave the existing value alone".
-  static String? optionalHours(String? value, {double max = 999}) {
-    return (value == null || value.trim().isEmpty)
-        ? null
-        : hours(value, max: max);
   }
 
   /// A whole number of zero or more.

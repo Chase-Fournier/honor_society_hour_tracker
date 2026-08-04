@@ -904,8 +904,14 @@ class _HomePageState extends State<HomePage> {
 
     // First add all the hour requirements in more compact cards
     _requirementMap.forEach((type, hoursNeeded) {
-      final completedHours = _completedHoursMap[type] ?? 0.0;
-      final potentialHours = _potentialHoursMap[type] ?? 0.0;
+      // summariseHours keys both maps with normalizeType, while _requirementMap
+      // keys on the raw `hour_requirements.type` string. Look up normalized or a
+      // requirement stored as "service" reads 0 completed hours off a bucket
+      // that is really called "Service". The raw string is still what the bar is
+      // labelled with, since that is what the admin typed.
+      final key = normalizeType(type);
+      final completedHours = _completedHoursMap[key] ?? 0.0;
+      final potentialHours = _potentialHoursMap[key] ?? 0.0;
 
       progressBars.add(buildDoubleProgressBar(
           context, type, completedHours, potentialHours, hoursNeeded.floor()));

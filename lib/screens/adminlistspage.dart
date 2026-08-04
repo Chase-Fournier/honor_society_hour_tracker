@@ -19,6 +19,7 @@ import '../common/iconutils.dart';
 import '../providers/hapticsprovider.dart';
 import '../data/supabase_client.dart';
 import '../logic/user_filtering.dart';
+import '../common/app_validators.dart';
 
 
 
@@ -3405,9 +3406,8 @@ class _AdminListPageState extends State<AdminListPage> {
                 AppTextField(
                   label: 'Event name',
                   controller: nameC,
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Please enter an event name'
-                      : null,
+                  validator: (v) => AppValidators.required(v,
+                      message: 'Please enter an event name'),
                 ),
                 const SizedBox(height: AppDesign.spacingM),
                 AppTextField(
@@ -3804,10 +3804,8 @@ class _EditHourDialogContentState extends State<_EditHourDialogContent> {
             label: 'Event name',
             controller: _eventNameController,
             prefixIcon: Icons.event,
-            validator: (value) =>
-                (value == null || value.trim().isEmpty)
-                    ? 'Please enter an event name'
-                    : null,
+            validator: (value) => AppValidators.required(value,
+                message: 'Please enter an event name'),
           ),
           const SizedBox(height: AppDesign.spacingM),
           AppTextField(

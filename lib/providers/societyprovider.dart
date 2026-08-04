@@ -9,6 +9,17 @@ class SocietyProvider extends ChangeNotifier {
   HonorSociety? _currentSociety;
   List<HonorSociety> _userSocieties = [];
   bool _isAdmin = false;
+
+  /// The society [_isAdmin] was actually resolved for.
+  ///
+  /// The app is multi-tenant, so "am I an admin" is only meaningful together
+  /// with "of what". Keeping the two in step is what lets [_checkAdminStatus]
+  /// tell a transient failure re-checking the *same* society (where holding the
+  /// last known value is right) apart from a failure while switching to a
+  /// *different* one (where holding it would leak the previous society's
+  /// privileges into the new one).
+  int? _adminFlagSocietyId;
+
   bool _viewAsMember = false;
   bool _isLoading = true;
   String? _loadingError;
@@ -96,6 +107,7 @@ class SocietyProvider extends ChangeNotifier {
         _userSocieties = [];
         _currentSociety = null;
         _isAdmin = false;
+        _adminFlagSocietyId = null;
         _isInitialized = true;
         notifyListeners();
         return;
@@ -168,12 +180,14 @@ class SocietyProvider extends ChangeNotifier {
       if (_userSocieties.isEmpty) {
         _currentSociety = null;
         _isAdmin = false;
+        _adminFlagSocietyId = null;
       } else {
         _currentSociety = _userSocieties.firstWhere(
           (society) => society.id == previousSocietyId,
           orElse: () => _userSocieties.first,
         );
         _isAdmin = adminBySocietyId[_currentSociety!.id] ?? false;
+        _adminFlagSocietyId = _currentSociety!.id;
       }
 
       debugPrint('SocietyProvider: Current society: ${_currentSociety?.name}');
@@ -274,6 +288,7 @@ class SocietyProvider extends ChangeNotifier {
             'SocietyProvider: Set current society to: ${_currentSociety?.name}');
 
         _isAdmin = response['is_admin'] ?? false;
+        _adminFlagSocietyId = _currentSociety!.id;
       }
 
       await _loadViewMode();
@@ -354,32 +369,54 @@ class SocietyProvider extends ChangeNotifier {
   Future<void> _checkAdminStatus() async {
     if (_currentSociety == null) return;
 
+    final societyId = _currentSociety!.id;
+
     try {
       final userId = supabase.auth.currentUser?.id;
-      if (userId == null) return;
+      if (userId == null) {
+        // No signed-in user is not a transient failure — there is nobody to be
+        // an admin. Fail closed rather than leaving the previous user's flag in
+        // place for whoever signs in next.
+        _isAdmin = false;
+        _adminFlagSocietyId = null;
+        return;
+      }
 
       debugPrint(
-          'SocietyProvider: Checking admin status for society ${_currentSociety?.id}');
+          'SocietyProvider: Checking admin status for society $societyId');
 
       final response = await supabase
           .from('user_society_memberships')
           .select('is_admin')
           .eq('user_id', userId)
-          .eq('society_id', _currentSociety!.id)
+          .eq('society_id', societyId)
           .single();
 
       _isAdmin = response['is_admin'] ?? false;
+      _adminFlagSocietyId = societyId;
       debugPrint('SocietyProvider: Admin status is $_isAdmin');
     } catch (e) {
-      // Deliberately leave _isAdmin untouched.
-      //
-      // This used to set `_isAdmin = false` on any failure, so a transient
-      // network blip or a momentary RLS hiccup silently demoted an admin into
-      // the member shell until they restarted. Keeping the last known value
-      // fails safe for usability; the flag is authoritative on the server, so
-      // a stale `true` here cannot grant real access.
-      debugPrint('Error checking admin status (keeping previous value): $e');
       _loadingError = e.toString();
+
+      // Only hold the previous value when it belongs to the society we were
+      // re-checking. That is the case this leniency exists for: a network blip
+      // or a momentary RLS hiccup used to set `_isAdmin = false` and silently
+      // demote an admin into the member shell until they restarted.
+      //
+      // When the flag belongs to a *different* society we are mid-switch, and
+      // holding it would carry one society's admin rights into another — an
+      // admin of society A who fails this check while opening society B would
+      // get B's admin shell. Fail closed there; the user can retry the switch.
+      if (_adminFlagSocietyId == societyId) {
+        debugPrint('Error checking admin status (keeping previous value): $e');
+        return;
+      }
+
+      debugPrint(
+          'Error checking admin status while switching to society $societyId '
+          '(failing closed): $e');
+      _isAdmin = false;
+      _adminFlagSocietyId = null;
     }
   }
 

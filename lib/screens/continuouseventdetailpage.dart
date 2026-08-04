@@ -11,6 +11,7 @@ import '../models/continuouseventstep.dart';
 import '../models/continuouseventsubmission.dart';
 import '../providers/hapticsprovider.dart';
 import '../data/supabase_client.dart';
+import '../common/app_validators.dart';
 
 
 class ContinuousEventDetailPage extends StatefulWidget {
@@ -522,14 +523,7 @@ class _LogHoursDialogState extends State<LogHoursDialog> {
                   labelText: 'Hours',
                   border: OutlineInputBorder(),
                 ),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Required';
-                  final n = double.tryParse(v.trim());
-                  if (n == null) return 'Enter a number';
-                  if (n <= 0) return 'Must be greater than 0';
-                  if (n > 999) return 'Too large';
-                  return null;
-                },
+                validator: AppValidators.hours,
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
@@ -546,15 +540,7 @@ class _LogHoursDialogState extends State<LogHoursDialog> {
                   hintText: 'Drive, photo, receipt URL',
                   border: OutlineInputBorder(),
                 ),
-                validator: (v) {
-                  final s = (v ?? '').trim();
-                  if (s.isEmpty) return 'Required';
-                  final uri = Uri.tryParse(s);
-                  if (uri == null || !(uri.hasScheme && uri.hasAuthority)) {
-                    return 'Enter a valid URL';
-                  }
-                  return null;
-                },
+                validator: AppValidators.url,
               ),
               const SizedBox(height: 12),
               TextFormField(

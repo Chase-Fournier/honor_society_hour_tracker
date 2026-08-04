@@ -23,8 +23,9 @@ void main() {
     test('rejects text',
         () => expect(AppValidators.hours('lots'), 'Enter a number'));
 
-    // The looser variants this replaces accepted 0 and negatives, letting a
-    // member log an entry worth no hours -- or subtract hours.
+    // This is the member-facing submission rule, so a claim of no hours -- or
+    // of negative hours -- is rejected. The admin hour-entry fields are
+    // deliberately not on this validator; see the note on AppValidators.
     test('rejects zero',
         () => expect(AppValidators.hours('0'), 'Must be greater than 0'));
     test('rejects a negative',
@@ -36,17 +37,6 @@ void main() {
         () => expect(AppValidators.hours('999'), isNull));
     test('honours a custom maximum',
         () => expect(AppValidators.hours('50', max: 24), 'Too large'));
-  });
-
-  group('optionalHours', () {
-    test('accepts blank, meaning "leave unchanged"', () {
-      expect(AppValidators.optionalHours(''), isNull);
-      expect(AppValidators.optionalHours(null), isNull);
-    });
-    test('still rejects zero when supplied',
-        () => expect(AppValidators.optionalHours('0'), isNotNull));
-    test('accepts a real value',
-        () => expect(AppValidators.optionalHours('3'), isNull));
   });
 
   group('nonNegativeInt', () {

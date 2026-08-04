@@ -10,6 +10,7 @@ import '../models/userprofile.dart';
 import '../models/logactivity.dart';
 import '../providers/hapticsprovider.dart';
 import '../data/supabase_client.dart';
+import '../common/app_validators.dart';
 
 
 class BulkCustomEventFormPage extends StatefulWidget {
@@ -191,9 +192,8 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                     AppTextField(
                       label: 'Event name',
                       onChanged: (value) => eventName = value,
-                      validator: (value) => (value == null || value.isEmpty)
-                          ? 'Please enter an event name'
-                          : null,
+                      validator: (value) => AppValidators.required(value,
+                          message: 'Please enter an event name'),
                     ),
                     const SizedBox(height: AppDesign.spacingM),
                     AppTextField(
