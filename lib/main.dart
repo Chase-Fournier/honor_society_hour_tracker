@@ -16,6 +16,8 @@ import 'providers/notificationsprovider.dart';
 import 'services/notification_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import 'data/supabase_client.dart';
+import 'logic/deep_links.dart';
 
 enum SortOrder {
   ascending,
@@ -209,72 +211,54 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  void _setProcessingPasswordRecovery(bool value) {
+    if (!mounted || _isProcessingPasswordRecovery == value) return;
+    setState(() {
+      _isProcessingPasswordRecovery = value;
+    });
+  }
+
+  /// Routes a deep link. The URL parsing lives in `lib/logic/deep_links.dart`;
+  /// what remains here is the guard flag and the navigation it drives.
   void _handleDeepLink(Uri uri) {
     debugPrint("Handling deep link: $uri");
-    final isCustomSchemeRecovery =
-        uri.scheme == 'com.wheelermun.nhs' && uri.host == 'reset-password';
+    final intent = parseDeepLink(uri);
 
-    if (isCustomSchemeRecovery) {
-      if (mounted) {
-        setState(() {
-          _isProcessingPasswordRecovery = true;
-        });
-      }
-      debugPrint(
-          "Password reset link identified. Set _isProcessingPasswordRecovery=true.");
+    // Arm the guard as soon as a recovery link is recognised — even a malformed
+    // one — so a session created by the token cannot trigger the normal
+    // signed-in navigation before ResetPasswordPage takes over.
+    if (intent.isRecoveryAttempt) {
+      _setProcessingPasswordRecovery(true);
+    }
 
-      if (!uri.hasFragment) {
-        debugPrint('Password reset link fragment is missing.');
-        if (mounted) {
-          setState(() {
-            _isProcessingPasswordRecovery = false;
-          });
-        }
-        return;
-      }
-
-      // The fragment is a "?-less" query string of the form
-      //   access_token=...&type=recovery&...
-      // Uri.splitQueryString parses that directly without the brittle
-      // "?" + fragment hack the previous code used.
-      final fragmentParams = Uri.splitQueryString(uri.fragment);
-      final accessToken = fragmentParams['access_token'];
-      final type = fragmentParams['type'];
-
-      if (accessToken != null && type == 'recovery') {
+    switch (intent.action) {
+      case DeepLinkAction.passwordRecovery:
         debugPrint(
             "Access token for recovery found. Navigating to /reset-password.");
         _navigatorKey.currentState?.pushNamed(
           '/reset-password',
-          arguments: ResetPasswordPageArguments(accessToken: accessToken),
+          arguments:
+              ResetPasswordPageArguments(accessToken: intent.accessToken!),
         );
-      } else {
-        debugPrint(
-            'Access token or recovery type missing/invalid in password reset link. Token: $accessToken, Type: $type');
-        if (mounted) {
-          setState(() {
-            _isProcessingPasswordRecovery = false;
-          });
-        }
-      }
-    } else if (uri.scheme == 'com.wheelermun.nhs' && uri.host == 'callback') {
-      // Handle other callbacks like email verification.
-      // Ensure _isProcessingPasswordRecovery is false if it's not a password reset continuation.
-      debugPrint('Received auth callback (e.g., email verification): $uri');
-      if (mounted && _isProcessingPasswordRecovery) {
-        setState(() {
-          _isProcessingPasswordRecovery = false;
-        });
-      }
-      // Supabase client handles the session for email verification.
-      // The onAuthStateChange listener will then navigate appropriately (e.g., to login or society_selection).
-    } else {
-      // Unrelated deep link
-      if (mounted && _isProcessingPasswordRecovery) {
-        setState(() {
-          _isProcessingPasswordRecovery = false;
-        });
-      }
+        break;
+
+      case DeepLinkAction.invalidPasswordRecovery:
+        // Disarm: a recovery link we cannot act on must not leave the app
+        // permanently suppressing sign-in navigation.
+        debugPrint('Password reset link is missing a usable access token.');
+        _setProcessingPasswordRecovery(false);
+        break;
+
+      case DeepLinkAction.authCallback:
+        // Supabase handles the session for email verification, and
+        // onAuthStateChange navigates from there.
+        debugPrint('Received auth callback (e.g., email verification): $uri');
+        _setProcessingPasswordRecovery(false);
+        break;
+
+      case DeepLinkAction.unrelated:
+        _setProcessingPasswordRecovery(false);
+        break;
     }
   }
 
@@ -287,102 +271,100 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => widget.themeNotifier),
-        ChangeNotifierProvider(create: (_) => themeprovider.ThemeProvider()),
-      ],
-      child: FutureBuilder<void>(
-        future: _themeColorFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const MaterialApp(
-              localizationsDelegates: [
-                  FlutterQuillLocalizations.delegate,
-                  GlobalMaterialLocalizations.delegate,
-                  GlobalWidgetsLocalizations.delegate,
-                  GlobalCupertinoLocalizations.delegate,
-                  
-                ],
-                supportedLocales: [
-                  Locale('en', 'US'), 
-                ],
-              home: Scaffold(
-                body: Center(
-                  child: CircularProgressIndicator(),
-                ),
+    // ThemeNotifier and ThemeProvider are already supplied by the MultiProvider
+    // in main(). This used to open a *second* MultiProvider here that
+    // constructed a fresh ThemeProvider, so the Consumer below resolved a
+    // different instance from the one the rest of the app wrote to. Both wrote
+    // the same 'themeMode' SharedPreferences key, so a theme change applied to
+    // one instance and was only picked up by the other after a restart.
+    return FutureBuilder<void>(
+      future: _themeColorFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const MaterialApp(
+            localizationsDelegates: [
+              FlutterQuillLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: [
+              Locale('en', 'US'),
+            ],
+            home: Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
               ),
-            );
-          }
-          return Consumer<themeprovider.ThemeProvider>(
-            builder: (context, themeProvider, _) {
-              return AnimatedBuilder(
-                animation: widget.themeNotifier,
-                builder: (context, _) {
-                  return MaterialApp(
-                    localizationsDelegates: const [
+            ),
+          );
+        }
+        return Consumer<themeprovider.ThemeProvider>(
+          builder: (context, themeProvider, _) {
+            return AnimatedBuilder(
+              animation: widget.themeNotifier,
+              builder: (context, _) {
+                return MaterialApp(
+                  localizationsDelegates: const [
                     FlutterQuillLocalizations.delegate,
                     GlobalMaterialLocalizations.delegate,
                     GlobalWidgetsLocalizations.delegate,
                     GlobalCupertinoLocalizations.delegate,
-                    
                   ],
                   supportedLocales: const [
-                    Locale('en', 'US'), 
-                ],
-                    navigatorKey: _navigatorKey, // Assign the navigatorKey
-                    title: 'Wheeler Honor Societies',
-                    debugShowCheckedModeBanner: false,
-                    theme: themeProvider
-                        .getThemeData(widget.themeNotifier.themeColor),
-                    initialRoute: '/',
-                    routes: {
-                      '/': (context) => const LoginPage(),
-                      '/society_selection': (context) =>
-                          const SocietySelectionPage(),
-                      '/reset-password': (context) => const ResetPasswordPage(),
-                    },
-                    onGenerateRoute: (settings) {
-                      if (settings.name == '/reset-password') {
-                        final args =
-                            settings.arguments as ResetPasswordPageArguments?;
-                        String? accessToken = args?.accessToken;
+                    Locale('en', 'US'),
+                  ],
+                  navigatorKey: _navigatorKey, // Assign the navigatorKey
+                  title: 'Wheeler Honor Societies',
+                  debugShowCheckedModeBanner: false,
+                  theme: themeProvider
+                      .getThemeData(widget.themeNotifier.themeColor),
+                  initialRoute: '/',
+                  routes: {
+                    '/': (context) => const LoginPage(),
+                    '/society_selection': (context) =>
+                        const SocietySelectionPage(),
+                    '/reset-password': (context) => const ResetPasswordPage(),
+                  },
+                  onGenerateRoute: (settings) {
+                    if (settings.name == '/reset-password') {
+                      final args =
+                          settings.arguments as ResetPasswordPageArguments?;
+                      String? accessToken = args?.accessToken;
 
-                        return MaterialPageRoute(
-                          builder: (context) => ResetPasswordPage(
-                            accessToken: accessToken,
-                            onPasswordResetFlowComplete: () {
-                              if (mounted) {
-                                // Ensure _MyAppState is still mounted
-                                setState(() {
-                                  _isProcessingPasswordRecovery = false;
-                                  debugPrint(
-                                      "ResetPasswordPage flow complete. _isProcessingPasswordRecovery set to false.");
-                                });
-                              }
-                            },
-                          ),
-                          settings: settings,
-                        );
-                      }
-                      if (settings.name == '/society_selection') {
-                        return MaterialPageRoute(
-                            builder: (context) => const SocietySelectionPage());
-                      }
-                      if (settings.name == '/') {
-                        return MaterialPageRoute(
-                            builder: (context) => const LoginPage());
-                      }
-                      // Handle other routes if necessary, or return null
-                      return null;
-                    },
-                  );
-                },
-              );
-            },
-          );
-        },
-      ),
+                      return MaterialPageRoute(
+                        builder: (context) => ResetPasswordPage(
+                          accessToken: accessToken,
+                          onPasswordResetFlowComplete: () {
+                            if (mounted) {
+                              // Ensure _MyAppState is still mounted
+                              setState(() {
+                                _isProcessingPasswordRecovery = false;
+                                debugPrint(
+                                    "ResetPasswordPage flow complete. _isProcessingPasswordRecovery set to false.");
+                              });
+                            }
+                          },
+                        ),
+                        settings: settings,
+                      );
+                    }
+                    if (settings.name == '/society_selection') {
+                      return MaterialPageRoute(
+                          builder: (context) => const SocietySelectionPage());
+                    }
+                    if (settings.name == '/') {
+                      return MaterialPageRoute(
+                          builder: (context) => const LoginPage());
+                    }
+                    // Handle other routes if necessary, or return null
+                    return null;
+                  },
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 
@@ -393,5 +375,3 @@ class _MyAppState extends State<MyApp> {
     themeNotifier.updateThemeColor(color);
   }
 }
-
-final supabase = Supabase.instance.client;

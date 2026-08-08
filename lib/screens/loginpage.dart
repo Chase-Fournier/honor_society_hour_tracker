@@ -7,8 +7,8 @@ import '../common/graduationyearutils.dart';
 import 'societyselectionpage.dart';
 import 'waitingpage.dart';
 import '../providers/hapticsprovider.dart';
+import '../common/app_validators.dart';
 
-final supabase = Supabase.instance.client;
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -305,11 +305,8 @@ class _LoginPageState extends State<LoginPage>
                   prefixIcon: const Icon(Icons.person),
                   label: 'Name',
                   key: 'name',
-                  validator: (val) {
-                    return val == null || val.isEmpty
-                        ? 'Please enter your name'
-                        : null;
-                  },
+                  validator: (val) => AppValidators.required(val,
+                      message: 'Please enter your name'),
                 ),
                 MetaDataField(
                   prefixIcon: const Icon(Icons.school),

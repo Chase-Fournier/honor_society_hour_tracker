@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../common/app_design.dart';
 import '../common/app_widgets.dart';
 import '../models/hourrequirement.dart';
@@ -9,8 +8,8 @@ import '../common/iconutils.dart';
 import '../common/iconselector.dart';
 import 'package:provider/provider.dart';
 import '../providers/hapticsprovider.dart';
+import '../data/supabase_client.dart';
 
-final supabase = Supabase.instance.client;
 
 class SocietyJoinRequestPage extends StatefulWidget {
   const SocietyJoinRequestPage({super.key});

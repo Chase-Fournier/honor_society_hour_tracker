@@ -7,11 +7,11 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 import 'firebase_messaging_service.dart';
+import '../data/supabase_client.dart';
 
 /// Handles taps that arrive while the app is terminated/in a background
 /// isolate. It can't touch app state or navigate; routing happens once the app
@@ -233,7 +233,7 @@ class NotificationService {
 
   Future<void> syncFcmToken(String? token) async {
     if (token == null || token.isEmpty) return;
-    final user = Supabase.instance.client.auth.currentUser;
+    final user = supabase.auth.currentUser;
     if (user == null) return;
 
     final prefs = await SharedPreferences.getInstance();
@@ -241,7 +241,7 @@ class NotificationService {
     if (prefs.getString(lastKey) == token) return;
 
     try {
-      await Supabase.instance.client.from('device_tokens').upsert({
+      await supabase.from('device_tokens').upsert({
         'user_id': user.id,
         'fcm_token': token,
         'platform': Platform.isIOS
@@ -266,12 +266,12 @@ class NotificationService {
     required bool hourUpdates,
     required bool swapRequests,
   }) async {
-    final user = Supabase.instance.client.auth.currentUser;
+    final user = supabase.auth.currentUser;
     if (user == null) return;
     final token = await FirebaseMessagingService.instance.getToken();
     if (token == null || token.isEmpty) return;
     try {
-      await Supabase.instance.client.from('device_tokens').update({
+      await supabase.from('device_tokens').update({
         'notify_meeting_notes': meetingNotes,
         'notify_hour_updates': hourUpdates,
         'notify_swap_requests': swapRequests,
@@ -297,7 +297,7 @@ class NotificationService {
     final token = await FirebaseMessagingService.instance.getToken();
     if (token == null) return;
     try {
-      await Supabase.instance.client
+      await supabase
           .from('device_tokens')
           .delete()
           .eq('fcm_token', token);

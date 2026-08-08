@@ -6,9 +6,10 @@ import '../common/app_widgets.dart';
 import '../common/graduationyearutils.dart';
 import 'package:provider/provider.dart';
 import '../providers/hapticsprovider.dart';
+import '../data/supabase_client.dart';
+import '../common/app_validators.dart';
 
 // Import your shared constants/styles
-final supabase = Supabase.instance.client;
 final lowModeShadow = [
   BoxShadow(
     color: Colors.black.withOpacity(0.1),
@@ -538,15 +539,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                   prefixIcon: Icons.email,
                   controller: _newEmailController,
                   keyboardType: TextInputType.emailAddress,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your new email address';
-                    }
-                    if (!value.contains('@') || !value.contains('.')) {
-                      return 'Please enter a valid email address';
-                    }
-                    return null;
-                  },
+                  validator: AppValidators.email,
                 ),
                 const SizedBox(height: AppDesign.spacingL),
 
@@ -665,15 +658,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                     filled: true,
                     fillColor: Theme.of(context).colorScheme.surface,
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter a new password';
-                    }
-                    if (value.length < 8) {
-                      return 'Password must be at least 8 characters';
-                    }
-                    return null;
-                  },
+                  validator: AppValidators.password,
                 ),
                 const SizedBox(height: 16),
 
@@ -706,15 +691,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                     filled: true,
                     fillColor: Theme.of(context).colorScheme.surface,
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please confirm your new password';
-                    }
-                    if (value != _newPasswordController.text) {
-                      return 'Passwords do not match';
-                    }
-                    return null;
-                  },
+                  validator: (value) => AppValidators.confirmPassword(
+                      value, _newPasswordController.text),
                 ),
                 const SizedBox(height: 24),
 

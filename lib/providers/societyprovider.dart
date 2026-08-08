@@ -1,14 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../models/honorsociety.dart';
 import '../models/hourrequirement.dart';
+import '../data/supabase_client.dart';
 
 /// Provider for managing honor society data and state throughout the app
 class SocietyProvider extends ChangeNotifier {
   HonorSociety? _currentSociety;
   List<HonorSociety> _userSocieties = [];
   bool _isAdmin = false;
+
+  /// The society [_isAdmin] was actually resolved for.
+  ///
+  /// The app is multi-tenant, so "am I an admin" is only meaningful together
+  /// with "of what". Keeping the two in step is what lets [_checkAdminStatus]
+  /// tell a transient failure re-checking the *same* society (where holding the
+  /// last known value is right) apart from a failure while switching to a
+  /// *different* one (where holding it would leak the previous society's
+  /// privileges into the new one).
+  int? _adminFlagSocietyId;
+
   bool _viewAsMember = false;
   bool _isLoading = true;
   String? _loadingError;
@@ -72,7 +83,7 @@ class SocietyProvider extends ChangeNotifier {
   /// Initialize the provider
   SocietyProvider() {
     // Automatically load societies if user is logged in
-    final currentUser = Supabase.instance.client.auth.currentUser;
+    final currentUser = supabase.auth.currentUser;
     if (currentUser != null) {
       loadUserSocieties();
     } else {
@@ -90,12 +101,13 @@ class SocietyProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
+      final userId = supabase.auth.currentUser?.id;
       if (userId == null) {
         _isLoading = false;
         _userSocieties = [];
         _currentSociety = null;
         _isAdmin = false;
+        _adminFlagSocietyId = null;
         _isInitialized = true;
         notifyListeners();
         return;
@@ -104,7 +116,7 @@ class SocietyProvider extends ChangeNotifier {
       // Debug print
       debugPrint('SocietyProvider: Loading societies for user $userId');
 
-      final societies = await Supabase.instance.client
+      final societies = await supabase
           .from('user_society_memberships')
           .select('''
             honor_societies!inner(
@@ -129,7 +141,13 @@ class SocietyProvider extends ChangeNotifier {
 
       debugPrint('SocietyProvider: Found ${societies.length} societies');
 
+      // Remember which society was selected so a reload keeps the user where
+      // they were instead of snapping back to the first one.
+      final previousSocietyId = _currentSociety?.id;
+
       _userSocieties = [];
+      final adminBySocietyId = <int, bool>{};
+
       for (var membership in societies) {
         final societyData = membership['honor_societies'];
         final hourRequirements = (societyData['hour_requirements'] as List)
@@ -148,26 +166,28 @@ class SocietyProvider extends ChangeNotifier {
         );
 
         _userSocieties.add(society);
-
-        // If this is the first society or we don't have a current society, set it as default
-        if (_currentSociety == null) {
-          _currentSociety = society;
-          _isAdmin = membership['is_admin'] ?? false;
-        }
+        adminBySocietyId[society.id] = membership['is_admin'] ?? false;
       }
 
-      if (_currentSociety == null && _userSocieties.isNotEmpty) {
-        // Set the first society as default if we still don't have one
-        debugPrint('SocietyProvider: Setting first society as default');
-        _currentSociety = _userSocieties.first;
-
-        // Find admin status for this society
-        final currentSocietyMembership = societies.firstWhere(
-          (membership) =>
-              membership['honor_societies']['id'] == _currentSociety!.id,
-          orElse: () => {'is_admin': false},
+      // Always re-resolve the current society against the rows just fetched.
+      //
+      // Previously both the society and the admin flag were only assigned when
+      // `_currentSociety == null`, so any reload after the user had picked a
+      // society left `_isAdmin` at its old value and left `_currentSociety`
+      // pointing at a stale object holding stale hour requirements. Promoting
+      // or demoting an admin therefore did not take effect until a full
+      // restart.
+      if (_userSocieties.isEmpty) {
+        _currentSociety = null;
+        _isAdmin = false;
+        _adminFlagSocietyId = null;
+      } else {
+        _currentSociety = _userSocieties.firstWhere(
+          (society) => society.id == previousSocietyId,
+          orElse: () => _userSocieties.first,
         );
-        _isAdmin = currentSocietyMembership['is_admin'] ?? false;
+        _isAdmin = adminBySocietyId[_currentSociety!.id] ?? false;
+        _adminFlagSocietyId = _currentSociety!.id;
       }
 
       debugPrint('SocietyProvider: Current society: ${_currentSociety?.name}');
@@ -214,7 +234,7 @@ class SocietyProvider extends ChangeNotifier {
         await _checkAdminStatus();
       } else {
         // If not in our list, fetch it from the database
-        final userId = Supabase.instance.client.auth.currentUser?.id;
+        final userId = supabase.auth.currentUser?.id;
         if (userId == null) {
           _isLoading = false;
           notifyListeners();
@@ -222,7 +242,7 @@ class SocietyProvider extends ChangeNotifier {
         }
 
         debugPrint('SocietyProvider: Fetching society details from database');
-        final response = await Supabase.instance.client
+        final response = await supabase
             .from('user_society_memberships')
             .select('''
             honor_societies!inner(
@@ -268,6 +288,7 @@ class SocietyProvider extends ChangeNotifier {
             'SocietyProvider: Set current society to: ${_currentSociety?.name}');
 
         _isAdmin = response['is_admin'] ?? false;
+        _adminFlagSocietyId = _currentSociety!.id;
       }
 
       await _loadViewMode();
@@ -294,7 +315,7 @@ class SocietyProvider extends ChangeNotifier {
           'SocietyProvider: Refreshing current society: ${_currentSociety?.name}');
       final societyId = _currentSociety!.id;
       final response =
-          await Supabase.instance.client.from('honor_societies').select('''
+          await supabase.from('honor_societies').select('''
           id,
           name,
           description,
@@ -348,25 +369,54 @@ class SocietyProvider extends ChangeNotifier {
   Future<void> _checkAdminStatus() async {
     if (_currentSociety == null) return;
 
+    final societyId = _currentSociety!.id;
+
     try {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) return;
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) {
+        // No signed-in user is not a transient failure — there is nobody to be
+        // an admin. Fail closed rather than leaving the previous user's flag in
+        // place for whoever signs in next.
+        _isAdmin = false;
+        _adminFlagSocietyId = null;
+        return;
+      }
 
       debugPrint(
-          'SocietyProvider: Checking admin status for society ${_currentSociety?.id}');
+          'SocietyProvider: Checking admin status for society $societyId');
 
-      final response = await Supabase.instance.client
+      final response = await supabase
           .from('user_society_memberships')
           .select('is_admin')
           .eq('user_id', userId)
-          .eq('society_id', _currentSociety!.id)
+          .eq('society_id', societyId)
           .single();
 
       _isAdmin = response['is_admin'] ?? false;
+      _adminFlagSocietyId = societyId;
       debugPrint('SocietyProvider: Admin status is $_isAdmin');
     } catch (e) {
-      debugPrint('Error checking admin status: $e');
+      _loadingError = e.toString();
+
+      // Only hold the previous value when it belongs to the society we were
+      // re-checking. That is the case this leniency exists for: a network blip
+      // or a momentary RLS hiccup used to set `_isAdmin = false` and silently
+      // demote an admin into the member shell until they restarted.
+      //
+      // When the flag belongs to a *different* society we are mid-switch, and
+      // holding it would carry one society's admin rights into another — an
+      // admin of society A who fails this check while opening society B would
+      // get B's admin shell. Fail closed there; the user can retry the switch.
+      if (_adminFlagSocietyId == societyId) {
+        debugPrint('Error checking admin status (keeping previous value): $e');
+        return;
+      }
+
+      debugPrint(
+          'Error checking admin status while switching to society $societyId '
+          '(failing closed): $e');
       _isAdmin = false;
+      _adminFlagSocietyId = null;
     }
   }
 
@@ -374,7 +424,7 @@ class SocietyProvider extends ChangeNotifier {
   Future<bool> requestJoinSociety(HonorSociety society) async {
     try {
       debugPrint('SocietyProvider: Requesting to join society ${society.name}');
-      final result = await Supabase.instance.client.rpc(
+      final result = await supabase.rpc(
           'request_society_membership',
           params: {'society_id_param': society.id});
 
@@ -393,13 +443,13 @@ class SocietyProvider extends ChangeNotifier {
   Future<bool> createSociety(
       String name, String description, int meetingRequirement) async {
     try {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
+      final userId = supabase.auth.currentUser?.id;
       if (userId == null) return false;
 
       debugPrint('SocietyProvider: Creating new society "$name"');
 
       final newSocietyId =
-          await Supabase.instance.client.rpc('create_society', params: {
+          await supabase.rpc('create_society', params: {
         'name_param': name,
         'description_param': description,
         'meeting_requirement_param': meetingRequirement,
@@ -425,7 +475,7 @@ class SocietyProvider extends ChangeNotifier {
     if (_currentSociety == null) return false;
 
     try {
-      final response = await Supabase.instance.client
+      final response = await supabase
           .from('hour_requirements')
           .insert({
             'society_id': _currentSociety!.id,
@@ -463,7 +513,7 @@ class SocietyProvider extends ChangeNotifier {
     if (_currentSociety == null) return false;
 
     try {
-      await Supabase.instance.client.from('hour_requirements').update({
+      await supabase.from('hour_requirements').update({
         'type': type,
         'description': description,
         'hours_needed': hoursNeeded,

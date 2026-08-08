@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../common/app_design.dart';
@@ -11,8 +10,9 @@ import '../models/continuousevent.dart';
 import '../models/continuouseventstep.dart';
 import '../models/continuouseventsubmission.dart';
 import '../providers/hapticsprovider.dart';
+import '../data/supabase_client.dart';
+import '../common/app_validators.dart';
 
-final _supabase = Supabase.instance.client;
 
 class ContinuousEventDetailPage extends StatefulWidget {
   final ContinuousEvent event;
@@ -37,9 +37,9 @@ class _ContinuousEventDetailPageState extends State<ContinuousEventDetailPage> {
   Future<void> _fetchMySubmissions() async {
     setState(() => _isLoading = true);
     try {
-      final userId = _supabase.auth.currentUser?.id;
+      final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
-      final rows = await _supabase
+      final rows = await supabase
           .from('continuous_event_submissions')
           .select()
           .eq('continuous_event_id', widget.event.id)
@@ -464,10 +464,10 @@ class _LogHoursDialogState extends State<LogHoursDialog> {
     final haptics = Provider.of<HapticsProvider>(context, listen: false);
     setState(() => _submitting = true);
     try {
-      final userId = _supabase.auth.currentUser?.id;
+      final userId = supabase.auth.currentUser?.id;
       if (userId == null) throw 'Not signed in';
 
-      await _supabase.from('continuous_event_submissions').insert({
+      await supabase.from('continuous_event_submissions').insert({
         'continuous_event_id': widget.event.id,
         'society_id': widget.event.societyId,
         'user_id': userId,
@@ -523,14 +523,7 @@ class _LogHoursDialogState extends State<LogHoursDialog> {
                   labelText: 'Hours',
                   border: OutlineInputBorder(),
                 ),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Required';
-                  final n = double.tryParse(v.trim());
-                  if (n == null) return 'Enter a number';
-                  if (n <= 0) return 'Must be greater than 0';
-                  if (n > 999) return 'Too large';
-                  return null;
-                },
+                validator: AppValidators.hours,
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
@@ -547,15 +540,7 @@ class _LogHoursDialogState extends State<LogHoursDialog> {
                   hintText: 'Drive, photo, receipt URL',
                   border: OutlineInputBorder(),
                 ),
-                validator: (v) {
-                  final s = (v ?? '').trim();
-                  if (s.isEmpty) return 'Required';
-                  final uri = Uri.tryParse(s);
-                  if (uri == null || !(uri.hasScheme && uri.hasAuthority)) {
-                    return 'Enter a valid URL';
-                  }
-                  return null;
-                },
+                validator: AppValidators.url,
               ),
               const SizedBox(height: 12),
               TextFormField(

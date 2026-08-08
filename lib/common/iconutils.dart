@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/societyprovider.dart';
+import '../models/honorsociety.dart';
 import '../models/hourrequirement.dart';
 import 'iconselector.dart';
 import 'normalizetype.dart';
@@ -17,14 +18,21 @@ import 'normalizetype.dart';
 /// Returns:
 /// - String - The icon name to use
 String getIconNameForEventType(BuildContext context, String eventType) {
-  // Early exit if no event type provided
-  if (eventType.isEmpty) return 'workspaces';
-  // Get the current society from provider
   final society =
       Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+  return iconNameForEventType(society, eventType);
+}
+
+/// [getIconNameForEventType] without the `BuildContext`.
+///
+/// Takes the society directly so the lookup can be exercised without a widget
+/// tree or a Provider. The context-taking version above is a thin wrapper.
+String iconNameForEventType(HonorSociety? society, String eventType) {
+  // Early exit if no event type provided
+  if (eventType.isEmpty) return 'workspaces';
   if (society == null) {
     // Fallback if no society is available
-    return _getDefaultIconNameForType(eventType);
+    return getDefaultIconNameForType(eventType);
   }
 
   // Special case for Meeting type (often doesn't have a requirement object)
@@ -64,7 +72,7 @@ String getIconNameForEventType(BuildContext context, String eventType) {
   }
 
   // No matching requirement found, fall back to default
-  return _getDefaultIconNameForType(eventType);
+  return getDefaultIconNameForType(eventType);
 }
 
 IconData getIconForType(String type, BuildContext context) {
@@ -72,43 +80,55 @@ IconData getIconForType(String type, BuildContext context) {
   return getIconDataByName(iconName);
 }
 
-/// Helper function to get a default icon name based on event type
-/// Used as fallback when no matching requirement is found
-String _getDefaultIconNameForType(String eventType) {
+/// Default icon name for an event type, matched by keyword.
+///
+/// Used as the fallback when the society has no requirement matching the type.
+/// Returns a key from `_kAppIcons` in `iconselector.dart`. That matters: this
+/// used to return raw Material icon names ('volunteer_activism', 'school',
+/// 'groups', ...) while the icon map is keyed by semantic slugs ('volunteer',
+/// 'tutoring', 'meeting', ...). Only 3 of the 16 outputs overlapped, so
+/// [getIconDataByName] fell through to its `Icons.help_outline` fallback and
+/// every event type without a configured society requirement rendered a
+/// question mark.
+///
+/// Note the checks run in order and use `contains`, so an earlier keyword wins:
+/// 'art' matches "Departmental", and "Community Service" resolves to 'volunteer'
+/// because 'service' is checked before 'communit'.
+String getDefaultIconNameForType(String eventType) {
   final lowerType = eventType.toLowerCase();
 
   if (lowerType.contains('service') || lowerType.contains('volunteer')) {
-    return 'volunteer_activism';
+    return 'volunteer';
   }
   if (lowerType.contains('tutor') || lowerType.contains('teach')) {
-    return 'school';
+    return 'tutoring';
   }
   if (lowerType.contains('meeting')) {
-    return 'groups';
+    return 'meeting';
   }
   if (lowerType.contains('leader') || lowerType.contains('officer')) {
-    return 'emoji_people';
+    return 'leadership';
   }
   if (lowerType.contains('fundrais') || lowerType.contains('donat')) {
-    return 'attach_money';
+    return 'fundraising';
   }
   if (lowerType.contains('communit')) {
-    return 'public';
+    return 'community';
   }
   if (lowerType.contains('environment') || lowerType.contains('garden')) {
-    return 'nature';
+    return 'environment';
   }
   if (lowerType.contains('health') || lowerType.contains('medical')) {
-    return 'health_and_safety';
+    return 'health';
   }
   if (lowerType.contains('tech') || lowerType.contains('computer')) {
-    return 'computer';
+    return 'tech';
   }
   if (lowerType.contains('art')) {
-    return 'palette';
+    return 'art';
   }
   if (lowerType.contains('music')) {
-    return 'music_note';
+    return 'music';
   }
   if (lowerType.contains('sport') || lowerType.contains('athletic')) {
     return 'sports';
@@ -117,10 +137,10 @@ String _getDefaultIconNameForType(String eventType) {
     return 'science';
   }
   if (lowerType.contains('writing') || lowerType.contains('essay')) {
-    return 'edit_note';
+    return 'writing';
   }
   if (lowerType.contains('mentor')) {
-    return 'psychology';
+    return 'mentoring';
   }
 
   // Default icon if no match

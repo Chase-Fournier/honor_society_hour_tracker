@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:provider/provider.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import 'package:intl/intl.dart';
 import '../providers/societyprovider.dart';
 import '../common/app_design.dart';
@@ -15,8 +14,8 @@ import '../common/nhsformatutils.dart';
 import '../common/iconutils.dart';
 import '../common/normalizetype.dart';
 import '../providers/hapticsprovider.dart';
+import '../data/supabase_client.dart';
 
-final supabase = Supabase.instance.client;
 
 class AdminAttendancePage extends StatefulWidget {
   const AdminAttendancePage({super.key});
@@ -1235,7 +1234,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
       };
 
       // 2. Fetch all time slots for these events in a single query
-      final timeSlotResponse = await Supabase.instance.client
+      final timeSlotResponse = await supabase
           .from('Time slots')
           .select()
           .inFilter('event_id', eventsMap.keys.toList());
@@ -1255,7 +1254,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
       }
 
       // 3. Fetch all attendees with their profiles in a single query
-      final attendeeResponse = await Supabase.instance.client
+      final attendeeResponse = await supabase
           .from('Attendees')
           .select('*, profiles!inner(name)')
           .inFilter('timeslot_id', timeSlotsMap.keys.toList());
@@ -1315,7 +1314,7 @@ class _AdminAttendancePageState extends State<AdminAttendancePage> {
         return;
       }
 
-      final collectionsResponse = await Supabase.instance.client
+      final collectionsResponse = await supabase
           .from('Collections')
           .select('*')
           .eq('society_id', society.id);

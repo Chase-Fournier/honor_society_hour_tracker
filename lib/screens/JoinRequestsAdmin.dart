@@ -1,24 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/societyprovider.dart';
-import '../main.dart';
+import '../data/supabase_client.dart';
 import '../common/app_design.dart';
 import '../common/app_widgets.dart';
 import '../common/nhsformatutils.dart';
 import '../providers/hapticsprovider.dart';
-
-enum RequestSortField {
-  name,
-  graduationYear,
-  status,
-  requestedAt,
-  processedAt,
-}
-
-enum RequestSortOrder {
-  ascending,
-  descending,
-}
+import '../logic/join_request_sort.dart';
+import '../models/joinrequest.dart';
 
 /// Page to manage join requests for a society's admin
 class JoinRequestsAdminPage extends StatefulWidget {
@@ -82,65 +71,8 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
   List<JoinRequest> get _selectedRequests =>
       _visibleRequests.where((r) => _selectedIds.contains(r.id)).toList();
 
-  List<JoinRequest> _sorted(Iterable<JoinRequest> requests) {
-    final list = requests.toList();
-    list.sort((a, b) {
-      int comparison;
-      switch (_sortField) {
-        case RequestSortField.name:
-          comparison =
-              a.userName.toLowerCase().compareTo(b.userName.toLowerCase());
-          break;
-        case RequestSortField.graduationYear:
-          // Members without a year on file sort last in ascending order.
-          comparison = _gradYearValue(a).compareTo(_gradYearValue(b));
-          break;
-        case RequestSortField.status:
-          comparison = _statusRank(a.status).compareTo(_statusRank(b.status));
-          break;
-        case RequestSortField.requestedAt:
-          comparison = a.requestedAt.compareTo(b.requestedAt);
-          break;
-        case RequestSortField.processedAt:
-          final aProcessed =
-              a.processedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-          final bProcessed =
-              b.processedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-          comparison = aProcessed.compareTo(bProcessed);
-          break;
-      }
-
-      // Stable, predictable tiebreak so equal keys don't shuffle between builds.
-      if (comparison == 0) {
-        comparison =
-            a.userName.toLowerCase().compareTo(b.userName.toLowerCase());
-      }
-      if (comparison == 0) comparison = a.id.compareTo(b.id);
-
-      return _sortOrder == RequestSortOrder.ascending
-          ? comparison
-          : -comparison;
-    });
-    return list;
-  }
-
-  int _gradYearValue(JoinRequest request) =>
-      int.tryParse(request.graduationYear) ?? 9999;
-
-  int _statusRank(String status) {
-    switch (status) {
-      case 'pending':
-        return 0;
-      case 'approved':
-        return 1;
-      case 'rejected':
-        return 2;
-      case 'revoked':
-        return 3;
-      default:
-        return 4;
-    }
-  }
+  List<JoinRequest> _sorted(Iterable<JoinRequest> requests) =>
+      sortJoinRequests(requests, field: _sortField, order: _sortOrder);
 
   String _sortFieldLabel(RequestSortField field) {
     switch (field) {
@@ -314,8 +246,8 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
             .map((r) => ids.contains(r.id)
                 ? r.copyWith(
                     status: approve ? 'approved' : 'rejected',
-                    processedAt: now,
-                    processorName: 'You',
+                    processedAt: () => now,
+                    processorName: () => 'You',
                   )
                 : r)
             .toList();
@@ -403,8 +335,8 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
             .map((r) => ids.contains(r.id)
                 ? r.copyWith(
                     status: 'revoked',
-                    processedAt: now,
-                    processorName: 'You',
+                    processedAt: () => now,
+                    processorName: () => 'You',
                   )
                 : r)
             .toList();
@@ -1537,60 +1469,3 @@ class _JoinRequestsAdminPageState extends State<JoinRequestsAdminPage>
 }
 
 /// Enhanced model class for join requests
-class JoinRequest {
-  final int id;
-  final String status;
-  final String userId;
-  final String userName;
-  final String userEmail;
-  final String graduationYear;
-  final DateTime requestedAt;
-  final DateTime? processedAt;
-  final String? processorName;
-
-  JoinRequest({
-    required this.id,
-    required this.status,
-    required this.userId,
-    required this.userName,
-    required this.userEmail,
-    this.graduationYear = '',
-    required this.requestedAt,
-    this.processedAt,
-    this.processorName,
-  });
-
-  JoinRequest copyWith({
-    String? status,
-    DateTime? processedAt,
-    String? processorName,
-  }) {
-    return JoinRequest(
-      id: id,
-      status: status ?? this.status,
-      userId: userId,
-      userName: userName,
-      userEmail: userEmail,
-      graduationYear: graduationYear,
-      requestedAt: requestedAt,
-      processedAt: processedAt ?? this.processedAt,
-      processorName: processorName ?? this.processorName,
-    );
-  }
-
-  factory JoinRequest.fromJson(Map<String, dynamic> json) {
-    return JoinRequest(
-      id: json['id'],
-      status: json['status'],
-      userId: json['user_id'],
-      userName: json['userName'] ?? 'Unknown User',
-      userEmail: json['userEmail'] ?? 'No email',
-      graduationYear: json['graduation_year']?.toString() ?? '',
-      requestedAt: DateTime.parse(json['requested_at']),
-      processedAt: json['processed_at'] != null
-          ? DateTime.parse(json['processed_at'])
-          : null,
-      processorName: json['processorName'],
-    );
-  }
-}
