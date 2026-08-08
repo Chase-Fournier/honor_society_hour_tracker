@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
+import '../data/supabase_client.dart';
 
-final supabase = Supabase.instance.client;
 
 /// Records user activity in the system for auditing purposes.
 ///

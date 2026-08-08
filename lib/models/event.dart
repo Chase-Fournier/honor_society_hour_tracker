@@ -1,3 +1,6 @@
+import 'package:clock/clock.dart';
+import 'package:flutter/foundation.dart' show ValueGetter;
+
 import 'timeslot.dart';
 
 class Event {
@@ -82,7 +85,7 @@ class Event {
   bool canSignUpForTimeSlot(TimeSlot timeSlot) {
     if (!hasDelay) return true;
 
-    final now = DateTime.now();
+    final now = clock.now();
     final eventDateTime = DateTime(
       date.year,
       date.month,
@@ -95,6 +98,14 @@ class Event {
     return now.isAfter(signupDateTime);
   }
 
+  /// Copies the event, overriding the given fields.
+  ///
+  /// The three nullable fields — [collectionId], [formLink] and [location] —
+  /// take getters rather than bare values so they can be *cleared*: pass
+  /// `location: () => null` to remove a location. The previous
+  /// `location ?? this.location` form made that impossible, so an event could
+  /// never be moved out of a collection or have its form link removed through
+  /// copyWith.
   Event copyWith({
     int? id,
     String? name,
@@ -103,14 +114,14 @@ class Event {
     String? type,
     bool? isMandatory,
     DateTime? createdAt,
-    int? collectionId,
+    ValueGetter<int?>? collectionId,
     List<TimeSlot>? timeSlots,
     bool? requiresForms,
-    String? formLink,
+    ValueGetter<String?>? formLink,
     Duration? swapRequestDeadline,
     bool? hasDelay,
     int? delayHours,
-    String? location,
+    ValueGetter<String?>? location,
   }) {
     return Event(
         id: id ?? this.id,
@@ -120,13 +131,13 @@ class Event {
         type: type ?? this.type,
         isMandatory: isMandatory ?? this.isMandatory,
         createdAt: createdAt ?? this.createdAt,
-        collectionId: collectionId ?? this.collectionId,
+        collectionId: collectionId != null ? collectionId() : this.collectionId,
         timeSlots: timeSlots ?? List.from(this.timeSlots),
         requiresForms: requiresForms ?? this.requiresForms,
-        formLink: formLink ?? this.formLink,
+        formLink: formLink != null ? formLink() : this.formLink,
         hasDelay: hasDelay ?? this.hasDelay,
         delayHours: delayHours ?? this.delayHours,
         swapRequestDeadline: swapRequestDeadline ?? this.swapRequestDeadline,
-        location: location ?? this.location);
+        location: location != null ? location() : this.location);
   }
 }

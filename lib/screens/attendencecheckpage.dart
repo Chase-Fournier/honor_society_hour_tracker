@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../common/app_design.dart';
 import '../models/timeslot.dart';
 import '../models/event.dart';
@@ -10,6 +9,9 @@ import '../models/logactivity.dart';
 import 'package:provider/provider.dart';
 import '../providers/societyprovider.dart';
 import '../providers/hapticsprovider.dart';
+import '../data/supabase_client.dart';
+import '../logic/hours.dart';
+import '../logic/attendance.dart';
 
 class AttendanceCheckPage extends StatefulWidget {
   final Event event;
@@ -61,7 +63,7 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
     });
 
     try {
-      final response = await Supabase.instance.client
+      final response = await supabase
           .from('Attendees')
           .select('*, profiles:user_id(name)')
           .eq('timeslot_id', widget.timeSlot.id ?? 0);
@@ -116,60 +118,69 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
           ? _absentAttendees.where((a) => a.isPresent).toList()
           : _presentAttendees.where((a) => !a.isPresent).toList();
 
-      for (var attendee in attendeesToUpdate) {
+      if (attendeesToUpdate.isNotEmpty) {
         final society =
             Provider.of<SocietyProvider>(context, listen: false).currentSociety;
+        final slotId = widget.timeSlot.id ?? 0;
+        final userIds = attendeesToUpdate.map((a) => a.userId).toList();
 
-        // Check if the attendee already has service hours for this event
-        final existingHours = await Supabase.instance.client
+        // One lookup for the whole roster. This used to be a select per
+        // attendee inside the loop below.
+        final existingRows = await supabase
             .from('Service hours')
-            .select()
-            .eq('user_id', attendee.userId)
-            .eq('timeslot_id', widget.timeSlot.id ?? 0)
-            .maybeSingle();
+            .select('user_id')
+            .eq('timeslot_id', slotId)
+            .inFilter('user_id', userIds);
 
-        if (existingHours == null && attendee.isPresent) {
-          // Add service hours
-          await Supabase.instance.client.from('Service hours').insert({
-            'user_id': attendee.userId,
-            'event_name': widget.event.name,
-            'timeslot_id': widget.timeSlot.id,
-            'hours': _calculateHours(widget.timeSlot),
-            'date': widget.event.date.toIso8601String(),
-            'type': widget.event.type,
-            'society_id': society?.id,
-          });
+        final existingUserIds = {
+          for (final row in existingRows) row['user_id'] as String,
+        };
 
-          await logactivity(
-            widget.event.name,
-            '${widget.timeSlot.time.format(context)} - ${widget.timeSlot.endTime.format(context)}',
-            _calculateHours(widget.timeSlot),
-            'attendance_marked',
-            attendee.userId,
-            societyId: society?.id,
-          );
-        } else if (existingHours != null && !attendee.isPresent) {
-          // Remove service hours
-          await Supabase.instance.client
+        final changes = attendanceChangesFor(
+          attendees: attendeesToUpdate,
+          userIdsWithExistingHours: existingUserIds,
+          event: widget.event,
+          timeSlot: widget.timeSlot,
+          societyId: society?.id,
+        );
+
+        // Batched writes, one query per kind of change.
+        if (changes.hoursToInsert.isNotEmpty) {
+          await supabase
               .from('Service hours')
-              .delete()
-              .eq('user_id', attendee.userId)
-              .eq('timeslot_id', widget.timeSlot.id ?? 0);
-
-          await logactivity(
-            widget.event.name,
-            '${widget.timeSlot.time.format(context)} - ${widget.timeSlot.endTime.format(context)}',
-            _calculateHours(widget.timeSlot),
-            'attendance_removed',
-            attendee.userId,
-            societyId: society?.id,
-          );
+              .insert([for (final row in changes.hoursToInsert) row.toJson()]);
         }
 
-        // Update attendance status
-        await Supabase.instance.client
-            .from('Attendees')
-            .update({'is_present': attendee.isPresent}).eq('id', attendee.id);
+        if (changes.userIdsToClear.isNotEmpty) {
+          await supabase
+              .from('Service hours')
+              .delete()
+              .eq('timeslot_id', slotId)
+              .inFilter('user_id', changes.userIdsToClear);
+        }
+
+        for (final entry in changes.presenceByAttendeeId.entries) {
+          await supabase
+              .from('Attendees')
+              .update({'is_present': entry.value}).eq('id', entry.key);
+        }
+
+        // Activity logging stays per-member: each entry names one person.
+        if (!mounted) return;
+        final slotLabel =
+            '${widget.timeSlot.time.format(context)} - ${widget.timeSlot.endTime.format(context)}';
+        final hours = timeSlotHours(widget.timeSlot);
+
+        for (final row in changes.hoursToInsert) {
+          await logactivity(widget.event.name, slotLabel, hours,
+              'attendance_marked', row.userId,
+              societyId: society?.id);
+        }
+        for (final userId in changes.userIdsToClear) {
+          await logactivity(widget.event.name, slotLabel, hours,
+              'attendance_removed', userId,
+              societyId: society?.id);
+        }
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -208,7 +219,7 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
       }
 
       // Get all society members
-      final membersResponse = await Supabase.instance.client
+      final membersResponse = await supabase
           .from('user_society_memberships')
           .select('user_id, profiles!inner(name)')
           .eq('society_id', society.id);
@@ -238,15 +249,15 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
       }
 
       // Add missing attendees
-      await Supabase.instance.client.from('Attendees').insert(missingAttendees);
+      await supabase.from('Attendees').insert(missingAttendees);
 
       // Log the sync action
       await logactivity(
         widget.event.name,
         '${widget.timeSlot.time.format(context)} - ${widget.timeSlot.endTime.format(context)}',
-        _calculateHours(widget.timeSlot),
+        timeSlotHours(widget.timeSlot),
         'sync_attendees',
-        Supabase.instance.client.auth.currentUser?.id ?? '',
+        supabase.auth.currentUser?.id ?? '',
         societyId: society?.id,
       );
 
@@ -276,13 +287,7 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
   ///
   /// Returns:
   /// - double: Duration in hours
-  double _calculateHours(TimeSlot timeSlot) {
-    final start = timeSlot.time;
-    final end = timeSlot.endTime;
-    final difference =
-        end.hour * 60 + end.minute - (start.hour * 60 + start.minute);
-    return difference / 60.0;
-  }
+
 
   void _showSwapDialog(Attendee currentAttendee) {
     List<UserProfile> allUsers = [];
@@ -378,7 +383,7 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
     final societyId =
         Provider.of<SocietyProvider>(context, listen: false).currentSociety?.id;
 
-    final response = await Supabase.instance.client
+    final response = await supabase
         .from('profiles')
         .select('user_id, name')
         .eq('society_id', societyId ?? 0)
@@ -397,13 +402,13 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
       Attendee currentAttendee, UserProfile newUser) async {
     try {
       // Remove the current attendee
-      await Supabase.instance.client
+      await supabase
           .from('Attendees')
           .delete()
           .eq('id', currentAttendee.id);
 
       // Add the new attendee
-      final response = await Supabase.instance.client
+      final response = await supabase
           .from('Attendees')
           .insert({
             'timeslot_id': currentAttendee.timeSlotId,
@@ -602,7 +607,7 @@ class _AttendanceCheckPageState extends State<AttendanceCheckPage>
 
   void _toggleFormCompletionStatus(Attendee attendee) async {
     try {
-      await Supabase.instance.client.from('Attendees').update(
+      await supabase.from('Attendees').update(
           {'forms_completed': !attendee.formsCompleted}).eq('id', attendee.id);
 
       setState(() {

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import 'package:excel/excel.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
@@ -10,6 +9,7 @@ import 'providers/societyprovider.dart';
 import 'models/userprofile.dart';
 import 'common/normalizetype.dart';
 import '../providers/hapticsprovider.dart';
+import 'data/supabase_client.dart';
 
 Future<void> exportToExcel(
     BuildContext context, List<UserProfile> users) async {
@@ -33,7 +33,7 @@ Future<void> exportToExcel(
     final userIds = users.map((u) => u.id).toList();
 
     // Get email addresses
-    final profilesResponse = await Supabase.instance.client
+    final profilesResponse = await supabase
         .from('profiles')
         .select('user_id, email, graduation_year')
         .inFilter('user_id', userIds);
@@ -49,7 +49,7 @@ Future<void> exportToExcel(
     };
 
     // Get service hours for current society only
-    final hoursResponse = await Supabase.instance.client
+    final hoursResponse = await supabase
         .from('Service hours')
         .select('user_id, event_name, hours, type, date, timeslot')
         .eq('society_id', society.id) // Filter by current society

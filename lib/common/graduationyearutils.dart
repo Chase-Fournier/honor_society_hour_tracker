@@ -1,3 +1,5 @@
+import 'package:clock/clock.dart';
+
 /// Shared rules for the graduation year field.
 ///
 /// The accepted range is a rolling window anchored on the current year, so it
@@ -6,8 +8,10 @@ class GraduationYearUtils {
   static const int _yearsBehind = 56;
   static const int _yearsAhead = 24;
 
-  static int get minYear => DateTime.now().year - _yearsBehind;
-  static int get maxYear => DateTime.now().year + _yearsAhead;
+  // clock.now() is DateTime.now() unless a test wraps the call in withClock(),
+  // which lets the rolling window be asserted against a fixed year.
+  static int get minYear => clock.now().year - _yearsBehind;
+  static int get maxYear => clock.now().year + _yearsAhead;
 
   /// `TextFormField` validator: requires a 4-digit year inside the window.
   static String? validate(String? value) {

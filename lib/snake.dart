@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'common/app_design.dart';
-import 'main.dart';
+import 'data/supabase_client.dart';
 import 'providers/hapticsprovider.dart';
 
 /// ---------------------------------------------------------------------------

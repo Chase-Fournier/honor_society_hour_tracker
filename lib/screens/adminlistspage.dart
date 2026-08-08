@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import 'package:intl/intl.dart';
 import '../providers/societyprovider.dart';
 import '../common/app_design.dart';
@@ -18,22 +17,11 @@ import '../common/normalizetype.dart';
 import 'package:flutter/services.dart';
 import '../common/iconutils.dart';
 import '../providers/hapticsprovider.dart';
+import '../data/supabase_client.dart';
+import '../logic/user_filtering.dart';
+import '../common/app_validators.dart';
 
-final supabase = Supabase.instance.client;
 
-enum SortField {
-  name,
-  totalHours,
-  serviceHours,
-  tutoringHours,
-  meetingHours,
-  graduationYear,
-}
-
-enum SortOrder {
-  ascending,
-  descending,
-}
 
 class ColoringRule {
   final String name;
@@ -301,155 +289,40 @@ class _AdminListPageState extends State<AdminListPage> {
   }
 
   List<UserProfile> _getFilteredAndSortedUsers() {
-    List<UserProfile> filteredUsers = _users;
-
-    if (_searchQuery.isNotEmpty) {
-      final lowercaseQuery = _searchQuery.toLowerCase();
-      filteredUsers = filteredUsers.where((user) {
-        final lowercaseName = user.name.toLowerCase();
-        return lowercaseName.contains(lowercaseQuery);
-      }).toList();
-    }
-
-    // Filter by hour type if selected
-    if (_selectedHourType != null && _selectedHourType != 'All') {
-      filteredUsers = filteredUsers.where((user) {
-        return user.completedHours.any((hour) =>
-            normalizeType(hour.type) == normalizeType(_selectedHourType!));
-      }).toList();
-    }
-
-    // Apply advanced filtering if enabled
-    if (_useAdvancedFiltering) {
-      filteredUsers = filteredUsers.where((user) {
-        bool meetsAllCriteria = true;
-
-        // Filter by total hours
-        final totalHours = _getTotalHours(user);
-        if (_totalHoursCondition == 'atLeast' && _minimumTotalHours > 0) {
-          meetsAllCriteria =
-              meetsAllCriteria && (totalHours >= _minimumTotalHours);
-        } else if (_totalHoursCondition == 'atMost' &&
-            _maximumTotalHours < 50) {
-          meetsAllCriteria =
-              meetsAllCriteria && (totalHours <= _maximumTotalHours);
-        } else if (_totalHoursCondition == 'between' &&
-            (_minimumTotalHours > 0 || _maximumTotalHours < 50)) {
-          meetsAllCriteria = meetsAllCriteria &&
-              (totalHours >= _minimumTotalHours &&
-                  totalHours <= _maximumTotalHours);
-        }
-
-        // Filter by each hour type dynamically
-        for (final hourType in _minimumHoursByType.keys) {
-          final hours = _getHoursByType(user, hourType);
-          final condition = _hoursConditionByType[hourType] ?? 'atLeast';
-          final minHours = _minimumHoursByType[hourType] ?? 0;
-          final maxHours = _maximumHoursByType[hourType] ?? 50;
-
-          if (condition == 'atLeast' && minHours > 0) {
-            meetsAllCriteria = meetsAllCriteria && (hours >= minHours);
-          } else if (condition == 'atMost' &&
-              maxHours < (_maximumHoursByType[hourType] ?? 50)) {
-            meetsAllCriteria = meetsAllCriteria && (hours <= maxHours);
-          } else if (condition == 'between' &&
-              (minHours > 0 ||
-                  maxHours < (_maximumHoursByType[hourType] ?? 50))) {
-            meetsAllCriteria =
-                meetsAllCriteria && (hours >= minHours && hours <= maxHours);
-          }
-        }
-
-        // Check graduation year
-        if (_filterGraduationYear.isNotEmpty) {
-          if (_graduationYearCondition == 'equals') {
-            meetsAllCriteria = meetsAllCriteria &&
-                user.graduationYear == _filterGraduationYear;
-          } else if (_graduationYearCondition == 'before') {
-            // Try to convert to int for comparison
-            try {
-              final gradYear = int.parse(user.graduationYear);
-              final filterYear = int.parse(_filterGraduationYear);
-              meetsAllCriteria = meetsAllCriteria && gradYear < filterYear;
-            } catch (e) {
-              // Fallback to string comparison if parsing fails
-              meetsAllCriteria = meetsAllCriteria &&
-                  user.graduationYear.compareTo(_filterGraduationYear) < 0;
-            }
-          } else if (_graduationYearCondition == 'after') {
-            // Try to convert to int for comparison
-            try {
-              final gradYear = int.parse(user.graduationYear);
-              final filterYear = int.parse(_filterGraduationYear);
-              meetsAllCriteria = meetsAllCriteria && gradYear > filterYear;
-            } catch (e) {
-              // Fallback to string comparison if parsing fails
-              meetsAllCriteria = meetsAllCriteria &&
-                  user.graduationYear.compareTo(_filterGraduationYear) > 0;
-            }
-          }
-        }
-
-        // Filter by dues status if selected
-        if (_filterByDues) {
-          meetsAllCriteria =
-              meetsAllCriteria && user.hasPaidDues == _showPaidDues;
-        }
-
-        return meetsAllCriteria;
-      }).toList();
-    }
-
-    // Sort the filtered users
-    filteredUsers.sort((a, b) {
-      int comparison;
-      switch (_sortField) {
-        case SortField.name:
-          comparison = a.name.compareTo(b.name);
-          break;
-        case SortField.totalHours:
-          comparison = _getTotalHours(a).compareTo(_getTotalHours(b));
-          break;
-        case SortField.serviceHours:
-          if (_selectedHourType != null && _selectedHourType != 'All') {
-            // Use dynamic type if specified
-            comparison = _getHoursByType(a, _selectedHourType!)
-                .compareTo(_getHoursByType(b, _selectedHourType!));
-          } else {
-            // Default to all service hours
-            comparison = _getHoursByType(a, 'Service')
-                .compareTo(_getHoursByType(b, 'Service'));
-          }
-          break;
-        case SortField.tutoringHours:
-          comparison = _getHoursByType(a, 'Tutoring')
-              .compareTo(_getHoursByType(b, 'Tutoring'));
-          break;
-        case SortField.meetingHours:
-          comparison = _getHoursByType(a, 'Meeting')
-              .compareTo(_getHoursByType(b, 'Meeting'));
-          break;
-        case SortField.graduationYear:
-          // Add sorting by graduation year
-          comparison = a.graduationYear.compareTo(b.graduationYear);
-          break;
-      }
-
-      return _sortOrder == SortOrder.ascending ? comparison : -comparison;
-    });
-
-    return filteredUsers;
+    return filterAndSortUsers(
+      _users,
+      filter: UserFilter(
+        searchQuery: _searchQuery,
+        hourType: _selectedHourType,
+        useAdvancedFiltering: _useAdvancedFiltering,
+        totalHours: HourTypeFilter(
+          condition: rangeConditionFromString(_totalHoursCondition),
+          min: _minimumTotalHours,
+          max: _maximumTotalHours,
+        ),
+        hoursByType: {
+          for (final type in _minimumHoursByType.keys)
+            type: HourTypeFilter(
+              condition: rangeConditionFromString(_hoursConditionByType[type]),
+              min: _minimumHoursByType[type] ?? 0,
+              max: _maximumHoursByType[type] ?? 50,
+            ),
+        },
+        graduationYear: _filterGraduationYear,
+        graduationYearCondition:
+            graduationYearConditionFromString(_graduationYearCondition),
+        filterByDues: _filterByDues,
+        showPaidDues: _showPaidDues,
+      ),
+      sortField: _sortField,
+      sortOrder: _sortOrder,
+    );
   }
 
-  double _getTotalHours(UserProfile user) {
-    return user.completedHours.fold(0.0, (sum, hour) => sum + hour.hours);
-  }
+  double _getTotalHours(UserProfile user) => totalHoursFor(user);
 
-  double _getHoursByType(UserProfile user, String type) {
-    return user.completedHours
-        .where((hour) => normalizeType(hour.type) == normalizeType(type))
-        .fold(0.0, (sum, hour) => sum + hour.hours);
-  }
+  double _getHoursByType(UserProfile user, String type) =>
+      hoursByTypeFor(user, type);
 
   // Determine row color based on conditions
   Color _getRowColor(UserProfile user, int index, BuildContext context) {
@@ -3533,9 +3406,8 @@ class _AdminListPageState extends State<AdminListPage> {
                 AppTextField(
                   label: 'Event name',
                   controller: nameC,
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Please enter an event name'
-                      : null,
+                  validator: (v) => AppValidators.required(v,
+                      message: 'Please enter an event name'),
                 ),
                 const SizedBox(height: AppDesign.spacingM),
                 AppTextField(
@@ -3630,7 +3502,7 @@ class _AdminListPageState extends State<AdminListPage> {
       societyId: society?.id,
     );
 
-    await Supabase.instance.client
+    await supabase
         .from('Service hours')
         .delete()
         .eq('event_name', hour.eventName)
@@ -3932,10 +3804,8 @@ class _EditHourDialogContentState extends State<_EditHourDialogContent> {
             label: 'Event name',
             controller: _eventNameController,
             prefixIcon: Icons.event,
-            validator: (value) =>
-                (value == null || value.trim().isEmpty)
-                    ? 'Please enter an event name'
-                    : null,
+            validator: (value) => AppValidators.required(value,
+                message: 'Please enter an event name'),
           ),
           const SizedBox(height: AppDesign.spacingM),
           AppTextField(

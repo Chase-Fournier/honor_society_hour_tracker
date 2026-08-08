@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import '../providers/societyprovider.dart';
 import '../common/app_design.dart';
 import '../common/app_widgets.dart';
@@ -10,8 +9,9 @@ import '../common/nhsformatutils.dart';
 import '../models/userprofile.dart';
 import '../models/logactivity.dart';
 import '../providers/hapticsprovider.dart';
+import '../data/supabase_client.dart';
+import '../common/app_validators.dart';
 
-final supabase = Supabase.instance.client;
 
 class BulkCustomEventFormPage extends StatefulWidget {
   final List<UserProfile> users;
@@ -192,9 +192,8 @@ class _BulkCustomEventFormPageState extends State<BulkCustomEventFormPage> {
                     AppTextField(
                       label: 'Event name',
                       onChanged: (value) => eventName = value,
-                      validator: (value) => (value == null || value.isEmpty)
-                          ? 'Please enter an event name'
-                          : null,
+                      validator: (value) => AppValidators.required(value,
+                          message: 'Please enter an event name'),
                     ),
                     const SizedBox(height: AppDesign.spacingM),
                     AppTextField(

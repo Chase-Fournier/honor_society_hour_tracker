@@ -10,6 +10,7 @@ import 'homescreenpage.dart';
 import 'settingspage.dart';
 import 'adminlistspage.dart';
 import '../common/customnavigationbar.dart';
+import '../logic/notification_routing.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -51,8 +52,15 @@ class _MainScreenState extends State<MainScreen> {
     // Consume it so it isn't re-handled on the next rebuild/listener fire.
     NotificationService.instance.tappedNotification.value = null;
 
-    final isAdmin = context.read<SocietyProvider>().isAdmin;
-    final target = _tabForPayload(data['type']?.toString(), isAdmin);
+    // Must match the shell actually on screen, which build() derives from
+    // showAdminView. Using raw isAdmin here sent an admin who was previewing
+    // the member view to admin tab indices -- a 'hours' notification landed on
+    // Settings instead of Completed Hours.
+    final showAdminView = context.read<SocietyProvider>().showAdminView;
+    final target = tabForNotificationType(
+      data['type']?.toString(),
+      isAdmin: showAdminView,
+    );
     if (target == null) return;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -60,25 +68,6 @@ class _MainScreenState extends State<MainScreen> {
       setState(() => _currentIndex = target);
       _pageController.jumpToPage(target);
     });
-  }
-
-  /// Maps a notification `type` to a top-level tab index for the current role.
-  /// Returns null when there's no sensible destination (stay put).
-  int? _tabForPayload(String? type, bool isAdmin) {
-    switch (type) {
-      case 'event':
-        return isAdmin ? 1 : 0; // Events / Home
-      case 'meeting_notes':
-        return 0; // Dashboard / Home
-      case 'hours':
-        return isAdmin ? 2 : 1; // Attendance / Details
-      case 'swap':
-        return isAdmin ? 2 : 0; // Attendance / Home
-      case 'continuous_submission':
-        return isAdmin ? 0 : 1; // Dashboard / Details
-      default:
-        return null;
-    }
   }
 
   @override

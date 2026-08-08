@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import 'package:intl/intl.dart';
 import '../providers/societyprovider.dart';
 import '../common/app_design.dart';
@@ -20,8 +19,9 @@ import '../common/normalizetype.dart';
 import '../common/iconutils.dart';
 import '../providers/hapticsprovider.dart';
 import 'continuouseventsubmissionspage.dart';
+import '../data/supabase_client.dart';
+import '../common/app_validators.dart';
 
-final supabase = Supabase.instance.client;
 
 class AdminEventsPage extends StatefulWidget {
   final HonorSociety? society;
@@ -1208,7 +1208,7 @@ class _AdminEventsPageState extends State<AdminEventsPage>
 // Also update the _fetchCollections method to filter by society if specified
   Future<void> _fetchCollections() async {
     try {
-      var query = Supabase.instance.client.from('Collections').select('*');
+      var query = supabase.from('Collections').select('*');
 
       // If we have a society specified, filter by it
       if (widget.society != null) {
@@ -1344,7 +1344,7 @@ class _AdminEventsPageState extends State<AdminEventsPage>
   }
 
   void _removeEventFromCollection(Event event, Collection collection) async {
-    await Supabase.instance.client.from('Events').update({
+    await supabase.from('Events').update({
       'collection_id': null,
     }).eq('id', event.id);
     if (mounted) {
@@ -1394,7 +1394,7 @@ class _AdminEventsPageState extends State<AdminEventsPage>
   Future<void> _onEventDropped(Event event, int? collectionId) async {
     try {
       // Update the event in the database
-      await Supabase.instance.client
+      await supabase
           .from('Events')
           .update({'collection_id': collectionId}).eq('id', event.id);
 
@@ -1487,8 +1487,7 @@ class _AdminEventsPageState extends State<AdminEventsPage>
                 label: 'Capacity',
                 controller: capacityC,
                 keyboardType: const TextInputType.numberWithOptions(),
-                validator: (value) =>
-                    int.tryParse(value ?? '') == null ? 'Enter a number' : null,
+                validator: AppValidators.integer,
               ),
               const SizedBox(height: AppDesign.spacingM),
               AppTextField(
@@ -1605,7 +1604,7 @@ class _AdminEventsPageState extends State<AdminEventsPage>
   ) async {
     try {
       // Insert the event
-      final eventResponse = await Supabase.instance.client
+      final eventResponse = await supabase
           .from('Events')
           .insert({
             'name': name,
@@ -1647,7 +1646,7 @@ class _AdminEventsPageState extends State<AdminEventsPage>
 
       final List<int> newTimeSlotIds = [];
       if (timeSlotRows.isNotEmpty) {
-        final inserted = await Supabase.instance.client
+        final inserted = await supabase
             .from('Time slots')
             .insert(timeSlotRows)
             .select('id');
@@ -1660,7 +1659,7 @@ class _AdminEventsPageState extends State<AdminEventsPage>
       // attendee for every new time slot — one batched insert instead of
       // (slots × members) round-trips.
       if ((isMandatory || type == "Meeting") && newTimeSlotIds.isNotEmpty) {
-        final usersResponse = await Supabase.instance.client
+        final usersResponse = await supabase
             .from('user_society_memberships')
             .select('user_id')
             .eq('society_id', societyId);
@@ -1676,7 +1675,7 @@ class _AdminEventsPageState extends State<AdminEventsPage>
           }
         }
         if (attendeeRows.isNotEmpty) {
-          await Supabase.instance.client
+          await supabase
               .from('Attendees')
               .insert(attendeeRows);
         }
@@ -1710,9 +1709,8 @@ class _AdminEventsPageState extends State<AdminEventsPage>
         child: AppTextField(
           label: 'Collection name',
           controller: nameC,
-          validator: (value) => (value == null || value.trim().isEmpty)
-              ? 'Please enter the collection name'
-              : null,
+          validator: (value) => AppValidators.required(value,
+              message: 'Please enter the collection name'),
         ),
       ),
       footer: (ctx) => _formFooter(
@@ -1739,7 +1737,7 @@ class _AdminEventsPageState extends State<AdminEventsPage>
   /// Throws:
   /// - DatabaseException if collection creation fails
   Future<void> _addCollection(String name) async {
-    final response = await Supabase.instance.client.from('Collections').insert({
+    final response = await supabase.from('Collections').insert({
       'name': name,
       'event_ids': [],
       'society_id': Provider.of<SocietyProvider>(context, listen: false)
@@ -1795,7 +1793,7 @@ class _AdminEventsPageState extends State<AdminEventsPage>
   ) async {
     try {
       // Update the event
-      await Supabase.instance.client.from('Events').update({
+      await supabase.from('Events').update({
         'name': name,
         'description': description,
         'location': location.isEmpty ? null : location,
@@ -1811,7 +1809,7 @@ class _AdminEventsPageState extends State<AdminEventsPage>
       }).eq('id', eventId);
 
       // Fetch existing time slots once.
-      final existingTimeSlotsResponse = await Supabase.instance.client
+      final existingTimeSlotsResponse = await supabase
           .from('Time slots')
           .select()
           .eq('event_id', eventId);
@@ -1839,7 +1837,7 @@ class _AdminEventsPageState extends State<AdminEventsPage>
       // Run all existing-slot updates in parallel (no true bulk update for
       // per-row payloads in PostgREST, but parallelism turns N RTTs into 1).
       await Future.wait(toUpdate.map((ts) {
-        return Supabase.instance.client.from('Time slots').update({
+        return supabase.from('Time slots').update({
           'start_time': DateTime(DateTime.now().year, date.month, date.day,
                   ts.time.hour, ts.time.minute)
               .toIso8601String(),
@@ -1868,7 +1866,7 @@ class _AdminEventsPageState extends State<AdminEventsPage>
                   'created_at': nowIso,
                 })
             .toList();
-        final inserted = await Supabase.instance.client
+        final inserted = await supabase
             .from('Time slots')
             .insert(insertRows)
             .select('id');
@@ -1885,11 +1883,11 @@ class _AdminEventsPageState extends State<AdminEventsPage>
           .where((id) => !incomingIds.contains(id))
           .toList();
       if (deletedSlotIds.isNotEmpty) {
-        await Supabase.instance.client
+        await supabase
             .from('Attendees')
             .delete()
             .inFilter('timeslot_id', deletedSlotIds);
-        await Supabase.instance.client
+        await supabase
             .from('Time slots')
             .delete()
             .inFilter('id', deletedSlotIds);
@@ -1911,13 +1909,13 @@ class _AdminEventsPageState extends State<AdminEventsPage>
           // Pull members of THIS society — previously this hit `profiles`
           // with no filter, which silently added attendee rows for users
           // from every other society too.
-          final usersResponse = await Supabase.instance.client
+          final usersResponse = await supabase
               .from('user_society_memberships')
               .select('user_id')
               .eq('society_id', societyId);
 
           // What attendee rows already exist for these slots?
-          final existingAttendeesResp = await Supabase.instance.client
+          final existingAttendeesResp = await supabase
               .from('Attendees')
               .select('timeslot_id, user_id')
               .inFilter('timeslot_id', allSlotIds);
@@ -1941,7 +1939,7 @@ class _AdminEventsPageState extends State<AdminEventsPage>
             }
           }
           if (attendeeRows.isNotEmpty) {
-            await Supabase.instance.client
+            await supabase
                 .from('Attendees')
                 .insert(attendeeRows);
           }
@@ -2000,7 +1998,7 @@ class _AdminEventsPageState extends State<AdminEventsPage>
       String notes) async {
     try {
       // Update the time slot in the database
-      await Supabase.instance.client.from('Time slots').update({
+      await supabase.from('Time slots').update({
         'start_time': DateTime(DateTime.now().year, event.date.month,
                 event.date.day, startTime.hour, startTime.minute)
             .toIso8601String(),
@@ -2072,7 +2070,7 @@ class _AdminEventsPageState extends State<AdminEventsPage>
     setState(() {
       _events.remove(event);
     });
-    await Supabase.instance.client.from('Events').delete().eq('id', event.id);
+    await supabase.from('Events').delete().eq('id', event.id);
   }
 
   // =========================================================================
@@ -2485,9 +2483,8 @@ class _AdminEventsPageState extends State<AdminEventsPage>
                       AppTextField(
                         label: 'Name',
                         controller: nameC,
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Enter a name'
-                            : null,
+                        validator: (v) =>
+                            AppValidators.required(v, message: 'Enter a name'),
                       ),
                       const SizedBox(height: AppDesign.spacingM),
                       AppTextField(
@@ -2736,7 +2733,7 @@ class _AdminEventsPageState extends State<AdminEventsPage>
               controller: descC,
               maxLines: 3,
               validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Enter a description' : null,
+                  AppValidators.required(v, message: 'Enter a description'),
             ),
             const SizedBox(height: AppDesign.spacingM),
             AppTextField(
@@ -3022,13 +3019,6 @@ class _EventFormBodyState extends State<_EventFormBody> {
     }
   }
 
-  String? _validateNonNegativeInt(String? value) {
-    if (value == null || value.isEmpty) return 'Enter a number';
-    final n = int.tryParse(value);
-    if (n == null || n < 0) return 'Enter a valid number';
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Form(
@@ -3046,17 +3036,15 @@ class _EventFormBodyState extends State<_EventFormBody> {
                 AppTextField(
                   label: 'Event name',
                   controller: _nameC,
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Enter an event name'
-                      : null,
+                  validator: (v) =>
+                      AppValidators.required(v, message: 'Enter an event name'),
                 ),
                 const SizedBox(height: AppDesign.spacingM),
                 AppTextField(
                   label: 'Description',
                   controller: _descC,
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Enter a description'
-                      : null,
+                  validator: (v) =>
+                      AppValidators.required(v, message: 'Enter a description'),
                 ),
                 const SizedBox(height: AppDesign.spacingM),
                 AppTextField(
@@ -3118,9 +3106,8 @@ class _EventFormBodyState extends State<_EventFormBody> {
                   AppTextField(
                     label: 'Form link',
                     controller: _formLinkC,
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Enter a form link'
-                        : null,
+                    validator: (v) =>
+                        AppValidators.required(v, message: 'Enter a form link'),
                   ),
                 ],
                 AppSwitchRow(
@@ -3135,7 +3122,7 @@ class _EventFormBodyState extends State<_EventFormBody> {
                     label: 'Delay hours before event',
                     controller: _delayC,
                     keyboardType: TextInputType.number,
-                    validator: _validateNonNegativeInt,
+                    validator: AppValidators.nonNegativeInt,
                   ),
                 ],
                 const SizedBox(height: AppDesign.spacingM),
@@ -3143,7 +3130,7 @@ class _EventFormBodyState extends State<_EventFormBody> {
                   label: 'Cancel deadline (hours before event)',
                   controller: _deadlineC,
                   keyboardType: const TextInputType.numberWithOptions(),
-                  validator: _validateNonNegativeInt,
+                  validator: AppValidators.nonNegativeInt,
                 ),
               ],
             ),

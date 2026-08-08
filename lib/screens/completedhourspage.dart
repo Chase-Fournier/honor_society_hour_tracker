@@ -15,8 +15,9 @@ import '../providers/hapticsprovider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'dart:convert';
+import '../data/supabase_client.dart';
+import '../logic/relative_time.dart';
 
-final supabase = Supabase.instance.client;
 
 class CompletedHoursPage extends StatefulWidget {
   const CompletedHoursPage({super.key});
@@ -84,7 +85,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
           Provider.of<SocietyProvider>(context, listen: false).currentSociety;
       if (society == null) return;
 
-      final response = await Supabase.instance.client
+      final response = await supabase
           .from('Notes')
           .select('*')
           .eq('society_id', society.id)
@@ -108,7 +109,7 @@ class _CompletedHoursPageState extends State<CompletedHoursPage> {
 
     if (userId != null && society != null) {
       // Get all service hours for this user in this society in a single query
-      final response = await Supabase.instance.client
+      final response = await supabase
           .from('Service hours')
           .select('hours, type, event_name, date')
           .eq('user_id', userId)
@@ -1299,7 +1300,7 @@ class _MeetingNotesSheetState extends State<_MeetingNotesSheet> {
                                             ),
                                             const SizedBox(width: 4),
                                             Text(
-                                              _getTimeAgo(note.createdAt),
+                                              timeAgo(note.createdAt),
                                               style: Theme.of(context)
                                                   .textTheme
                                                   .bodySmall
@@ -1495,23 +1496,4 @@ class _MeetingNotesSheetState extends State<_MeetingNotesSheet> {
     );
   }
 
-  String _getTimeAgo(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-
-    if (difference.inDays > 30) {
-      return DateFormat('MMM d, y').format(dateTime);
-    } else if (difference.inDays > 7) {
-      final weeks = (difference.inDays / 7).floor();
-      return '$weeks ${weeks == 1 ? 'week' : 'weeks'} ago';
-    } else if (difference.inDays > 0) {
-      return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'} ago';
-    } else {
-      return 'Just now';
-    }
-  }
 }

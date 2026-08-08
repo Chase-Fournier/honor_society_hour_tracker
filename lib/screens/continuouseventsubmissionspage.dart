@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../common/app_design.dart';
@@ -10,8 +9,8 @@ import '../models/continuousevent.dart';
 import '../models/continuouseventsubmission.dart';
 import '../models/logactivity.dart';
 import '../providers/hapticsprovider.dart';
+import '../data/supabase_client.dart';
 
-final _supabase = Supabase.instance.client;
 
 class ContinuousEventSubmissionsPage extends StatefulWidget {
   final ContinuousEvent event;
@@ -49,7 +48,7 @@ class _ContinuousEventSubmissionsPageState
   Future<void> _fetchSubmissions() async {
     setState(() => _isLoading = true);
     try {
-      final rows = await _supabase
+      final rows = await supabase
           .from('continuous_event_submissions')
           .select()
           .eq('continuous_event_id', widget.event.id)
@@ -62,7 +61,7 @@ class _ContinuousEventSubmissionsPageState
       final userIds =
           list.map((r) => r['user_id'] as String).toSet().toList();
       if (userIds.isNotEmpty) {
-        final profileRows = await _supabase
+        final profileRows = await supabase
             .from('profiles')
             .select('user_id, name')
             .inFilter('user_id', userIds);
@@ -103,11 +102,11 @@ class _ContinuousEventSubmissionsPageState
 
   Future<void> _approve(ContinuousEventSubmission s) async {
     final haptics = Provider.of<HapticsProvider>(context, listen: false);
-    final reviewerId = _supabase.auth.currentUser?.id;
+    final reviewerId = supabase.auth.currentUser?.id;
     if (reviewerId == null) return;
 
     try {
-      final inserted = await _supabase.from('Service hours').insert({
+      final inserted = await supabase.from('Service hours').insert({
         'user_id': s.userId,
         'event_name': widget.event.name,
         'hours': s.hours,
@@ -118,7 +117,7 @@ class _ContinuousEventSubmissionsPageState
 
       final serviceHoursId = (inserted['id'] as num).toInt();
 
-      await _supabase.from('continuous_event_submissions').update({
+      await supabase.from('continuous_event_submissions').update({
         'status': 'approved',
         'reviewer_id': reviewerId,
         'reviewed_at': DateTime.now().toIso8601String(),
@@ -153,14 +152,14 @@ class _ContinuousEventSubmissionsPageState
 
   Future<void> _reject(ContinuousEventSubmission s) async {
     final haptics = Provider.of<HapticsProvider>(context, listen: false);
-    final reviewerId = _supabase.auth.currentUser?.id;
+    final reviewerId = supabase.auth.currentUser?.id;
     if (reviewerId == null) return;
 
     final reason = await _promptForReason();
     if (reason == null) return;
 
     try {
-      await _supabase.from('continuous_event_submissions').update({
+      await supabase.from('continuous_event_submissions').update({
         'status': 'rejected',
         'reviewer_id': reviewerId,
         'reviewer_notes': reason.isEmpty ? null : reason,
@@ -198,13 +197,13 @@ class _ContinuousEventSubmissionsPageState
 
     try {
       if (s.isApproved && s.serviceHoursId != null) {
-        await _supabase
+        await supabase
             .from('Service hours')
             .delete()
             .eq('id', s.serviceHoursId!);
       }
 
-      await _supabase.from('continuous_event_submissions').update({
+      await supabase.from('continuous_event_submissions').update({
         'status': 'pending',
         'reviewer_id': null,
         'reviewer_notes': null,

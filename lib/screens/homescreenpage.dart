@@ -12,7 +12,6 @@ import '../models/timeslot.dart';
 import '../models/hourrequirement.dart';
 import '../models/honorsociety.dart';
 import '../models/collection.dart';
-import '../models/completedhour.dart';
 import '../models/event.dart';
 import '../models/swaprequest.dart';
 import '../models/userprofile.dart';
@@ -30,8 +29,10 @@ import '../services/notification_service.dart';
 import '../providers/notificationsprovider.dart';
 import '../common/progress_bars.dart';
 import 'continuouseventdetailpage.dart';
+import '../data/supabase_client.dart';
+import '../logic/signup_result.dart';
+import '../logic/hour_summary.dart';
 
-final supabase = Supabase.instance.client;
 
 class HomePage extends StatefulWidget {
   final HonorSociety? society;
@@ -130,7 +131,7 @@ class _HomePageState extends State<HomePage> {
     if (society == null) return;
 
     // 1) Fetch all events for the society.
-    final eventResponse = await Supabase.instance.client
+    final eventResponse = await supabase
         .from('Events')
         .select()
         .eq('society_id', society.id)
@@ -150,7 +151,7 @@ class _HomePageState extends State<HomePage> {
         events.map((e) => e.id).whereType<int>().toList();
 
     // 2) Fetch every time slot for those events in a single batched query.
-    final timeSlotResponse = await Supabase.instance.client
+    final timeSlotResponse = await supabase
         .from('Time slots')
         .select()
         .inFilter('event_id', eventIds);
@@ -170,7 +171,7 @@ class _HomePageState extends State<HomePage> {
 
     final Map<int, List<Attendee>> attendeesBySlot = {};
     if (timeSlotIds.isNotEmpty) {
-      final attendeeResponse = await Supabase.instance.client
+      final attendeeResponse = await supabase
           .from('Attendees')
           .select('*, profiles!inner(name)')
           .inFilter('timeslot_id', timeSlotIds);
@@ -211,75 +212,27 @@ class _HomePageState extends State<HomePage> {
 
     if (userId != null && society != null) {
       // Get user's service hours for this society in a single query
-      final response = await Supabase.instance.client
+      final response = await supabase
           .from('Service hours')
           .select('hours, type, event_name, date')
           .eq('user_id', userId)
           .eq('society_id', society.id);
 
       if (_events != null) {
-        final data = response;
-        Map<String, double> completedHoursMap = {};
-        Map<String, double> potentialHoursMap = {};
-        Map<String, List<CompletedHour>> hoursByTypeMap = {};
+        // Aggregation lives in lib/logic/hour_summary.dart so it can be tested
+        // without the screen. It also matches types via normalizeType: this
+        // block used to bucket on the raw string, so hours logged as "service"
+        // never counted towards the "Service" requirement and vanished from
+        // the member's totals.
+        final summary = summariseHours(
+          loggedRows: response.cast<Map<String, dynamic>>(),
+          upcomingEvents: _events!,
+          requirementTypes: _requirementMap.keys,
+          userId: userId,
+        );
 
-        // Initialize maps with all requirement types
-        for (final reqType in _requirementMap.keys) {
-          completedHoursMap[reqType] = 0;
-          potentialHoursMap[reqType] = 0;
-          hoursByTypeMap[reqType] = [];
-        }
-
-        // Always include Meeting type
-        if (!completedHoursMap.containsKey('Meeting')) {
-          completedHoursMap['Meeting'] = 0;
-          potentialHoursMap['Meeting'] = 0;
-          hoursByTypeMap['Meeting'] = [];
-        }
-
-        // Process completed hours
-        for (final entry in data) {
-          final hours = (entry['hours'] as num?)?.toDouble() ?? 0.0;
-          final eventType = entry['type'] as String;
-          final eventName = entry['event_name'] as String? ?? 'Unknown Event';
-          final dateString = entry['date'] as String?;
-          final DateTime date =
-              dateString != null ? DateTime.parse(dateString) : DateTime.now();
-
-          if (completedHoursMap.containsKey(eventType)) {
-            completedHoursMap[eventType] =
-                completedHoursMap[eventType]! + hours;
-            potentialHoursMap[eventType] =
-                potentialHoursMap[eventType]! + hours;
-
-            // Also store the individual hour entries
-            hoursByTypeMap[eventType]!.add(CompletedHour(
-              title: eventName,
-              date: date,
-              hours: hours,
-            ));
-          }
-        }
-
-        // Process potential hours from upcoming events
-        for (final event in _events) {
-          for (final timeSlot in event.timeSlots) {
-            final isSignedUp =
-                timeSlot.attendees.any((attendee) => attendee.userId == userId);
-            final isNotPresent = timeSlot.attendees.any(
-                (attendee) => attendee.userId == userId && !attendee.isPresent);
-
-            if (isSignedUp && isNotPresent) {
-              final duration = NhsFormatUtils.calculateDuration(
-                  timeSlot.time, timeSlot.endTime);
-
-              if (potentialHoursMap.containsKey(event.type)) {
-                potentialHoursMap[event.type] =
-                    potentialHoursMap[event.type]! + duration;
-              }
-            }
-          }
-        }
+        final completedHoursMap = summary.completedByType;
+        final potentialHoursMap = summary.potentialByType;
 
         if (mounted) {
           setState(() {
@@ -509,7 +462,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> _fetchContinuousEvents() async {
     final society =
         Provider.of<SocietyProvider>(context, listen: false).currentSociety;
-    final userId = Supabase.instance.client.auth.currentUser?.id;
+    final userId = supabase.auth.currentUser?.id;
     if (society == null || userId == null) {
       if (mounted) {
         setState(() {
@@ -521,7 +474,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     try {
-      final eventRows = await Supabase.instance.client
+      final eventRows = await supabase
           .from('continuous_events')
           .select()
           .eq('society_id', society.id)
@@ -534,7 +487,7 @@ class _HomePageState extends State<HomePage> {
 
       Map<int, ContinuousEventSubmission> latest = {};
       if (events.isNotEmpty) {
-        final subRows = await Supabase.instance.client
+        final subRows = await supabase
             .from('continuous_event_submissions')
             .select()
             .eq('user_id', userId)
@@ -914,7 +867,7 @@ class _HomePageState extends State<HomePage> {
         return;
       }
 
-      final response = await Supabase.instance.client
+      final response = await supabase
           .from('Collections')
           .select('*')
           .eq('society_id', society.id);
@@ -951,8 +904,14 @@ class _HomePageState extends State<HomePage> {
 
     // First add all the hour requirements in more compact cards
     _requirementMap.forEach((type, hoursNeeded) {
-      final completedHours = _completedHoursMap[type] ?? 0.0;
-      final potentialHours = _potentialHoursMap[type] ?? 0.0;
+      // summariseHours keys both maps with normalizeType, while _requirementMap
+      // keys on the raw `hour_requirements.type` string. Look up normalized or a
+      // requirement stored as "service" reads 0 completed hours off a bucket
+      // that is really called "Service". The raw string is still what the bar is
+      // labelled with, since that is what the admin typed.
+      final key = normalizeType(type);
+      final completedHours = _completedHoursMap[key] ?? 0.0;
+      final potentialHours = _potentialHoursMap[key] ?? 0.0;
 
       progressBars.add(buildDoubleProgressBar(
           context, type, completedHours, potentialHours, hoursNeeded.floor()));
@@ -961,7 +920,7 @@ class _HomePageState extends State<HomePage> {
     // Then add the special meeting requirement
     final meetingHours = _completedHoursMap['Meeting'] ?? 0.0;
     final meetingsLeft =
-        _events.where((event) => event.type == 'Meeting').length;
+        _events.where((e) => normalizeType(e.type) == 'Meeting').length;
     progressBars.add(buildMeetingProgressBar(
         context, meetingHours, _meetingRequirement,
         meetingsLeft: meetingsLeft));
@@ -1700,7 +1659,7 @@ class _HomePageState extends State<HomePage> {
     final currentUserId = supabase.auth.currentUser?.id;
     if (currentUserId == null) return false;
 
-    final pendingSwaps = await Supabase.instance.client
+    final pendingSwaps = await supabase
         .from('swap_requests')
         .select()
         .eq('event_id', eventId)
@@ -1726,7 +1685,7 @@ class _HomePageState extends State<HomePage> {
     if (currentUserId == null) return;
 
     try {
-      await Supabase.instance.client.from('swap_requests').insert({
+      await supabase.from('swap_requests').insert({
         'event_id': event.id,
         'timeslot_id': timeSlot.id,
         'requester_id': currentUserId,
@@ -1754,7 +1713,7 @@ class _HomePageState extends State<HomePage> {
         Provider.of<SocietyProvider>(context, listen: false).currentSociety;
     if (society == null) return [];
 
-    final response = await Supabase.instance.client
+    final response = await supabase
         .from('user_society_memberships')
         .select('profiles!inner(user_id, name)')
         .eq('society_id', society.id)
@@ -1913,7 +1872,7 @@ class _HomePageState extends State<HomePage> {
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId != null) {
-        await Supabase.instance.client
+        await supabase
             .from('Attendees')
             .update({'forms_completed': completed})
             .eq('user_id', userId)
@@ -2165,13 +2124,13 @@ class _HomePageState extends State<HomePage> {
       if (userId != null) {
         final society =
             Provider.of<SocietyProvider>(context, listen: false).currentSociety;
-        await Supabase.instance.client
+        await supabase
             .from('Attendees')
             .delete()
             .eq('timeslot_id', timeSlot?.id ?? 0)
             .eq('user_id', userId);
 
-        await Supabase.instance.client
+        await supabase
             .from('Time slots')
             .update({'number_of_people': timeSlot.numberOfPeople + 1}).eq(
                 'id', timeSlot?.id ?? 0);
@@ -2279,15 +2238,16 @@ class _HomePageState extends State<HomePage> {
         }
         // Atomic signup — see supabase/migrations/.._signup_for_timeslot.sql.
         // Returns 'ok' | 'full' | 'already'.
-        final status = await Supabase.instance.client.rpc(
+        final status = await supabase.rpc(
           'signup_for_timeslot',
           params: {
             'p_timeslot_id': timeSlot.id,
             'p_user_id': userId,
           },
-        ) as String?;
+        );
 
-        if (status == 'ok') {
+        final outcome = signupOutcomeFrom(status);
+        if (outcome == SignupOutcome.ok) {
           await logactivity(
             event.name,
             '${timeSlot.time.format(context)} - ${timeSlot.endTime.format(context)}',
@@ -2312,17 +2272,16 @@ class _HomePageState extends State<HomePage> {
             );
           }
           _fetchEvents();
-        } else if (status == 'full') {
-          hapticsProvider.error();
-          if (mounted) {
+        } else {
+          // Covers 'full', 'already', and anything unrecognised. The previous
+          // if/else chain matched only the three documented values, so a null
+          // or a status added server-side left the user with no feedback and
+          // no signup.
+          if (outcome == SignupOutcome.full) hapticsProvider.error();
+          final message = signupMessageFor(outcome);
+          if (mounted && message != null) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('This time slot is now full.')),
-            );
-          }
-        } else if (status == 'already') {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("You're already signed up for this slot.")),
+              SnackBar(content: Text(message)),
             );
           }
         }
@@ -2377,7 +2336,7 @@ class _HomePageState extends State<HomePage> {
     final currentUserId = supabase.auth.currentUser?.id;
     if (currentUserId == null) return;
 
-    final swapRequests = await Supabase.instance.client
+    final swapRequests = await supabase
         .from('swap_requests')
         .select(
             '*, Events!swap_requests_event_id_fkey(*), profiles!swap_requests_requester_id_fkey(*), "Time slots"!swap_requests_timeslot_id_fkey(start_time, end_time)')
@@ -2391,7 +2350,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<bool> _isAlreadySignedUp(SwapRequest swapRequest) async {
-    final response = await Supabase.instance.client
+    final response = await supabase
         .from('Time slots')
         .select('*, Attendees(*)')
         .eq('id', swapRequest.timeSlotId)
@@ -2405,7 +2364,7 @@ class _HomePageState extends State<HomePage> {
 
   void _declineSwapRequest(SwapRequest swapRequest) async {
     try {
-      await Supabase.instance.client
+      await supabase
           .from('swap_requests')
           .update({'status': 'declined'}).eq('id', swapRequest.id);
 
@@ -2424,7 +2383,7 @@ class _HomePageState extends State<HomePage> {
     final hapticsProvider =
         Provider.of<HapticsProvider>(context, listen: false);
     try {
-      await Supabase.instance.client
+      await supabase
           .from('swap_requests')
           .update({'status': 'accepted'}).eq('id', swapRequest.id);
 
@@ -2471,14 +2430,14 @@ class _HomePageState extends State<HomePage> {
       final society =
           Provider.of<SocietyProvider>(context, listen: false).currentSociety;
       // Remove the current attendee
-      await Supabase.instance.client
+      await supabase
           .from('Attendees')
           .delete()
           .eq('user_id', currentAttendeeId)
           .eq('timeslot_id', timeSlotId);
 
       // Add the new attendee
-      await Supabase.instance.client.from('Attendees').insert({
+      await supabase.from('Attendees').insert({
         'user_id': newAttendeeId,
         'timeslot_id': timeSlotId,
         'is_present': false,
@@ -2509,7 +2468,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> _respondToSwapRequest(SwapRequest request, bool accepted) async {
     try {
       // Update the swap request status
-      await Supabase.instance.client.from('swap_requests').update(
+      await supabase.from('swap_requests').update(
           {'status': accepted ? 'accepted' : 'denied'}).eq('id', request.id);
 
       if (accepted) {
@@ -2536,14 +2495,14 @@ class _HomePageState extends State<HomePage> {
     if (currentUserId == null) return;
 
     // Remove the requester from the event
-    await Supabase.instance.client
+    await supabase
         .from('Attendees')
         .delete()
         .eq('timeslot_id', request.timeSlotId)
         .eq('user_id', request.requesterId);
 
     // Add the target (current user) to the event
-    await Supabase.instance.client.from('Attendees').insert({
+    await supabase.from('Attendees').insert({
       'timeslot_id': request.timeSlotId,
       'user_id': currentUserId,
       'is_present': false,
